@@ -32,7 +32,7 @@ aspects, like the order of choices in the set monad, are not observable.
 
 The simple version of the implementation of `share` works by keeping evaluated in
 a local store. The store can be different for non-deterministic branches and is
-used query if a demanded expression has already been evaluated. If this is the
+used to query if a demanded expression has already been evaluated. If this is the
 case, the cached result is returned. Otherwise, the expression is evaluated and
 added to the store. To implement deep sharing, the `share` operation has to
 traverse the arguments recursively and apply `share` to each of them.
