@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module HO where
 import           Prelude                 hiding ( (||)
@@ -117,20 +118,18 @@ pattern Cutfail <- (project -> Just (Lift Cutfail'))
 cutfail :: (HCut ⊂ sig) => Prog sig a
 cutfail = inject $ Lift Cutfail'
 
-call :: (HNondet ⊂ sig) => Prog (HCut + sig) a -> Prog sig (Identity a)
+call :: forall sig a. (Syntax sig, HNondet ⊂ sig) => Prog (HCut + sig) a -> Prog sig (Identity a)
 call p = go p fail
   where
-    go :: (HNondet ⊂ sig) => Prog (HCut + sig) a -> Prog sig a -> Prog sig (Identity a)
+    go :: Prog (HCut + sig) a -> Prog sig a -> Prog sig (Identity a)
     go (Return a ) q = fmap Identity $ return a || q
     go (Fail     ) q = fmap Identity $ q
     go (Cutfail  ) q = fmap Identity $ fail
     go (p1 :|| p2) q = go p1 (fmap runIdentity $ go p2 q)
-    -- go (Other op ) q = Op (handle (Identity ()) (hdl q) op)
+    go (Other op ) q = Op (handle (Identity ()) hdl op)
       where
-        hdl :: (HNondet ⊂ sig, Syntax sig)
-               => (forall x. Prog sig x -> Identity (Prog (HCut + sig) x)
-                    -> Prog sig (Identity x))
-        hdl q imx = go (runIdentity imx) q
+        hdl :: (forall x. Identity (Prog (HCut + sig) x) -> Prog sig (Identity x))
+        hdl imx = call (runIdentity imx)
 
 cut :: (HNondet ⊂ sig, HCut ⊂ sig) => Prog sig ()
 cut = skip || cutfail
@@ -154,11 +153,14 @@ type HVoid = Lift Void
 run :: Prog HVoid a -> a
 run (Return x) = x
 
-solutions :: (Syntax sig) => Prog (HNondet + sig) a -> Prog sig [a]
+solutions :: forall sig a. (Syntax sig) => Prog (HNondet + sig) a -> Prog sig [a]
 solutions (Return a) = return [a]
 solutions Fail       = return []
 solutions (p :|| q ) = liftM2 (++) (solutions p) (solutions q)
--- solutions (Other op) = Op (emap solutions op)
+solutions (Other op) = Op (handle [()] hdl op)
+  where hdl :: (forall x. [Prog (HNondet + sig) x] -> Prog sig [x])
+        hdl []     = return []
+        hdl (p:ps) = liftM2 (++) (solutions p) (hdl ps)
 
 e3 :: [[Int]]
 e3 = (run . solutions . once) (knapsack' 3 [3, 2, 1])
