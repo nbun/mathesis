@@ -40,3 +40,15 @@ ecatch (BCatch p q) = do r <- upcast (runExc (ecatch p))
                          (ecatch . either q id) r
 -- ecatch (ECatch p) = return p
 ecatch (Other op) = Op (fmap ecatch op)
+
+--                                                    is missing in the paper
+--                                                    |
+--                                                    v
+tripleDecr' :: (State Int ⊂ sig, Exc () ⊂ sig, Catch () ⊂ sig) => Prog sig ()
+tripleDecr' = decr >> catch (decr >> decr) return
+
+e8 :: Either () (Int, ())
+e8 = (run . runCatch . runState 2) tripleDecr' -- Evaluates to Right (0,()), should be Right (1, ())
+
+e9 :: (Int, Either () ())
+e9 = (run . runState 2 . runCatch) tripleDecr'
