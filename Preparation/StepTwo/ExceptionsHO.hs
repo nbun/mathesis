@@ -1,16 +1,15 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE GADTs #-}
-
+{-# LANGUAGE DeriveFunctor             #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE PatternSynonyms           #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE ViewPatterns              #-}
 module ExceptionsHO where
 
-import Prelude hiding (fail, (||))
-import Code (State(..))
-import HO
+import           Code    (State (..))
+import           HO
+import           Prelude hiding (fail, (||))
 
 -- HState
 ---------
@@ -28,10 +27,9 @@ put s = inject (Lift (Put' s (return ())))
 
 runState :: Syntax sig => s -> Prog (HState s + sig) a -> Prog sig (s, a)
 runState s (Return a) = return (s, a)
-runState s (Get k) = runState s (k s)
+runState s (Get k)    = runState s (k s)
 runState s (Put s' k) = runState s' k
 runState s (Other op) = Op (handle (s, ()) (uncurry runState) op)
-
 
 -- HExc
 -------
@@ -39,15 +37,15 @@ data HExc e m a = Throw' e
                 | forall x . Catch' (m x) (e -> m x) (x -> m a)
 
 instance Functor m => Functor (HExc e m) where
-  fmap f (Throw' e) = Throw' e
+  fmap f (Throw' e)     = Throw' e
   fmap f (Catch' p h k) = Catch' p h (fmap f . k)
 
 instance HFunctor (HExc e) where
-  hmap t (Throw' x) = Throw' x
+  hmap t (Throw' x)     = Throw' x
   hmap t (Catch' p h k) = Catch' (t p) (t . h) (t . k)
 
 instance Syntax (HExc e) where
-  emap f (Throw' e) = Throw' e
+  emap f (Throw' e)     = Throw' e
   emap f (Catch' p h k) = Catch' p h (f . k)
 
   handle c hdl (Throw' x) = Throw' x
@@ -73,7 +71,7 @@ runExc (Catch p h k) =
      case r of
        Left e -> do r <- runExc (h e)
                     case r of
-                      Left e -> return (Left e)
+                      Left e  -> return (Left e)
                       Right a -> runExc (k a)
        Right a -> runExc (k a)
 

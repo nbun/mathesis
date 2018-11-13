@@ -1,29 +1,25 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module HO where
-import           Prelude                 hiding ( (||)
-                                                , fail
-                                                )
-import           Control.Monad                  ( liftM2
-                                                , ap
-                                                )
+import           Control.Monad          (ap, liftM2)
 import           Control.Monad.Identity hiding (fail)
+import           Prelude                hiding (fail, (||))
 
 data Prog sig a = Return a | Op (sig (Prog sig) a)
 
 instance Syntax sig => Functor (Prog sig) where
   fmap f (Return x) = Return (f x)
-  fmap f (Op op) = Op (emap (fmap f) op)
+  fmap f (Op op)    = Op (emap (fmap f) op)
 
 instance Syntax sig => Applicative (Prog sig) where
   pure = return
@@ -61,7 +57,7 @@ instance {-# OVERLAPPING #-} (Syntax sig1, Syntax sig2) => sig1 ⊂ (sig1 + sig2
 instance {-# OVERLAPPABLE #-} (Syntax sig1, sig ⊂ sig2) => sig ⊂ (sig1 + sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
-  prj _ = Nothing
+  prj _        = Nothing
 
 instance (HFunctor sig1 , HFunctor sig2 ) => HFunctor (sig1 + sig2) where
   hmap t (Inl op) = Inl (hmap t op)
@@ -118,7 +114,8 @@ pattern Cutfail <- (project -> Just (Lift Cutfail'))
 cutfail :: (HCut ⊂ sig) => Prog sig a
 cutfail = inject $ Lift Cutfail'
 
-call :: forall sig a. (Syntax sig, HNondet ⊂ sig) => Prog (HCut + sig) a -> Prog sig (Identity a)
+call :: forall sig a. (Syntax sig, HNondet ⊂ sig) => Prog (HCut + sig) a
+     -> Prog sig (Identity a)
 call p = go p fail
   where
     go :: Prog (HCut + sig) a -> Prog sig a -> Prog sig (Identity a)
@@ -127,9 +124,9 @@ call p = go p fail
     go (Cutfail  ) q = fmap Identity $ fail
     go (p1 :|| p2) q = go p1 (fmap runIdentity $ go p2 q)
     go (Other op ) q = Op (handle (Identity ()) hdl op)
-      where
-        hdl :: (forall x. Identity (Prog (HCut + sig) x) -> Prog sig (Identity x))
-        hdl imx = call (runIdentity imx)
+
+    hdl :: (forall x. Identity (Prog (HCut + sig) x) -> Prog sig (Identity x))
+    hdl imx = call (runIdentity imx)
 
 cut :: (HNondet ⊂ sig, HCut ⊂ sig) => Prog sig ()
 cut = skip || cutfail
@@ -153,7 +150,8 @@ type HVoid = Lift Void
 run :: Prog HVoid a -> a
 run (Return x) = x
 
-solutions :: forall sig a. (Syntax sig) => Prog (HNondet + sig) a -> Prog sig [a]
+solutions :: forall sig a. (Syntax sig) => Prog (HNondet + sig) a
+          -> Prog sig [a]
 solutions (Return a) = return [a]
 solutions Fail       = return []
 solutions (p :|| q ) = liftM2 (++) (solutions p) (solutions q)
@@ -176,4 +174,3 @@ knapsack' w vs
 
 select' :: (HNondet ⊂ sig) => [a] -> Prog sig a
 select' = foldr (||) fail . map return
-

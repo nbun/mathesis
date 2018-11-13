@@ -1,14 +1,14 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module Exceptions where
 
-import Prelude hiding (fail, (||))
-import Code
+import           Code
+import           Prelude hiding (fail, (||))
 
 data Exc e cnt = Throw' e
   deriving Functor
@@ -20,13 +20,13 @@ throw e = inject (Throw' e)
 
 runExc :: Functor sig => Prog (Exc e + sig) a -> Prog sig (Either e a)
 runExc (Return x) = return (Right x)
-runExc (Throw e) = return (Left e)
+runExc (Throw e)  = return (Left e)
 runExc (Other op) = Op (fmap runExc op)
 
 catch :: (Exc e ⊂ sig) => Prog sig a -> (e -> Prog sig a) -> Prog sig a
 catch (Return x) h = return x
-catch (Throw e) h = h e
-catch (Op op) h = Op (fmap (\p -> catch p h) op)
+catch (Throw e) h  = h e
+catch (Op op) h    = Op (fmap (\p -> catch p h) op)
 
 tripleDecr :: (State Int ⊂ sig, Exc () ⊂ sig) => Prog sig ()
 tripleDecr = decr >> catch (decr >> decr) return

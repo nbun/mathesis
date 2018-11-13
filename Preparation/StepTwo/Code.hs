@@ -1,19 +1,15 @@
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Code where
-import           Prelude                 hiding ( (||)
-                                                , fail
-                                                )
-import           Control.Monad                  ( liftM2
-                                                , ap
-                                                )
+import           Control.Monad (ap, liftM2)
+import           Prelude       hiding (fail, (||))
 
 data Backtr a = BReturn a
               | BFail
@@ -75,15 +71,17 @@ instance Functor sig => sig ⊂ sig where
   inj = id
   prj = Just
 
-instance {-# OVERLAPPING #-} (Functor sig1, Functor sig2) => sig1 ⊂ (sig1 + sig2) where
+instance {-# OVERLAPPING #-}
+  (Functor sig1, Functor sig2) => sig1 ⊂ (sig1 + sig2) where
   inj = Inl
   prj (Inl fa) = Just fa
   prj _        = Nothing
 
-instance {-# OVERLAPPABLE #-} (Functor sig1, sig ⊂ sig2) => sig ⊂ (sig1 + sig2) where
+instance {-# OVERLAPPABLE #-}
+  (Functor sig1, sig ⊂ sig2) => sig ⊂ (sig1 + sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
-  prj _ = Nothing
+  prj _        = Nothing
 
 inject :: (sub ⊂ sup) => sub (Prog sup a) -> Prog sup a
 inject = Op . inj

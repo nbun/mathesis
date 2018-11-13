@@ -1,14 +1,14 @@
+{-# LANGUAGE DeriveFunctor    #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms  #-}
+{-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE ViewPatterns     #-}
 
 module Scoped where
 
-import Prelude hiding (fail, (||))
-import Code
-import Grammar
+import           Code
+import           Grammar
+import           Prelude hiding (fail, (||))
 
 data Call cnt = BCall' cnt | ECall' cnt
   deriving Functor
@@ -34,19 +34,20 @@ runCut p = call (bcall p)
 
 bcall :: (Nondet ⊂ sig) => Prog (Call + Cut + sig) a -> Prog (Cut + sig) a
 bcall (Return a) = return a
-bcall (BCall p) = upcast (call (ecall p)) >>= bcall
-bcall (ECall p) = error "Mismatched ECall!"
+bcall (BCall p)  = upcast (call (ecall p)) >>= bcall
+bcall (ECall p)  = error "Mismatched ECall!"
 bcall (Other op) = Op (fmap bcall op)
 
-ecall :: (Nondet ⊂ sig) => Prog (Call + Cut + sig) a -> Prog (Cut + sig) (Prog (Call + Cut + sig) a)
+ecall :: (Nondet ⊂ sig) => Prog (Call + Cut + sig) a
+      -> Prog (Cut + sig) (Prog (Call + Cut + sig) a)
 ecall (Return a) = return (Return a)
-ecall (BCall p) = upcast (call (ecall p)) >>= ecall
-ecall (ECall p) = return p
+ecall (BCall p)  = upcast (call (ecall p)) >>= ecall
+ecall (ECall p)  = return p
 ecall (Other op) = Op (fmap ecall op)
 
 upcast :: (Functor f , Functor sig) => Prog sig a -> Prog (f + sig) a
 upcast (Return x) = return x
-upcast (Op op) = Op (Inr (fmap upcast op))
+upcast (Op op)    = Op (Inr (fmap upcast op))
 
 e65 = (run . solutions . runCut) (once
  ((||) (return True) (return False) >>= \b -> cut >> return b))
@@ -60,7 +61,8 @@ e66 = (run . solutions . runCut) (once
 
 
 e661 = (run . solutions . runCut) (once
- (call' $ (||) (return True) (return False) >>= \b -> cut >> (return b || return b)))
+ (call' $
+  (||) (return True) (return False) >>= \b -> cut >> (return b || return b)))
 
 
 e662 = (run . solutions . runCut) (once
