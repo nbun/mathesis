@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TypeOperators #-}
@@ -26,29 +27,46 @@ catch' p h = begin (do x <- p; end; return x) h where
 runCatch :: (Functor sig) => Prog (Catch e + (Exc e + sig)) a -> Prog sig (Either e a)
 runCatch p = runExc (bcatch p)
 
-bcatch :: (Functor sig) => Prog (Catch e + (Exc e + sig)) a -> Prog (Exc e + sig) a
+bcatch :: forall sig e a. (Functor sig) => Prog (Catch e + (Exc e + sig)) a -> Prog (Exc e + sig) a
 bcatch (Return a) = return a
 bcatch (BCatch p q) = do r <- upcast (runExc (ecatch p))
                          (bcatch . either q id) r
--- bcatch (ECatch p) = error "Mismatched ECatch!"
+-- bcatch (Other op) = Op (fmap bcatch op)
+bcatch p | Just (ECatch' p :: Catch e (Prog (Catch e1 + (Exc e1 + sig)) a ))
+           <- project p = error "bla"
 bcatch (Other op) = Op (fmap bcatch op)
 
-ecatch :: (Functor sig) => Prog (Catch e + (Exc e + sig)) a
+------------------------------------------
+ecatch :: forall sig e a. (Functor sig) => Prog (Catch e + (Exc e + sig)) a
        -> Prog (Exc e + sig) (Prog (Catch e + (Exc e + sig)) a)
 ecatch (Return a) = return (Return a)
 ecatch (BCatch p q) = do r <- upcast (runExc (ecatch p))
                          (ecatch . either q id) r
 -- ecatch (ECatch p) = return p
+ecatch p | Just (ECatch' p :: Catch e (Prog (Catch e1 + (Exc e1 + sig)) a ))
+           <- project p = return p
 ecatch (Other op) = Op (fmap ecatch op)
 
 --                                                    is missing in the paper
 --                                                    |
 --                                                    v
 tripleDecr' :: (State Int ⊂ sig, Exc () ⊂ sig, Catch () ⊂ sig) => Prog sig ()
-tripleDecr' = decr >> catch (decr >> decr) return
+tripleDecr' = decr >> catch' (decr >> decr) return
 
 e8 :: Either () (Int, ())
 e8 = (run . runCatch . runState 2) tripleDecr' -- Evaluates to Right (0,()), should be Right (1, ())
 
 e9 :: (Int, Either () ())
 e9 = (run . runState 2 . runCatch) tripleDecr'
+
+e10 :: Either () (Int, ())
+e10 = (run . runCatch . runState 0) (put (42 :: Int) >> return ())
+
+e11 :: Either () (Int, ())
+e11 = (run . runCatch . runState 0) (throw ())
+
+-- e12 :: Either () (Int, ())
+-- e12 = (run . runCatch . runState 0) test
+
+-- test :: (State Int ⊂ sig, Exc () ⊂ sig, Catch () ⊂ sig) => Prog sig ()
+-- test = (catch (throw ()) (\(e :: ()) -> put (42 :: Int) >> return ()))

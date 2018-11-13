@@ -47,3 +47,22 @@ ecall (Other op) = Op (fmap ecall op)
 upcast :: (Functor f , Functor sig) => Prog sig a -> Prog (f + sig) a
 upcast (Return x) = return x
 upcast (Op op) = Op (Inr (fmap upcast op))
+
+e65 = (run . solutions . runCut) (once
+ ((||) (return True) (return False) >>= \b -> cut >> return b))
+
+e651 = (run . solutions . runCut) (once
+ (call' $ (||) (return True) (return False) >>= \b -> cut >> return b))
+
+
+e66 = (run . solutions . runCut) (once
+ ((||) (return True) (return False) >>= \b -> cut >> (return b || return b)))
+
+
+e661 = (run . solutions . runCut) (once
+ (call' $ (||) (return True) (return False) >>= \b -> cut >> (return b || return b)))
+
+
+e662 = (run . solutions . runCut) (once
+ (call' $ (||) (return True) (return False) >>= \b -> cut >> (return b))
+ >>= \b -> return b)
