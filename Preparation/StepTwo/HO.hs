@@ -88,3 +88,14 @@ inject = Op . inj
 project :: (sub ⊂ sup) => Prog sup a -> Maybe (sub (Prog sup) a)
 project (Op s) = prj s
 project _      = Nothing
+
+data Void cnt
+  deriving Functor
+
+type HVoid = Lift Void
+
+run :: Prog HVoid a -> a
+run (Return x) = x
+
+pattern Other s = Op (Inr s)
+

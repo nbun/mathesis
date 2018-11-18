@@ -13,6 +13,7 @@
 module Once where
 
 import           Control.Monad.Identity hiding (fail)
+import           ExceptionsHO
 import           HO
 import           Prelude                hiding (fail, (||))
 
@@ -43,8 +44,6 @@ pattern p :|| q <- (project -> Just (p :|* q))
 
 (||) :: (HNondet ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject (p :|* q)
-
-pattern Other s = Op (Inr s)
 
 -- HCut
 -------
@@ -104,14 +103,6 @@ once p = fmap runIdentity . runCut $
        cut
        return x
 
-data Void cnt
-  deriving Functor
-
-type HVoid = Lift Void
-
-run :: Prog HVoid a -> a
-run (Return x) = x
-
 solutions :: forall sig a. (Syntax sig) => Prog (HNondet + sig) a
           -> Prog sig [a]
 solutions (Return a) = return [a]
@@ -140,14 +131,21 @@ select' = foldr (||) fail . map return
 coin :: (HNondet ⊂ sig) => Prog sig Bool
 coin = return True || return False
 
-e1 = (run . solutions . runCut) $
-  once $ do
+e10 = (run . solutions . runCut) $
+  call $ do
     b <- coin
     cut
     return b || return b
 
-e2 = (run . solutions . runCut) $ do
-  b <- (once $ do b <- coin
+e11 = (run . solutions . runCut) $ do
+  b <- (call $ do b <- coin
                   cut
                   return b)
   (return b || return b)
+
+e12 :: [(Int, Identity Int)]
+e12 = (run . solutions . runState 0 . runCut) $ do
+ call $ do
+  put (1 :: Int) || put (2 :: Int)
+  put (3 :: Int) || put (4 :: Int)
+  get

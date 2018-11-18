@@ -13,6 +13,7 @@
 module OnceV1 where
 import           Control.Monad          (ap, liftM2)
 import           Control.Monad.Identity hiding (fail)
+import           ExceptionsHO
 import           HO
 import           Prelude                hiding (fail, (||))
 
@@ -30,8 +31,6 @@ pattern p :|| q <- (project -> Just (Lift (p :|* q)))
 
 (||) :: (HNondet ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject $ Lift (p :|* q)
-
-pattern Other s = Op (Inr s)
 
 data Cut cnt = Cutfail'
   deriving Functor
@@ -71,14 +70,6 @@ once p = fmap runIdentity $ call
     return x
   )
 
-data Void cnt
-  deriving Functor
-
-type HVoid = Lift Void
-
-run :: Prog HVoid a -> a
-run (Return x) = x
-
 solutions :: forall sig a. (Syntax sig) => Prog (HNondet + sig) a
           -> Prog sig [a]
 solutions (Return a) = return [a]
@@ -103,3 +94,9 @@ knapsack' w vs
 
 select' :: (HNondet ⊂ sig) => [a] -> Prog sig a
 select' = foldr (||) fail . map return
+
+e12 :: [(Int, Identity Int)]
+e12 = (run . solutions . runState 0 . call) $ do
+  put (1 :: Int) || put (2 :: Int)
+  put (3 :: Int) || put (4 :: Int)
+  get
