@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveFunctor    #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternSynonyms  #-}
@@ -11,7 +13,7 @@ import           Grammar
 import           Prelude hiding (fail, (||))
 
 data Call cnt = BCall' cnt | ECall' cnt
-  deriving Functor
+  deriving (Functor, Show)
 
 pattern BCall p <- (project -> Just (BCall' p))
 pattern ECall p <- (project -> Just (ECall' p))
@@ -55,10 +57,8 @@ e65 = (run . solutions . runCut) (once
 e651 = (run . solutions . runCut) (once
  (call' $ (||) (return True) (return False) >>= \b -> cut >> return b))
 
-
 e66 = (run . solutions . runCut) (once
  ((||) (return True) (return False) >>= \b -> cut >> (return b || return b)))
-
 
 e661 = (run . solutions . runCut) (once
  (call' $
@@ -68,3 +68,17 @@ e661 = (run . solutions . runCut) (once
 e662 = (run . solutions . runCut) (once
  (call' $ (||) (return True) (return False) >>= \b -> cut >> (return b))
  >>= \b -> return b)
+
+p1 :: Prog (Call + Cut + Nondet + Void) Bool
+p1 = call' $ do
+  b <- return True || return False
+  cut
+  (return b || return b)
+
+deriving instance Show a => Show (Prog (Call + Cut + Nondet + Void) a)
+deriving instance Show a => Show (Prog (Cut + Nondet + Void) a)
+deriving instance Show a => Show (Prog (Nondet + Void) a)
+
+exp1 :: Prog (Cut + (Nondet + Void)) (Prog (Call + (Cut + (Nondet + Void))) Bool)
+
+exp1 = ecall (Op (Inr (Inr (Inl (Op (Inr (Inr (Inl (Op (Inr (Inr (Inl (Op (Inl (ECall' (Return True))) :|* Op (Inl (ECall' (Return True))))))) :|* Op (Inr (Inl Cutfail')))))) :|* Op (Inr (Inr (Inl (Op (Inr (Inr (Inl (Op (Inl (ECall' (Return False))) :|* Op (Inl (ECall' (Return False))))))) :|* Op (Inr (Inl Cutfail')))))))))))

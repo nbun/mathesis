@@ -149,3 +149,17 @@ e12 = (run . solutions . runState 0 . runCut) $ do
   put (1 :: Int) || put (2 :: Int)
   put (3 :: Int) || put (4 :: Int)
   get
+
+e13 :: [(Int, Identity Int)]
+e13 = (run . solutions . runState 0 . runCut) $ do
+ call $ do
+  b <- return (1 :: Int) || return (2 :: Int)
+  cut
+  return b || return b
+
+e14 :: [(Int, Identity Int)]
+e14 = (run . solutions . runState 0 . runCut) $ do
+ call $ do
+  fail || return (2 :: Int)
+  cut
+  return (42 :: Int)

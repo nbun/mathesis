@@ -46,12 +46,21 @@ allsols (p :| q)    = allsols p ++ allsols q
 data Prog sig a = Return a | Op (sig (Prog sig a))
   deriving Functor
 
+-- instance (Show a, Show (sig (Prog sig a))) => Show (Prog sig a) where
+--   show (Return x) = "(Return " ++ show x ++ ")"
+--   show (Op op) = show op
+
 instance Functor sig => Applicative (Prog sig) where
   pure = return
   (<*>) = ap
 
 data Nondet cnt = Fail' | cnt :|* cnt
-  deriving Functor
+  deriving (Functor, Show)
+infixr 5 :|*
+
+-- instance Show a => (Show (Nondet a)) where
+--   show Fail'     = "Fail'"
+--   show (x :|* y) = "(" ++ show x ++ " ? " ++ show y ++ ")"
 
 instance (Functor sig, Applicative (Prog sig)) => Monad (Prog sig) where
   return v = Return v
@@ -59,7 +68,25 @@ instance (Functor sig, Applicative (Prog sig)) => Monad (Prog sig) where
   Op op >>= prog = Op (fmap (>>= prog) op)
 
 data (sig1 + sig2) cnt = Inl (sig1 cnt) | Inr (sig2 cnt)
-  deriving Functor
+  deriving (Functor, Show)
+
+-- instance (Show (sig1 a), Show (sig2 a)) => (Show ((+) sig1 sig2 a)) where
+--   show (Inl x) = let r = show x
+--                  in if isPar r then r else par r
+--   show (Inr x) = let r = show x
+--                  in if isPar r then r else par r
+
+isPar :: String -> Bool
+isPar (c:cs) | c == '(' && last cs == ')' = True
+isPar _ = False
+
+par :: String -> String
+par s = "(" ++ s ++ ")"
+
+remPar :: String -> String
+remPar s = case (s, reverse s) of
+             ('(' : '(' : s', ')' : ')' : _) -> par (remPar s')
+             _ -> s
 
 infixr 0 +
 
@@ -102,6 +129,9 @@ p || q = inject (p :|* q)
 
 data Void cnt
   deriving Functor
+
+instance (Show (Void a)) where
+  show = undefined
 
 run :: Prog Void a -> a
 run (Return x) = x
@@ -173,7 +203,7 @@ e2 :: ([(Int, [Int])])
 e2 = (run . runLocal (0 :: Int) . choices) (knapsack' 3 [3, 2, 1])
 
 data Cut cnt = Cutfail'
-  deriving Functor
+  deriving (Functor, Show)
 
 pattern Cutfail <- (project -> Just Cutfail')
 
@@ -206,3 +236,4 @@ once p = call
 
 e3 :: [[Int]]
 e3 = (run . solutions . once) (knapsack' 3 [3, 2, 1])
+
