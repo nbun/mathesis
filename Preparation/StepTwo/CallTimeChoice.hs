@@ -46,27 +46,45 @@ runND cs (Choice (Just i) p q) = case lookup i cs of
                                      return (cs, xs ++ ys)
 runND cs (Other op) = Op (fmap (runND cs) op)
 
-data Share cnt = Share' cnt
+data Share cnt = BShare' cnt | EShare' cnt
   deriving (Functor, Show)
 
-pattern Share p <- (project -> Just (Share' p))
+pattern BShare p <- (project -> Just (BShare' p))
+pattern EShare p <- (project -> Just (EShare' p))
 
-share :: (Share ⊂ sig) => Prog sig a -> Prog sig a
-share p = inject (Share' p)
+share' :: (Share ⊂ sig) => Prog sig a -> Prog sig a
+share' p = do begin ; x <- p ; end ; return x
+  where
+    begin = inject (BShare' (return ()))
+    end   = inject (EShare' (return ()))
 
 runShare :: (Functor sig, ND ⊂ sig) => Int -> Prog (Share + sig) a -> (Prog sig a)
-runShare _ (Return a)     = return a
-runShare _ Fail           = fail
-runShare i (Choice m p q) = choiceID m (runShare (2 * i) p) (runShare (2 * i + 1) q)
-runShare i (Share p) = name p
-  where name (Return a)           = return a
-        name Fail                 = fail
-        name (Choice Nothing p q) = choiceID (Just i) (name p) (name q)
-        name (Other op)           = Op $ fmap name op
+runShare i p = bshare i p
+
+bshare :: (ND ⊂ sig) => Int -> Prog (Share + sig) a -> Prog sig a
+bshare _ (Return a) = return a
+bshare i (BShare p)  = eshare i p >>= bshare i
+bshare _ (EShare p)  = error "Mismatched Eshare!"
+bshare i (Other op) = Op (fmap (bshare i) op)
+
+eshare :: (ND ⊂ sig) => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
+eshare _ (Return a) = return (Return a)
+eshare i (BShare p)  = eshare i p
+eshare _ (EShare p)  = return p
+eshare _ Fail        = fail
+eshare i (Choice Nothing p q) = do
+  p' <- eshare (2 * i) p
+  q' <- eshare (2 * i + 1) q
+  return $ choiceID (Just i) p' q'
+eshare i (Choice (Just _) _ _) = error "Choice already shared!"
+eshare i (Other op) = Op (fmap (eshare i) op)
+
+deriving instance Show a => Show (Prog (Share + ND + Void) a)
+deriving instance Show a => Show (Prog (ND + Void) a)
 
 p :: Prog (Share + ND + Void) Bool
 p = do
-  b <- share (choice (return True) (return False))
+  b <- share' (choice (return True) (return False))
   choice (return b) (return b)
 
 e :: [Bool]
