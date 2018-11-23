@@ -78,10 +78,10 @@ share' p = do i <- get
     begin i = inject (BShare' i (return ()))
     end   i = inject (EShare' i (return ()))
 
-share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
-share p = do i <- get
-             put (i + 1)
-             return $ sharen' i p
+instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) where
+  share p = do i <- get
+               put (i + 1)
+               return $ sharen' i p
 
 sharen' :: (Share ⊂ sig) => Int -> Prog sig a -> Prog sig a
 sharen' n p = do begin n
@@ -154,6 +154,9 @@ instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
   mplus = choice
   mzero = fail
 
+class (MonadPlus m) => Sharing m where
+  share :: m a -> m (m a)
+
 example1, example2 :: MonadPlus m => m Bool
 example1 = coin
 example2 = mplus coin coin
@@ -211,7 +214,7 @@ exOrShareNested  = share coin >>= \fx ->
                                orM fy (orM fx fy))
 
 exFailed, exSkipIds, exLoop, exLoop2, exRepeatedShare, exShareIgnoreShare
-  :: Prog (State Int + Share + ND + Void) Bool
+  :: (Monad m, Sharing m) => m Bool
 exFailed  = share (mzero :: MonadPlus m => m Bool) >>= \fx -> const (return True) fx
 exSkipIds = share coin >>= \fx -> const coin (const fx fx)
 exLoop  = let loop :: m ()
@@ -221,3 +224,21 @@ exLoop2 = let loop :: m ()
 exRepeatedShare = share coin >>= \fx -> share fx >>= \fy -> orM fy fy
 exShareIgnoreShare =
   share coin >>= \fx -> const (return True) (share fx >>= \fy -> orM fy fy)
+
+data PairM m a = PairM (m a) (m a)
+
+pairM :: Monad m => m a -> m a -> m (PairM m a)
+pairM fx fy = return $ PairM fx fy
+
+dup :: Monad m => m a -> m (PairM m a)
+dup fx = pairM fx fx
+
+dupShare :: (Monad m, Sharing m) => m a -> m (PairM m a)
+dupShare fx = share fx >>= \fx' -> dup fx'
+
+exDup :: (MonadPlus m) => m (PairM m Bool)
+exDup = dup coin
+
+exDupShare :: (MonadPlus m, Sharing m) => m (PairM m Bool)
+exDupShare = dupShare coin
+
