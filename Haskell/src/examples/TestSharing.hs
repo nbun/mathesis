@@ -14,7 +14,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           ScopeShareIORef
+import           CallTimeChoice
 
 example1 :: MonadPlus m => m Bool
 example1 = coin

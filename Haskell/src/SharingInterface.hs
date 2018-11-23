@@ -17,7 +17,7 @@ import Tree
 ----------------------------
 
 class MonadPlus s => Sharing (s :: * -> *) where
-    share :: Shareable s a => s a -> s (s a)
+    share :: {-Shareable s a => -} s a -> s (s a)
 
 class AllValues (s :: * -> *) where
     allValues :: (Normalform s a b) => s a -> Tree b
