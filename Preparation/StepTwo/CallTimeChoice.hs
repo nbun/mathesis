@@ -79,12 +79,12 @@ share' p = do i <- get
     end   i = inject (EShare' i (return ()))
 
 share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
-share = return . share'
+share p = do i <- get
+             put (i + 1)
+             return $ sharen' i p
 
-sharen' :: (Share ⊂ sig, State Int ⊂ sig) => Int -> Prog sig a -> Prog sig a
-sharen' n p = do i <- get
-                 put (i + (1 :: Int))
-                 begin n
+sharen' :: (Share ⊂ sig) => Int -> Prog sig a -> Prog sig a
+sharen' n p = do begin n
                  x <- p
                  end n
                  return x
@@ -110,8 +110,9 @@ eshare :: (ND ⊂ sig)
        => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
 eshare _ (Return a) = return (Return a)
 eshare _ (BShare i p)  = eshare i p
-eshare _ (EShare _ p)  = return p
-eshare _ Fail        = fail
+eshare i (EShare j p)  | i == j = return p
+                       | otherwise = eshare (i-1) p
+eshare _ Fail          = fail
 eshare i (Choice Nothing p q) = do
   p' <- eshare (2 * i) p
   q' <- eshare (2 * i + 1) q
@@ -190,7 +191,8 @@ exOr7b = share coin >>= \fx -> orM (return False) (orM fx fx)
 
 
 exShareConst, exShareConstOrR, exShareConstOrL, exShareConstOrR2, exOrShareShare,
-  exOrShareShare2, exOrShareNested :: Prog (State Int + Share + ND + Void) Bool
+  exOrShareShare2, exOrShareShare3, exOrShareNested,
+  exOrShareId :: Prog (State Int + Share + ND + Void) Bool
 exShareConst     = share coin >>= \fx -> const fx fx
 exShareConstOrR  = share coin >>= \fx -> orM fx (const fx fx)
 exShareConstOrL  = share coin >>= \fx -> orM (const fx fx) fx
@@ -198,9 +200,11 @@ exShareConstOrR2 = share coin >>= \fx -> orM (return True) (const fx fx)
 exOrShareShare   = share coin >>= \fx ->
                    share coin >>= \fy ->
                    orM fx (orM fy (orM fx fy))
-exOrShareShare2  = sharen 1 coin >>= \fx ->
-                   sharen 2 coin >>= \fy ->
-                   orM fx (orM fy (orM fx fy))
+exOrShareShare2  = share (coin `mplus` coin) >>= \fx ->
+                   orM fx fx
+exOrShareShare3= share (coin `mplus` coin `mplus` coin `mplus` coin) >>= \fx ->
+                   orM fx fx
+exOrShareId      = share coin >>= id
 
 exOrShareNested  = share coin >>= \fx ->
                    orM fx (share coin >>= \fy ->
