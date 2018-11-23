@@ -1,43 +1,28 @@
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE PatternSynonyms    #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeOperators      #-}
-{-# LANGUAGE ViewPatterns       #-}
+{-# LANGUAGE DeriveFunctor        #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternSynonyms      #-}
+{-# LANGUAGE StandaloneDeriving   #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module CallTimeChoice where
 import           Code                hiding (Fail, Nondet (..), fail)
 import           Prelude             hiding (fail)
+import           Tree
 
 import           Control.Applicative (Alternative (..))
 import           Control.Monad       (MonadPlus (..), liftM2)
 
-data Tree a = F
-            | L a
-            | C (Maybe Int) (Tree a) (Tree a)
-  deriving Show
-
-class Pretty a where
-  pretty :: a -> String
-  pretty' :: a -> Int -> String
-
-instance Pretty Bool where
-  pretty = show
-
-instance Pretty a => Pretty (Tree a) where
-  pretty t = pretty' t 0
-   where
-    pretty' F _ = "_|_"
-    pretty' (L x) _ = pretty x
-    pretty' (C n t1 t2) wsp =
-      show n ++ "\n" ++ replicate wsp ' ' ++ "|---- " ++ pretty' t1 (wsp+6)
-             ++ "\n" ++ replicate wsp ' ' ++ "|---- " ++ pretty' t2 (wsp+6)
 
 toTree :: Prog (ND + Void) a -> Tree a
 toTree Fail               = F
 toTree (Choice mID t1 t2) = C mID (toTree t1) (toTree t2)
 toTree (Return x)         = L x
+
+-- Nondeterminism
+-----------------
 
 data ND cnt = Fail' | Choice' (Maybe Int) cnt cnt
   deriving (Functor, Show)
@@ -73,35 +58,59 @@ runND cs (Choice (Just i) p q) = case lookup i cs of
                                      return (cs, xs ++ ys)
 runND cs (Other op) = Op (fmap (runND cs) op)
 
-data Share cnt = BShare' cnt | EShare' cnt
+-- Sharing
+----------
+
+data Share cnt = BShare' Int cnt | EShare' Int cnt
   deriving (Functor, Show)
 
-pattern BShare p <- (project -> Just (BShare' p))
-pattern EShare p <- (project -> Just (EShare' p))
+pattern BShare i p <- (project -> Just (BShare' i p))
+pattern EShare i p <- (project -> Just (EShare' i p))
 
-share' :: (Share ⊂ sig) => Prog sig a -> Prog sig a
-share' p = do begin ; x <- p ; end ; return x
+share' :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig a
+share' p = do i <- get
+              put (i + 1)
+              begin i
+              x <- p
+              end i
+              return x
   where
-    begin = inject (BShare' (return ()))
-    end   = inject (EShare' (return ()))
+    begin i = inject (BShare' i (return ()))
+    end   i = inject (EShare' i (return ()))
 
-share :: (Share ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
+share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
 share = return . share'
 
+sharen' :: (Share ⊂ sig, State Int ⊂ sig) => Int -> Prog sig a -> Prog sig a
+sharen' n p = do i <- get
+                 put (i + (1 :: Int))
+                 begin n
+                 x <- p
+                 end n
+                 return x
+  where
+    begin i = inject (BShare' i (return ()))
+    end   i = inject (EShare' i (return ()))
 
-runShare :: (Functor sig, ND ⊂ sig) => Int -> Prog (Share + sig) a -> (Prog sig a)
-runShare i p = bshare i p
+sharen :: (Share ⊂ sig, State Int ⊂ sig) => Int -> Prog sig a -> Prog sig (Prog sig a)
+sharen n = return . sharen' n
 
-bshare :: (ND ⊂ sig) => Int -> Prog (Share + sig) a -> Prog sig a
-bshare _ (Return a) = return a
-bshare i (BShare p) = eshare i p >>= bshare i
-bshare _ (EShare p) = error "Mismatched Eshare!"
-bshare i (Other op) = Op (fmap (bshare i) op)
+runShare :: (Functor sig, ND ⊂ sig)
+         => Int -> Prog (Share + sig) a -> (Prog sig a)
+runShare = bshare
 
-eshare :: (ND ⊂ sig) => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
+bshare :: (ND ⊂ sig)
+       => Int -> Prog (Share + sig) a -> Prog sig a
+bshare _ (Return a)   = return a
+bshare _ (BShare i p) = eshare i p >>= bshare i
+bshare _ (EShare _ p) = error "Mismatched Eshare!"
+bshare i (Other op)   = Op (fmap (bshare i) op)
+
+eshare :: (ND ⊂ sig)
+       => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
 eshare _ (Return a) = return (Return a)
-eshare i (BShare p)  = eshare i p
-eshare _ (EShare p)  = return p
+eshare _ (BShare i p)  = eshare i p
+eshare _ (EShare _ p)  = return p
 eshare _ Fail        = fail
 eshare i (Choice Nothing p q) = do
   p' <- eshare (2 * i) p
@@ -109,6 +118,9 @@ eshare i (Choice Nothing p q) = do
   return $ choiceID (Just i) p' q'
 eshare i (Choice (Just _) _ _) = error "Choice already shared!"
 eshare i (Other op) = Op (fmap (eshare i) op)
+
+-- Examples
+-----------
 
 deriving instance Show a => Show (Prog (Share + ND + Void) a)
 deriving instance Show a => Show (Prog (ND + Void) a)
@@ -127,104 +139,81 @@ orM fb1 fb2 = fb1 >>= \b1 -> case b1 of
 coin :: MonadPlus m => m Bool
 coin = return True `mplus` return False
 
-p :: Prog (Share + ND + Void) Bool
-p = do
-  b <- share' (choice (return True) (return False))
-  xor (return b) (return b)
+runCurry :: Prog (State Int + Share + ND + Void) a -> [a]
+runCurry = map snd . snd.  run . runND [] . runShare 1 . runState 1
 
-e :: [Bool]
-e = snd . run . runND [] . runShare 0 $ p
+runTree :: (Pretty a, Show a) => Prog (State Int + Share + ND + Void) a -> IO ()
+runTree = putStrLn . pretty . toTree . runShare 1 . runState 1
 
+instance (Functor sig, ND ⊂ sig) => Alternative (Prog sig) where
+  empty = fail
+  (<|>) = choice
 
-runCurry :: Prog (Share + ND + Void) a -> [a]
-runCurry = snd . run . runND [] . runShare 0
-
-instance Alternative (Prog (Share + ND + Void))
-instance MonadPlus (Prog (Share + ND + Void)) where
-  mplus =  choice
+instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
+  mplus = choice
   mzero = fail
 
-instance Functor sig => Alternative (Prog (ND + sig))
-instance Functor sig => MonadPlus (Prog (ND + sig)) where
-  mplus =  choice
-  mzero = fail
-
-
-example1 :: MonadPlus m => m Bool
+example1, example2 :: MonadPlus m => m Bool
 example1 = coin
-example2 :: MonadPlus m => m Bool
 example2 = mplus coin coin
-example3 :: Prog (Share + ND + Void) Bool
+
+example3 :: Prog (State Int + Share + ND + Void) Bool
 example3 = share coin >>= \fx -> mplus fx fx
 
-exOr0 :: MonadPlus m => m Bool
+exOr0, exOr1 :: MonadPlus m => m Bool
 exOr0 = orM coin (return False)
-
-exOr1 :: MonadPlus m => m Bool
 exOr1 = orM coin coin
-exOr2 :: Prog (Share + ND + Void) Bool
-exOr2 = share coin >>= \fx -> orM fx fx
-exOr2a :: Prog (Share + ND + Void) Bool
+
+exOr2, exOr2a, exOr2b :: Prog (State Int + Share + ND + Void) Bool
+exOr2  = share coin >>= \fx -> orM fx fx
 exOr2a = share coin >>= \fx -> orM (return False) (orM fx fx)
-exOr2b :: Prog (Share + ND + Void) Bool
 exOr2b = share coin >>= \fx -> orM (return True) (orM fx fx)
 
 
-exOr3 :: MonadPlus m => m Bool
+exOr3, exOr3a, exOr3b, exOr3c :: MonadPlus m => m Bool
 exOr3 = orM (mplus coin coin) (return True)
-exOr3a :: MonadPlus m => m Bool
 exOr3a = orM (mplus coin coin) coin
-exOr3b :: MonadPlus m => m Bool
 exOr3b = orM coin (mplus coin coin)
-exOr3c :: MonadPlus m => m Bool
 exOr3c = orM (mplus coin coin) (mplus coin coin)
+
 -- here we share, even though nothing is shared
-exOr4 :: Prog (Share + ND + Void) Bool
-exOr4 = share coin >>= \fx -> orM fx coin
-exOrShare :: Prog (Share + ND + Void) Bool
+exOr4, exOrShare :: Prog (State Int + Share + ND + Void) Bool
+exOr4     = share coin >>= \fx -> orM fx coin
 exOrShare = share coin >>= \fx -> orM coin fx
 
 
-exOr6 :: Prog (Share + ND + Void) Bool
-exOr6 = share coin >>= \fx -> orM fx (orM fx coin)
-exOr7 :: Prog (Share + ND + Void) Bool
-exOr7 = share coin >>= \fx -> orM coin (orM fx fx)
-exOr7a :: Prog (Share + ND + Void) Bool
+exOr6, exOr7, exOr7a, exOr7b :: Prog (State Int + Share + ND + Void) Bool
+exOr6  = share coin >>= \fx -> orM fx (orM fx coin)
+exOr7  = share coin >>= \fx -> orM coin (orM fx fx)
 exOr7a = share coin >>= \fx -> orM (return True) (orM fx fx)
-exOr7b :: Prog (Share + ND + Void) Bool
 exOr7b = share coin >>= \fx -> orM (return False) (orM fx fx)
 
 
-exShareConst :: Prog (Share + ND + Void) Bool
-exShareConst = share coin >>= \fx -> const fx fx
-exShareConstOrR :: Prog (Share + ND + Void) Bool
-exShareConstOrR = share coin >>= \fx -> orM fx (const fx fx)
-exShareConstOrL :: Prog (Share + ND + Void) Bool
-exShareConstOrL = share coin >>= \fx -> orM (const fx fx) fx
-exShareConstOrR2 :: Prog (Share + ND + Void) Bool
+exShareConst, exShareConstOrR, exShareConstOrL, exShareConstOrR2, exOrShareShare,
+  exOrShareShare2, exOrShareNested :: Prog (State Int + Share + ND + Void) Bool
+exShareConst     = share coin >>= \fx -> const fx fx
+exShareConstOrR  = share coin >>= \fx -> orM fx (const fx fx)
+exShareConstOrL  = share coin >>= \fx -> orM (const fx fx) fx
 exShareConstOrR2 = share coin >>= \fx -> orM (return True) (const fx fx)
-exOrShareShare :: Prog (Share + ND + Void) Bool
-exOrShareShare = share coin >>= \fx ->
-                 share coin >>= \fy ->
-                 orM fx (orM fy (orM fx fy))
-exOrShareNested :: Prog (Share + ND + Void) Bool
-exOrShareNested = share coin >>= \fx ->
-                  orM fx (share coin >>= \fy ->
-                              orM fy (orM fx fy))
-{-
-exFailed :: (MonadPlus m) => m Bool
-exFailed = share (mzero :: MonadPlus m => m Bool) >>= \fx -> const (return True) fx
-exSkipIds :: (MonadPlus m) => m Bool
+exOrShareShare   = share coin >>= \fx ->
+                   share coin >>= \fy ->
+                   orM fx (orM fy (orM fx fy))
+exOrShareShare2  = sharen 1 coin >>= \fx ->
+                   sharen 2 coin >>= \fy ->
+                   orM fx (orM fy (orM fx fy))
+
+exOrShareNested  = share coin >>= \fx ->
+                   orM fx (share coin >>= \fy ->
+                               orM fy (orM fx fy))
+
+exFailed, exSkipIds, exLoop, exLoop2, exRepeatedShare, exShareIgnoreShare
+  :: Prog (State Int + Share + ND + Void) Bool
+exFailed  = share (mzero :: MonadPlus m => m Bool) >>= \fx -> const (return True) fx
 exSkipIds = share coin >>= \fx -> const coin (const fx fx)
-exLoop :: m Bool
-exLoop = let loop :: m ()
-             loop = loop in share loop >>= \fx -> const (return True) (const fx fx)
-exLoop2 :: m Bool
+exLoop  = let loop :: m ()
+              loop = loop in share loop >>= \fx -> const (return True) (const fx fx)
 exLoop2 = let loop :: m ()
               loop = loop in share loop >>= \fx -> const coin (const fx fx)
-exRepeatedShare :: (MonadPlus m) => m Bool
 exRepeatedShare = share coin >>= \fx -> share fx >>= \fy -> orM fy fy
-exShareIgnoreShare :: (MonadPlus m) => m Bool
 exShareIgnoreShare =
   share coin >>= \fx -> const (return True) (share fx >>= \fy -> orM fy fy)
--}
