@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -94,14 +95,30 @@ instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) wh
   share p = do
     i <- get
     put (i + 1)
-    return $ do
-      begin i
-      x <- p
-      end i
-      return x
-        where
-          begin i = inject (BShare' i (return ()))
-          end   i = inject (EShare' i (return ()))
+    return $ share' i
+      where share' i = do
+              begin i
+              x <- p
+              x' <- shareArgs (sharen i) x
+              end i
+              return x'
+
+            begin i = inject (BShare' i (return ()))
+            end   i = inject (EShare' i (return ()))
+
+sharen :: (Shareable (Prog sig) a, Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig)
+       => Int -> Prog sig a -> Prog sig (Prog sig a)
+sharen n p = return $ do
+  begin
+  x <- p
+  x' <- shareArgs (sharen n) x
+  end
+  return x'
+  where
+    begin = inject (BShare' n (return ()))
+    end   = inject (EShare' n (return ()))
 
 instance AllValues NDShare where
   allValues = runCurry . nf
+
+deriving instance Show a => Show (Prog (Share + ND + Void) a)
