@@ -39,7 +39,7 @@ import           Data.ListM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           ScopeShareState
+import           CallTimeChoice
 
 class Convertible m a b where
     convert :: a -> m b
@@ -63,8 +63,8 @@ instance (Monad m, Convertible m a b) => Convertible m [a] (List m b) where
     convert []     = nil
     convert (x:xs) = cons (convert x) (convert xs)
 
-deriving instance Show a => Show (List NDShare a)
-deriving instance Show a => Show (List Identity a)
+-- deriving instance Show a => Show (List NDShare a)
+-- deriving instance Show a => Show (List Identity a)
 
 main :: IO ()
 main = do

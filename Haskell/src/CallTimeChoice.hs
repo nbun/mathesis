@@ -14,6 +14,7 @@ import           Base
 import           Prelude             hiding (fail)
 import           SharingInterface
 import qualified Tree
+import Debug.Trace
 
 import           Control.Applicative (Alternative (..))
 import           Control.Monad       (MonadPlus (..), liftM2)
@@ -66,7 +67,7 @@ eshare :: (ND ⊂ sig)
        => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
 eshare _ (Return a) = return (Return a)
 eshare _ (BShare i p)  = eshare i p
-eshare i (EShare j p)  | i == j = return p
+eshare i (EShare j p)  | i == 0 = return p
                        | otherwise = eshare (i-1) p
 eshare _ Fail          = fail
 eshare i (Choice Nothing p q) = do
@@ -95,16 +96,13 @@ instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) wh
   share p = do
     i <- get
     put (i + 1)
-    return $ share' i
-      where share' i = do
-              begin i
-              x <- p
-              x' <- shareArgs (sharen i) x
-              end i
-              return x'
-
-            begin i = inject (BShare' i (return ()))
-            end   i = inject (EShare' i (return ()))
+    return $ do
+      inject (BShare' i (return ()))
+      put i
+      x <- p
+      x' <- shareArgs share x
+      inject (EShare' i (return ()))
+      return x'
 
 sharen :: (Shareable (Prog sig) a, Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig)
        => Int -> Prog sig a -> Prog sig (Prog sig a)
