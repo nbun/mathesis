@@ -11,13 +11,15 @@
 
 module CallTimeChoice where
 import           Base
-import           Prelude             hiding (fail)
+import           Data.List                (delete)
+import           Debug.Trace
+import           Prelude                  hiding (fail)
 import           SharingInterface
 import qualified Tree
-import Debug.Trace
 
-import           Control.Applicative (Alternative (..))
-import           Control.Monad       (MonadPlus (..), liftM2)
+import           Control.Applicative      (Alternative (..))
+import           Control.Monad            (MonadPlus (..), liftM2)
+import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
 
 -- Non-determinism effect--
@@ -59,23 +61,30 @@ runShare = bshare
 
 bshare :: (ND ⊂ sig) => Prog (Share + sig) a -> Prog sig a
 bshare (Return a)   = return a
-bshare (BShare i p) = eshare i p >>= bshare
-bshare (EShare _ p) = error "Mismatched Eshare!"
+bshare (BShare i p) = MS.evalState (eshare [i] p) (i + 1) >>= bshare
+bshare (EShare _ p) = error "bshare: mismatched Eshare"
 bshare (Other op)   = Op (fmap bshare op)
 
 eshare :: (ND ⊂ sig)
-       => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
-eshare _ (Return a) = return (Return a)
-eshare _ (BShare i p)  = eshare i p
-eshare i (EShare j p)  | i == 0 = return p
-                       | otherwise = eshare (i-1) p
-eshare _ Fail          = fail
-eshare i (Choice Nothing p q) = do
-  p' <- eshare (2 * i) p
-  q' <- eshare (2 * i + 1) q
-  return $ choiceID (Just i) p' q'
-eshare i (Choice (Just _) _ _) = error "Choice already shared!"
-eshare i (Other op) = Op (fmap (eshare i) op)
+       => [Int] -> Prog (Share + sig) a -> MS.State Int (Prog sig (Prog (Share + sig) a))
+eshare _ (Return a) = return $ return (Return a)
+eshare is (BShare i p)  = eshare (i:is) p
+eshare [] (EShare _ _) = error "eshare: mismatched EShare"
+eshare [i] (EShare j p) | i == j = return $ return p
+                        | otherwise = error $ "eshare: wrong scope"
+eshare (i:is) (EShare j p)  | i == j = eshare is p
+                            | otherwise = error "eshare: crossing scopes"
+eshare _ Fail          = return fail
+eshare is (Choice Nothing p q) = do
+  n <- MS.get
+  MS.put (n + 1)
+  p' <- eshare is p
+  q' <- eshare is q
+  return $ choiceID (Just n) p' q'
+eshare _ (Choice (Just _) _ _) = error "Choice already shared!"
+eshare is (Other op) = do
+  n <- MS.get
+  return $ Op (fmap (\p -> MS.evalState (eshare is p) n) op)
 
 -- interface implementation --
 ------------------------------
@@ -98,20 +107,23 @@ instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) wh
     put (i + 1)
     return $ do
       inject (BShare' i (return ()))
-      put i
       x <- p
+      k <- get
+      put i
       x' <- shareArgs share x
+      put (k :: Int)
       inject (EShare' i (return ()))
       return x'
 
 sharen :: (Shareable (Prog sig) a, Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig)
        => Int -> Prog sig a -> Prog sig (Prog sig a)
+sharen _ (BShare n p) = inject (BShare' n (sharen n p))
 sharen n p = return $ do
   begin
   x <- p
   x' <- shareArgs (sharen n) x
   end
-  return x'
+  return x
   where
     begin = inject (BShare' n (return ()))
     end   = inject (EShare' n (return ()))
@@ -119,4 +131,5 @@ sharen n p = return $ do
 instance AllValues NDShare where
   allValues = runCurry . nf
 
+type T = Share + ND + Void
 deriving instance Show a => Show (Prog (Share + ND + Void) a)
