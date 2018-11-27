@@ -1,6 +1,6 @@
 module Tree where
 
-type ID = Int
+type ID = (Int, Int)
 
 data Tree a = Failed
             | Leaf a

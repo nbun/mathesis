@@ -24,7 +24,7 @@ import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
 -- Non-determinism effect--
 ---------------------------
-data ND cnt = Fail' | Choice' (Maybe Int) cnt cnt
+data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
   deriving (Functor, Show)
 
 pattern Fail <- (project -> Just Fail')
@@ -36,7 +36,7 @@ fail = inject Fail'
 choice :: (ND ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
 choice p q = inject (Choice' Nothing p q)
 
-choiceID :: (ND ⊂ sig) => Maybe Int -> Prog sig a -> Prog sig a -> Prog sig a
+choiceID :: (ND ⊂ sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
 choiceID m p q = inject (Choice' m p q)
 
 runND :: (Functor sig) => Prog (ND + sig) a -> Prog sig (Tree.Tree a)
@@ -61,13 +61,13 @@ runShare = bshare
 
 bshare :: (ND ⊂ sig) => Prog (Share + sig) a -> Prog sig a
 bshare (Return a)   = return a
-bshare (BShare i p) = MS.evalState (eshare [i] p) (i + 1) >>= bshare
+bshare (BShare i p) = MS.evalState (eshare [i] p) i >>= bshare
 bshare (EShare _ p) = error "bshare: mismatched Eshare"
 bshare (Other op)   = Op (fmap bshare op)
 
 eshare :: (ND ⊂ sig)
        => [Int] -> Prog (Share + sig) a -> MS.State Int (Prog sig (Prog (Share + sig) a))
-eshare _ (Return a) = return $ return (Return a)
+eshare  _ (Return a) = return $ return (Return a)
 eshare is (BShare i p)  = eshare (i:is) p
 eshare [] (EShare _ _) = error "eshare: mismatched EShare"
 eshare [i] (EShare j p) | i == j = return $ return p
@@ -80,7 +80,7 @@ eshare is (Choice Nothing p q) = do
   MS.put (n + 1)
   p' <- eshare is p
   q' <- eshare is q
-  return $ choiceID (Just n) p' q'
+  return $ choiceID (Just (head is, n)) p' q'
 eshare _ (Choice (Just _) _ _) = error "Choice already shared!"
 eshare is (Other op) = do
   n <- MS.get
