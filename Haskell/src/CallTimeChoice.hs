@@ -61,30 +61,30 @@ runShare = bshare
 
 bshare :: (ND ⊂ sig) => Prog (Share + sig) a -> Prog sig a
 bshare (Return a)   = return a
-bshare (BShare i p) = MS.evalState (eshare [i] p) i >>= bshare
+bshare (BShare i p) = eshare 1 [i] p >>= bshare
 bshare (EShare _ p) = error "bshare: mismatched Eshare"
 bshare (Other op)   = Op (fmap bshare op)
 
 eshare :: (ND ⊂ sig)
-       => [Int] -> Prog (Share + sig) a -> MS.State Int (Prog sig (Prog (Share + sig) a))
-eshare  _ (Return a) = return $ return (Return a)
-eshare is (BShare i p)  = eshare (i:is) p
-eshare [] (EShare _ _) = error "eshare: mismatched EShare"
-eshare [i] (EShare j p) | i == j = return $ return p
-                        | otherwise = error $ "eshare: wrong scope"
-eshare (i:is) (EShare j p)  | i == j = eshare is p
-                            | otherwise = error "eshare: crossing scopes"
-eshare _ Fail          = return fail
-eshare is (Choice Nothing p q) = do
-  n <- MS.get
-  MS.put (n + 1)
-  p' <- eshare is p
-  q' <- eshare is q
-  return $ choiceID (Just (head is, n)) p' q'
-eshare _ (Choice (Just _) _ _) = error "Choice already shared!"
-eshare is (Other op) = do
-  n <- MS.get
-  return $ Op (fmap (\p -> MS.evalState (eshare is p) n) op)
+       => Int -> [Int] -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
+eshare next scopes prog = --trace (show scopes) $
+  case prog of
+    Return a   -> return (Return a)
+    BShare i p -> eshare next (i:scopes) p
+    EShare j p -> case scopes of
+                    []     -> error "eshare: mismatched EShare"
+                    [i]    -> if i == j
+                              then return p
+                              else error "eshare: wrong scope"
+                    (i:is) -> if i == j
+                              then eshare next is p
+                              else error "eshare: crossing scopes"
+    Fail       -> fail
+    Choice _ p q ->
+      let p' = eshare (2 * next)     scopes p
+          q' = eshare (2 * next + 1) scopes q
+      in choiceID (Just (head scopes, next)) p' q'
+    Other op -> Op (fmap (eshare next scopes) op)
 
 -- interface implementation --
 ------------------------------
