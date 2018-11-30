@@ -14,6 +14,7 @@ import           Base
 import           Data.List                (delete)
 import           Debug.Trace
 import           Prelude                  hiding (fail)
+import           Pretty
 import           SharingInterface
 import qualified Tree
 
@@ -133,3 +134,35 @@ instance AllValues NDShare where
 
 type T = Share + ND + Void
 deriving instance Show a => Show (Prog (Share + ND + Void) a)
+
+instance (Pretty a, Show a) => Pretty (Prog (Share + ND + Void) a) where
+  pretty' (Return x)     _ = pretty x
+  pretty' (BShare i p)   w = "<" ++ si ++ " " ++ pretty' p (w + 2 + length si)
+    where si = show i
+  pretty' (EShare i p)   w =  si ++ "> " ++ pretty' p (w + 2 + length si)
+    where si = show i
+  pretty' Fail           _ = "!"
+  pretty' (Choice m p q) wsp =
+    "? " ++  showID m
+    ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
+    ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
+    where showID Nothing  = ""
+          showID (Just x) = show x
+
+  pretty = flip pretty' 0
+
+instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
+ pretty' (Return x)     _ = pretty x
+ pretty' Fail           _ = "!"
+ pretty' (Choice m p q) wsp =
+   "? " ++  showID m
+   ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
+   ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
+   where showID Nothing  = ""
+         showID (Just x) = show x
+
+ pretty = flip pretty' 0
+
+ -- Usage:
+ -- putStrLn $ pretty $ runShare $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool
+ -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool)

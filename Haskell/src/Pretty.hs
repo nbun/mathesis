@@ -27,3 +27,14 @@ instance Pretty a => Pretty (Tree a) where
 
 pprint :: Pretty a => a -> IO ()
 pprint = putStrLn . pretty
+
+isPared :: String -> Bool
+isPared (c:cs) | c == '(' && last cs == ')' = True
+isPared _ = False
+
+par :: String -> String
+par s = "(" ++ s ++ ")"
+
+prettyPar :: (Pretty a) => String -> a -> String
+prettyPar s x = let r = pretty x
+                in s ++ " " ++ if isPared r then r else par r
