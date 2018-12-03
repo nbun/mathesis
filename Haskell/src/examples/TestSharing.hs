@@ -9,6 +9,7 @@ import           Data.Functor.Identity (Identity (..))
 import           Pretty                (pprint)
 import Base
 import           SharingInterface
+import Debug.Trace
 
 import           Data.ListM
 import           Data.PairM
@@ -149,6 +150,11 @@ exShareSingleton =
   share (cons (return True `mplus` return False) nil) >>=
     \fx -> pairM fx fx
 
+exShareSingleton2 :: (Sharing m, MonadPlus m) => m (Pair m (Pair m (List m Bool)))
+exShareSingleton2 =
+  share (cons (return True `mplus` return False) nil) >>=
+    \fx -> pairM (pairM fx fx) (pairM fx fx)
+
 
 -- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
 -- exShareSingleton = do
@@ -236,12 +242,12 @@ exShareSingleton =
 -- exShareSingleton = do
 --   fx <- do
 --     i <- get
---     trace (show i) $ put ((i :: Int) + 1)
+--     put ((i :: Int) + 1)
 --     return $ do
 --       inject (BShare' i (return ()))
 --       x' <- do sy' <- do
 --                  j <- get
---                  put (j + 1)
+--                  trace (show j) $ put (j + 1)
 --                  return $ do
 --                    inject (BShare' j (return ()))
 --                    x' <- return True `mplus` return False

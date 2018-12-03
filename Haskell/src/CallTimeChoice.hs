@@ -132,11 +132,11 @@ sharen n p = return $ do
 instance AllValues NDShare where
   allValues = runCurry . nf
 
-type T = Share + ND + Void
 deriving instance Show a => Show (Prog (Share + ND + Void) a)
 
 instance (Pretty a, Show a) => Pretty (Prog (Share + ND + Void) a) where
   pretty' (Return x)     _ = pretty x
+  -- pretty' (BShare _ (EShare _ p)) w = pretty' p w
   pretty' (BShare i p)   w = "<" ++ si ++ " " ++ pretty' p (w + 2 + length si)
     where si = show i
   pretty' (EShare i p)   w =  si ++ "> " ++ pretty' p (w + 2 + length si)
@@ -163,6 +163,7 @@ instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
 
  pretty = flip pretty' 0
 
- -- Usage:
- -- putStrLn $ pretty $ runShare $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool
- -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool)
+-- Usage:
+-- putStrLn $ pretty $ runShare $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool
+-- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool)
+-- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))) :: NDShare (Pair Identity (List Identity Bool)))

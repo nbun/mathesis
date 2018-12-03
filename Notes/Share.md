@@ -93,5 +93,19 @@ share p = do
     return x'
 ```
 
-The function `shareArgs` applies a function to all arguments of a constructor. In
-this case, we want to share the components of a complex data structure.
+The function `shareArgs` applies a function to all components of a data structure. In
+this case, we want to share the components of a complex data structure. We consider the
+example `let x = [True ? False] in (x,x)`.
+
+```Haskell
+<1 1> <2 ? 
+         ├── 2> <3 3> <1 1> <4 ? 
+                                 ├── 4> <5 5> ((Identity [True]),(Identity [True]))
+                                 └── 4> <5 5> ((Identity [True]),(Identity [False]))
+         └── 2> <3 3> <1 1> <4 ? 
+                                 ├── 4> <5 5> ((Identity [False]),(Identity [True]))
+                                 └── 4> <5 5> ((Identity [False]),(Identity [False]))
+``` 
+
+If we use the approach shown above, `share` does not behave as desired. Since `x` is shared,
+all choices should have the same ID. 
