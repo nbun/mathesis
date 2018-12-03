@@ -23,8 +23,8 @@ import           Control.Monad            (MonadPlus (..), liftM2)
 import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
 
--- Non-determinism effect--
----------------------------
+-- Non-determinism effect --
+---------------------------- 
 data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
   deriving (Functor, Show)
 
@@ -115,19 +115,6 @@ instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) wh
       put (k :: Int)
       inject (EShare' i (return ()))
       return x'
-
-sharen :: (Shareable (Prog sig) a, Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig)
-       => Int -> Prog sig a -> Prog sig (Prog sig a)
-sharen _ (BShare n p) = inject (BShare' n (sharen n p))
-sharen n p = return $ do
-  begin
-  x <- p
-  x' <- shareArgs (sharen n) x
-  end
-  return x
-  where
-    begin = inject (BShare' n (return ()))
-    end   = inject (EShare' n (return ()))
 
 instance AllValues NDShare where
   allValues = runCurry . nf

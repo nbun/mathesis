@@ -7,7 +7,7 @@ module TestSharing where
 import           Control.Monad         (MonadPlus (..))
 import           Data.Functor.Identity (Identity (..))
 import           Pretty                (pprint)
-import Base
+-- import Base
 import           SharingInterface
 import Debug.Trace
 
@@ -16,7 +16,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoice
+import           CallTimeChoiceHO
 
 example1 :: MonadPlus m => m Bool
 example1 = coin
