@@ -7,7 +7,7 @@ module TestSharing where
 import           Control.Monad         (MonadPlus (..))
 import           Data.Functor.Identity (Identity (..))
 import           Pretty                (pprint)
--- import Base
+import Base
 import           SharingInterface
 import Debug.Trace
 
@@ -16,7 +16,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoiceHO
+import           CallTimeChoiceHybrid
 
 example1 :: MonadPlus m => m Bool
 example1 = coin
@@ -88,6 +88,11 @@ recList fxs = fxs >>= \xfps -> case xfps of
 exRecList :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
 exRecList = share (recList (cons (return True) (cons (return False) nil))) >>= \fx -> pairM fx fx
 
+exRecListNested :: (Sharing m, MonadPlus m) => m (List m (List m Bool))
+exRecListNested = share (recList (cons (return True) (cons (return False) nil)))
+  >>= \fx -> cons fx (share (recList (cons (return True) (cons (return False) nil)))
+                      >>= \fz -> cons fz (cons fx (cons fz nil)))
+
 exFailed :: (Sharing m, MonadPlus m) => m Bool
 exFailed = share (mzero :: MonadPlus m => m Bool) >>= \fx -> const (return True) fx
 exSkipIds :: (Sharing m, MonadPlus m) => m Bool
@@ -155,6 +160,8 @@ exShareSingleton2 =
   share (cons (return True `mplus` return False) nil) >>=
     \fx -> pairM (pairM fx fx) (pairM fx fx)
 
+exShareInShare :: (Sharing m, MonadPlus m) => m (Pair m Bool)
+exShareInShare = share (share coin >>= \fx -> orM fx fx) >>= \fy -> pairM fy fy
 
 -- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
 -- exShareSingleton = do

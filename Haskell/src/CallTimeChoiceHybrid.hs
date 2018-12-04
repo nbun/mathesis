@@ -9,7 +9,7 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
 
-module CallTimeChoice where
+module CallTimeChoiceHybrid where
 import           Base
 import           Data.List                (delete)
 import           Debug.Trace
@@ -51,41 +51,31 @@ runND (Other op) = Op (fmap runND op)
 
 -- Sharing effect --
 --------------------
-data Share cnt = BShare' Int cnt | EShare' Int cnt
+data Share cnt = Share' Int cnt
   deriving (Functor, Show)
 
-pattern BShare i p <- (project -> Just (BShare' i p))
-pattern EShare i p <- (project -> Just (EShare' i p))
+pattern Share i p <- (project -> Just (Share' i p))
 
 runShare :: (Functor sig, ND ⊂ sig) => Prog (Share + sig) a -> (Prog sig a)
 runShare = bshare
 
 bshare :: (ND ⊂ sig) => Prog (Share + sig) a -> Prog sig a
 bshare (Return a)   = return a
-bshare (BShare i p) = eshare 1 [i] p >>= bshare
-bshare (EShare _ p) = error "bshare: mismatched Eshare"
+bshare (Share i p) = eshare 1 i p >>= bshare
 bshare (Other op)   = Op (fmap bshare op)
 
 eshare :: (ND ⊂ sig)
-       => Int -> [Int] -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
-eshare next scopes prog = --trace (show scopes) $
+       => Int -> Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
+eshare next scope prog =
   case prog of
     Return a   -> return (Return a)
-    BShare i p -> eshare 1 (i:scopes) p
-    EShare j p -> case scopes of
-                    []     -> error "eshare: mismatched EShare"
-                    [i]    -> if i == j
-                              then return p
-                              else error "eshare: wrong scope"
-                    (i:is) -> if i == j
-                              then eshare next is p
-                              else error "eshare: crossing scopes"
+    Share i p -> eshare 1 i p
     Fail       -> fail
-    Choice _ p q ->
-      let p' = eshare (2 * next)     scopes p
-          q' = eshare (2 * next + 1) scopes q
-      in choiceID (Just (head scopes, next)) p' q'
-    Other op -> Op (fmap (eshare next scopes) op)
+    Choice Nothing p q ->
+      let p' = eshare (2 * next)     scope p
+          q' = eshare (2 * next + 1) scope q
+      in choiceID (Just (scope, next)) p' q'
+    Other op -> Op (fmap (eshare next scope) op)
 
 -- interface implementation --
 ------------------------------
@@ -106,13 +96,12 @@ instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) wh
   share p = do
     i <- get
     put (i + 1)
-    return $ do
-      inject (BShare' i (return ()))
-      x <- p
-      put (i + 1)
-      x' <- shareArgs share x
-      inject (EShare' i (return ()))
-      return x'
+    let p' = do
+          x <- p
+          put (i + 1)
+          x' <- shareArgs share x
+          return x'
+    return $ inject (Share' i p')
 
 instance AllValues NDShare where
   allValues = runCurry . nf
@@ -121,10 +110,10 @@ deriving instance Show a => Show (Prog (Share + ND + Void) a)
 
 instance (Pretty a, Show a) => Pretty (Prog (Share + ND + Void) a) where
   pretty' (Return x)     _ = pretty x
-  -- pretty' (BShare _ (EShare _ p)) w = pretty' p w
-  pretty' (BShare i p)   w = "<" ++ si ++ " " ++ pretty' p (w + 2 + length si)
-    where si = show i
-  pretty' (EShare i p)   w =  si ++ "> " ++ pretty' p (w + 2 + length si)
+  pretty' (Share i p)   w =
+    "<" ++ si ++ " "
+    ++ pretty' p (w + 2 + 2 * length si)
+    ++ si ++ ">"
     where si = show i
   pretty' Fail           _ = "!"
   pretty' (Choice m p q) wsp =

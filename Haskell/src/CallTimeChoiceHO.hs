@@ -1,4 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -7,6 +6,7 @@
 {-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
@@ -95,17 +95,17 @@ rShare :: (Syntax sig, HND ⊂ sig) => Prog (HShare + sig) a
          -> Prog sig (Identity a)
 rShare (Return a)  = fmap Identity (return a)
 rShare Fail        = fail
-rShare (Share i p)    = go i 1 p
+rShare (Share i p) = go i 1 p
   where
     go :: (Syntax sig, HND ⊂ sig)
        => Int -> Int -> Prog (HShare + sig) a -> Prog sig (Identity a)
-    go _ _ (Return a ) = fmap Identity $ return a
-    go _ _ (Fail     ) = fail
-    go _ n (Share i p)   = go i 1 p
+    go _ _ (Return a )    = fmap Identity $ return a
+    go _ _ (Fail     )    = fail
+    go _ n (Share i p)    = go i 1 p
     go i n (Choice _ p q) = let p' = go i (2 * n) p
                                 q' = go i (2 * n + 1) q
                             in choice (Just (i, n)) p' q'
-    go i n (Other op ) = Op (handle (Identity ()) hdl op)
+    go i n (Other op )    = Op (handle (Identity ()) hdl op)
       where
         hdl :: (Syntax sig, HND ⊂ sig)
             => forall x. Identity (Prog (HShare + sig) x) -> Prog sig (Identity x)
@@ -120,14 +120,14 @@ data HState s m a = Get' (s -> m a)
 
 
 instance HFunctor (HState m) where
-  hmap t (Get' f)  = Get' (t . f)
+  hmap t (Get' f)   = Get' (t . f)
   hmap t (Put' s p) = Put' s (t p)
 
 instance Syntax (HState m) where
   emap f (Get' g)   = Get' (f . g)
   emap f (Put' s p) = Put' s (f p)
 
-  handle c hdl (Get' f) = Get' (\s -> hdl (fmap (const (f s)) c))
+  handle c hdl (Get' f)   = Get' (\s -> hdl (fmap (const (f s)) c))
   handle c hdl (Put' s p) = Put' s (hdl (fmap (const p) c))
 
 pattern Get k <- (project -> Just (Get' k))
@@ -168,10 +168,8 @@ instance (HState Int ⊂ sig, HShare ⊂ sig, HND ⊂ sig) => Sharing (Prog sig)
     put (i + 1)
     let p' = do
           x <- p
-          k <- get
           put (i + 1)
           x' <- shareArgs share x
-          put (k :: Int)
           return x'
     return $ shares i p'
 
