@@ -108,6 +108,9 @@ pattern Put s k <- (project -> Just (Put' s k))
 put :: (State s ⊂ sig) => s -> Prog sig ()
 put s = inject (Put' s (return ()))
 
+inc :: (State Int ⊂ sig) => Prog sig Int
+inc = get >>= \i -> let i' = i + 1 in put i' >> return i'
+
 runState :: Functor sig => s -> Prog (State s + sig) a -> Prog sig (s, a)
 runState s (Return a) = return (s, a)
 runState s (Get    k) = runState s (k s)

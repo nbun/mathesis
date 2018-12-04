@@ -39,7 +39,7 @@ import           Data.ListM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoiceHO
+import           CallTimeChoiceHybrid
 
 class Convertible m a b where
     convert :: a -> m b

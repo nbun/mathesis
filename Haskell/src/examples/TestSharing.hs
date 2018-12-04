@@ -163,6 +163,9 @@ exShareSingleton2 =
 exShareInShare :: (Sharing m, MonadPlus m) => m (Pair m Bool)
 exShareInShare = share (share coin >>= \fx -> orM fx fx) >>= \fy -> pairM fy fy
 
+exShareListInShare :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
+exShareListInShare = share (share (cons coin (cons coin nil)) >>= \fx -> appM fx fx) >>= \fy -> pairM fy fy
+
 -- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
 -- exShareSingleton = do
 --   fx <- do

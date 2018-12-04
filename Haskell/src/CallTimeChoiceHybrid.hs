@@ -24,7 +24,7 @@ import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
 
 -- Non-determinism effect --
----------------------------- 
+----------------------------
 data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
   deriving (Functor, Show)
 
@@ -34,7 +34,6 @@ pattern Choice m p q <- (project -> Just (Choice' m p q))
 fail :: (ND ⊂ sig) => Prog sig a
 fail = inject Fail'
 
-choice :: (ND ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
 choice p q = inject (Choice' Nothing p q)
 
 choiceID :: (ND ⊂ sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
@@ -56,26 +55,24 @@ data Share cnt = Share' Int cnt
 
 pattern Share i p <- (project -> Just (Share' i p))
 
+share' :: (Share ⊂ sig) => Int -> Prog sig a -> Prog sig a
+share' i p = inject (Share' i p)
+
 runShare :: (Functor sig, ND ⊂ sig) => Prog (Share + sig) a -> (Prog sig a)
-runShare = bshare
-
-bshare :: (ND ⊂ sig) => Prog (Share + sig) a -> Prog sig a
-bshare (Return a)   = return a
-bshare (Share i p) = eshare 1 i p >>= bshare
-bshare (Other op)   = Op (fmap bshare op)
-
-eshare :: (ND ⊂ sig)
-       => Int -> Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
-eshare next scope prog =
-  case prog of
-    Return a   -> return (Return a)
-    Share i p -> eshare 1 i p
-    Fail       -> fail
-    Choice Nothing p q ->
-      let p' = eshare (2 * next)     scope p
-          q' = eshare (2 * next + 1) scope q
-      in choiceID (Just (scope, next)) p' q'
-    Other op -> Op (fmap (eshare next scope) op)
+runShare (Return a)  = return a
+runShare (Share i p) = nameChoices i 1 p
+  where
+    nameChoices :: (ND ⊂ sig) => Int -> Int -> Prog (Share + sig) a -> Prog sig a
+    nameChoices scope next prog = case prog of
+      Return a  -> Return a
+      Share i p -> nameChoices i 1 p
+      Fail      -> fail
+      Choice _ p q ->
+        let p' = nameChoices scope (2 * next)      p
+            q' = nameChoices scope (2 * next + 1)  q
+        in choiceID (Just (scope, next)) p' q'
+      Other op -> Op (fmap (nameChoices scope next) op)
+runShare (Other op)  = Op (fmap runShare op)
 
 -- interface implementation --
 ------------------------------
@@ -94,14 +91,11 @@ instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
 
 instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) where
   share p = do
-    i <- get
-    put (i + 1)
-    let p' = do
-          x <- p
-          put (i + 1)
-          x' <- shareArgs share x
-          return x'
-    return $ inject (Share' i p')
+    i <- inc
+    return . share' i $ do
+      put (i + 1)
+      x <- p
+      shareArgs share x
 
 instance AllValues NDShare where
   allValues = runCurry . nf

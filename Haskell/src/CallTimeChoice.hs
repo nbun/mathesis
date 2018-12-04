@@ -108,8 +108,8 @@ instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) wh
     put (i + 1)
     return $ do
       inject (BShare' i (return ()))
-      x <- p
       put (i + 1)
+      x <- p
       x' <- shareArgs share x
       inject (EShare' i (return ()))
       return x'
