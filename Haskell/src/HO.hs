@@ -17,14 +17,6 @@ import           Prelude                hiding (fail, (||))
 
 data Prog sig a = Return a | Op (sig (Prog sig) a)
 
-instance Syntax sig => Functor (Prog sig) where
-  fmap f (Return x) = Return (f x)
-  fmap f (Op op)    = Op (emap (fmap f) op)
-
-instance Syntax sig => Applicative (Prog sig) where
-  pure = return
-  (<*>) = ap
-
 type f --> g = forall x . f x -> g x
 
 class HFunctor h where
@@ -34,6 +26,14 @@ class HFunctor sig => Syntax sig where
   emap :: (Monad m) => (m a -> m b) -> (sig m a -> sig m b)
   handle :: (Monad m, Monad n, Functor c) =>
     c () -> (forall x . c (m x) -> n (c x)) -> (sig m a -> sig n (c a))
+
+instance Syntax sig => Functor (Prog sig) where
+  fmap f (Return x) = Return (f x)
+  fmap f (Op op)    = Op (emap (fmap f) op)
+
+instance Syntax sig => Applicative (Prog sig) where
+  pure = return
+  (<*>) = ap
 
 instance Syntax sig => Monad (Prog sig) where
   return v = Return v

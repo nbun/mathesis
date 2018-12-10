@@ -91,9 +91,10 @@ instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
 
 instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) where
   share p = do
-    i <- inc
+    i <- get
+    put (i * 2)
     return . share' i $ do
-      put (i + 1)
+      put (i * 2 + 1)
       x <- p
       shareArgs share x
 
@@ -135,3 +136,6 @@ instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
 -- putStrLn $ pretty $ runShare $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool
 -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool)
 -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))) :: NDShare (Pair Identity (List Identity Bool)))
+
+coinID :: (ND ⊂ sig) => Prog sig Bool
+coinID = choiceID (Just (42,42)) (return True) (return False)
