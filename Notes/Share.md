@@ -94,11 +94,11 @@ example `let x = [True ? False] in (x,x)`.
 ```Haskell
 <1 1> <2 ? 
          ├── 2> <3 3> <1 1> <4 ? 
-                                 ├── 4> <5 5> ((Identity [True]),(Identity [True])) 
-                                 └── 4> <5 5> ((Identity [True]),(Identity [False]))
+         │                     ├── 4> <5 5> ((Identity [True]),(Identity [True])) 
+         │                     └── 4> <5 5> ((Identity [True]),(Identity [False]))
          └── 2> <3 3> <1 1> <4 ? 
-                                 ├── 4> <5 5> ((Identity [False]),(Identity [True]))
-                                 └── 4> <5 5> ((Identity [False]),(Identity [False]))
+                               ├── 4> <5 5> ((Identity [False]),(Identity [True]))
+                               └── 4> <5 5> ((Identity [False]),(Identity [False]))
 ``` 
 
 If we use the approach shown above, `share` does not behave as desired. Since `x` is shared,
@@ -139,10 +139,10 @@ If example results in the tree below.
 ```
 ? (2,1)
 ├── ? (3,1)
-    ├── ? (3,1)
-.       ├── ? (3,1)
-.           ├── [True,True,True,True]
-.           └── [True,True,True,False]
+│   ├── ? (3,1)
+│   │   ├── ? (3,1)
+│   │   │   ├── [True,True,True,True]
+│   │   │   └── [True,True,True,False]
 ```
 
 The correct tree should have different choice IDs on choice depth level 3 and 4.
@@ -150,10 +150,10 @@ The correct tree should have different choice IDs on choice depth level 3 and 4.
 ```
 ? (2,1)
 ├── ? (4,1)
-    ├── ? (7,1)
-.       ├── ? (7,1)
-.           ├── [True,True,True,True]
-.           └── [True,True,True,False]
+│   ├── ? (7,1)
+│   │   ├── ? (7,1)
+│   │   │   ├── [True,True,True,True]
+│   │   │   └── [True,True,True,False]
 ```
 
 One easy fix to achieve this result is to make the new IDs unique by splitting the ID supply
@@ -179,20 +179,20 @@ when multiple choices occur within in the same `share` scope, for example as in 
 ```Haskell
 ? (1,1)
 ├── ? (1,2)
-    ├── True
-    └── ? (1,1)
-        ├── ? (1,2)
-            ├── True
-            └── False
-        └── ? (1,3)
-            ├── True
-            └── False
+│   ├── True
+│   └── ? (1,1)
+│       ├── ? (1,2)
+│       │   ├── True
+│       │   └── False
+│       └── ? (1,3)
+│           ├── True
+│           └── False
 └── ? (1,3)
     ├── True
     └── ? (1,1)
         ├── ? (1,2)
-            ├── True
-            └── False
+        │   ├── True
+        │   └── False
         └── ? (1,3)
             ├── True
             └── False
