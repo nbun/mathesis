@@ -104,33 +104,49 @@ instance AllValues NDShare where
 deriving instance Show a => Show (Prog (Share + ND + Void) a)
 
 instance (Pretty a, Show a) => Pretty (Prog (Share + ND + Void) a) where
-  pretty' (Return x)     _ = pretty x
-  pretty' (Share i p)   w =
-    "<" ++ si ++ " "
-    ++ pretty' p (w + 2 + 2 * length si)
-    ++ si ++ ">"
-    where si = show i
-  pretty' Fail           _ = "!"
-  pretty' (Choice m p q) wsp =
-    "? " ++  showID m
-    ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
-    ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
-    where showID Nothing  = ""
-          showID (Just x) = show x
+  pretty' p _ = prettyProg 0 [] [] p
 
   pretty = flip pretty' 0
 
-instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
- pretty' (Return x)     _ = pretty x
- pretty' Fail           _ = "!"
- pretty' (Choice m p q) wsp =
-   "? " ++  showID m
-   ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
-   ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
-   where showID Nothing  = ""
-         showID (Just x) = show x
+prettyProg :: (Pretty a, Show a)
+           => Int -> [Int] -> [Int] -> Prog (Share + ND + Void) a -> String
+prettyProg _ _ scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
+prettyProg wsp ls scps (Share i p) =
+  "<" ++ si ++ " " ++ prettyProg (wsp + l) ls (i:scps) p
+  where si = show i
+        l  = length si + 2
+prettyProg _ _ _ Fail         = "!"
+prettyProg wsp ls scps (Choice m p q) =
+  "? " ++  showID m
+  ++ "\n" ++ lines ++ "├── " ++ prettyProg (wsp + 4) (wsp:ls) scps p
+  ++ "\n" ++ lines ++ "└── " ++ prettyProg (wsp + 4) ls       scps q
+  where showID Nothing  = ""
+        showID (Just x) = show x
+        lines = printLines (wsp:ls)
 
- pretty = flip pretty' 0
+prettyProgNoShare :: (Pretty a, Show a)
+                  => Int -> [Int] -> [Int] -> Prog (ND + Void) a -> String
+prettyProgNoShare _ _    scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
+prettyProgNoShare _ _    _    Fail        = "!"
+prettyProgNoShare wsp ls scps (Choice m p q) =
+  "? " ++  showID m
+  ++ "\n" ++ lines ++ "├── " ++ prettyProgNoShare (wsp + 4) (wsp:ls) scps p
+  ++ "\n" ++ lines ++ "└── " ++ prettyProgNoShare (wsp + 4) ls       scps q
+  where showID Nothing  = ""
+        showID (Just x) = show x
+        lines = printLines (wsp:ls)
+
+printLines :: [Int] -> String
+printLines = printLines' 0 . reverse
+  where
+    printLines' p  [x] = replicate (x - p) ' '
+    printLines' p (x:xs)  | p == x    = '│' : printLines' (p + 1) xs
+                          | otherwise = ' ' : printLines' (p + 1) (x:xs)
+
+instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
+  pretty' p _ = prettyProgNoShare 0 [] [] p
+
+  pretty = flip pretty' 0
 
 -- Usage:
 -- putStrLn $ pretty $ runShare $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool

@@ -16,7 +16,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoice
+import           CallTimeChoiceHybrid
 
 example1 :: MonadPlus m => m Bool
 example1 = coin
@@ -155,146 +155,22 @@ exShareSingleton =
   share (cons (return True `mplus` return False) nil) >>=
     \fx -> pairM fx fx
 
-exShareSingleton2 :: (Sharing m, MonadPlus m) => m (Pair m (Pair m (List m Bool)))
-exShareSingleton2 =
-  share (cons (return True `mplus` return False) nil) >>=
-    \fx -> pairM (pairM fx fx) (pairM fx fx)
-
 exShareInShare :: (Sharing m, MonadPlus m) => m (Pair m Bool)
 exShareInShare = share (share coin >>= \fx -> orM fx fx) >>= \fy -> pairM fy fy
 
 exShareListInShare :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
-exShareListInShare = share (share (cons coin (cons coin nil)) >>= \fx -> appM fx fx) >>= \fy -> pairM fy fy
+exShareListInShare =
+  share (share (cons coin (cons coin nil)) >>=
+          \fx -> appM fx fx) >>= \fy -> pairM fy fy
 
 exSharePutPos :: (Sharing m, MonadPlus m) =>  m (List m Bool)
-exSharePutPos = share (share (cons coin nil) >>= \fx -> appM fx fx) >>= \fy -> appM fy fy
+exSharePutPos =
+  share (share (cons coin nil) >>= \fx -> appM fx fx) >>= \fy -> appM fy fy
 
 exShareListInRepeatedShare :: NDShare (List NDShare Bool)
-exShareListInRepeatedShare = share (share (cons coin nil) >>= \fx -> appM fx fx) >>=
+exShareListInRepeatedShare =
+  share (share (cons coin nil) >>= \fx -> appM fx fx) >>=
   \fy -> share coin >>= \fz -> share coin >>= \fa -> cons fz (cons fa fy)
-
--- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
--- exShareSingleton = do
---   fx <- do
---     i <- get
---     put (i + 1)
---     return $ do
---       inject (BShare' i (return ()))
---       x <- (cons (return True `mplus` return False) nil)
---       x' <- shareArgs share x
---       inject (EShare' i (return ()))
---       return x'
---   pairM fx fx
-
--- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
--- exShareSingleton = do
---   fx <- do
---     i <- get
---     put (i + 1)
---     return $ do
---       inject (BShare' i (return ()))
---       x' <- shareArgs share (Cons (return True `mplus` return False) nil)
---       inject (EShare' i (return ()))
---       return x'
---   pairM fx fx
-
--- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
--- exShareSingleton = do
---   fx <- do
---     i <- get
---     put (i + 1)
---     return $ do
---       inject (BShare' i (return ()))
---       x' <- do sy' <- share (return True `mplus` return False)
---                sys' <- share nil
---                cons sy' sys'
---       inject (EShare' i (return ()))
---       return x'
---   pairM fx fx
-
--- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
--- exShareSingleton = do
---   fx <- do
---     i <- get
---     put (i + 1)
---     return $ do
---       inject (BShare' i (return ()))
---       x' <- do sy' <- do
---                  i <- get
---                  put (i + 1)
---                  return $ do
---                    inject (BShare' i (return ()))
---                    x <- (return True `mplus` return False)
---                    x' <- shareArgs share x
---                    inject (EShare' i (return ()))
---                    return x'
---                sys' <- share nil
---                cons sy' sys'
---       inject (EShare' i (return ()))
---       return x'
---   pairM fx fx
-
--- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
--- exShareSingleton = do
---   fx <- do
---     i <- get
---     put (i + 1)
---     return $ do
---       inject (BShare' i (return ()))
---       x' <- do sy' <- do
---                  i <- get
---                  put (i + 1)
---                  return $ do
---                    inject (BShare' i (return ()))
---                    x' <- shareArgs share True `mplus` shareArgs share False
---                    inject (EShare' i (return ()))
---                    return x'
---                sys' <- share nil
---                cons sy' sys'
---       inject (EShare' i (return ()))
---       return x'
---   pairM fx fx
-
--- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))
--- exShareSingleton = do
---   fx <- do
---     i <- get
---     put ((i :: Int) + 1)
---     return $ do
---       inject (BShare' i (return ()))
---       x' <- do sy' <- do
---                  j <- get
---                  trace (show j) $ put (j + 1)
---                  return $ do
---                    inject (BShare' j (return ()))
---                    x' <- return True `mplus` return False
---                    inject (EShare' j (return ()))
---                    return x'
---                sys' <- do
---                  k <- get
---                  put (k + 1)
---                  return $ do
---                    inject (BShare' k (return ()))
---                    x' <- nil
---                    inject (EShare' k (return ()))
---                    return x'
---                cons sy' sys'
---       inject (EShare' i (return ()))
---       return x'
---   pairM fx fx
-
--- exShareSingleton :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
--- exShareSingleton = do
---   fx <- share $ return True `mplus` return False
---   fy <- share nil
---   fxs <- share (cons fx fy)
---   pairM fxs fxs
-
--- exShareSingleton :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
--- exShareSingleton = (cons (return True `mplus` return False) nil) >>= \xs ->
---   (share $ case xs of
---     Cons fy fys -> share fy >>= \fy' -> share fys >>= \fys' -> cons fy' fys'
---     Nil         -> nil) >>= \fxs -> pairM fxs fxs
 
 tests = do
   let exBs  = [ (example1,"ex1",[True,False])
