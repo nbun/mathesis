@@ -1,15 +1,17 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module TestSharing where
 
+import           Base
 import           Control.Monad         (MonadPlus (..))
 import           Data.Functor.Identity (Identity (..))
+import           Debug.Trace
 import           Pretty                (pprint)
-import Base
 import           SharingInterface
-import Debug.Trace
 
 import           Data.ListM
 import           Data.PairM
@@ -111,7 +113,6 @@ exShareIgnoreShare :: (Sharing m, MonadPlus m) => m Bool
 exShareIgnoreShare =
   share coin >>= \fx -> const (return True) (share fx >>= \fy -> orM fy fy)
 
--- let x = True ? False in x ? x
 exDup :: (Sharing m, MonadPlus m) => m (Pair m Bool)
 exDup = dup coin
 exDupShare :: (Sharing m, MonadPlus m) => m (Pair m Bool)
@@ -288,3 +289,45 @@ tests = do
 
 deriving instance Show a => Show (Pair Identity a)
 deriving instance Show a => Show (List Identity a)
+
+-- [(0,0),(0,1),(1,0),(1,1)]
+dup_coin_let :: (Sharing m, MonadPlus m) => m (Int, Int)
+dup_coin_let = let x = coini in duplicate x
+
+-- [(0,0),(1,1)]
+dup_coin_bind :: (Sharing m, MonadPlus m) => m (Int, Int)
+dup_coin_bind = do x <- coini
+                   duplicate (return x)
+
+-- [(0,0),(1,1)]
+dup_coin_share :: (Sharing m, MonadPlus m) => m (Int, Int)
+dup_coin_share = do x <- share coini
+                    duplicate x
+
+-- undefined
+strict_bind :: forall m. (Sharing m, MonadPlus m) => m (Int, Int)
+strict_bind = do x <- undefined :: m Int
+                 duplicate (const (return 2)
+                                  ((return :: a -> m a) x))
+-- [(2,2)]
+lazy_share :: (Sharing m, MonadPlus m) => m (Int, Int)
+lazy_share = do x <- share (undefined :: m Int)
+                duplicate (const (return 2) x)
+
+-- [Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))
+heads_bind :: (Sharing m, MonadPlus m) => m (List m Int)
+heads_bind = do x <- cons coini undefined
+                dupl (firstM (return x))
+
+-- [Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+heads_share :: (Sharing m, MonadPlus m) => m (List m Int)
+heads_share = do x <- share (cons coini undefined)
+                 dupl (firstM x)
+
+coinis :: MonadPlus m => m (List m Int)
+coinis = nil `mplus` cons coini coinis
+
+--[Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+dup_first_coin :: (Sharing m, MonadPlus m) => m (List m Int)
+dup_first_coin = do cs <- share coinis
+                    dupl (firstM cs)

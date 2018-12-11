@@ -45,6 +45,10 @@ instance Monad m => Normalform m Int Int where
 instance Monad m => Normalform m Bool Bool where
     nf = id
 
+
+instance Monad m => Normalform m (a,b) (a,b) where
+    nf = id
+
 ----------------------
 -- Search algorithm --
 ----------------------

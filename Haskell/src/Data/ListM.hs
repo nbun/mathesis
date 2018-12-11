@@ -51,6 +51,11 @@ instance (Sharing m, Shareable m a) => Shareable m (List m a) where
 -------------------------------------------
 -- random function definitions for lists --
 -------------------------------------------
+firstM :: MonadPlus m => m (List m a) -> m a
+firstM fl = fl >>= \l -> case l of
+                           Cons x _ -> x
+                           Nil      -> mzero
+
 dupl :: Monad m => m a -> m (List m a)
 dupl sx = cons sx (cons sx nil)
 
