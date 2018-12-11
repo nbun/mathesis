@@ -16,7 +16,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoiceHybrid
+import           CallTimeChoice
 
 example1 :: MonadPlus m => m Bool
 example1 = coin
@@ -170,7 +170,7 @@ exSharePutPos :: (Sharing m, MonadPlus m) =>  m (List m Bool)
 exSharePutPos = share (share (cons coin nil) >>= \fx -> appM fx fx) >>= \fy -> appM fy fy
 
 exShareListInRepeatedShare :: NDShare (List NDShare Bool)
-exShareListInRepeatedShare = share (share (cons coin (cons coin nil)) >>= \fx -> appM fx fx) >>=
+exShareListInRepeatedShare = share (share (cons coin nil) >>= \fx -> appM fx fx) >>=
   \fy -> share coin >>= \fz -> share coin >>= \fa -> cons fz (cons fa fy)
 
 -- exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))

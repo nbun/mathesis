@@ -24,7 +24,7 @@ import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
 
 -- Non-determinism effect --
----------------------------- 
+----------------------------
 data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
   deriving (Functor, Show)
 
@@ -105,10 +105,10 @@ instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
 instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) where
   share p = do
     i <- get
-    put (i + 1)
+    put (i * 2)
     return $ do
       inject (BShare' i (return ()))
-      put (i + 1)
+      put (i * 2 + 1)
       x <- p
       x' <- shareArgs share x
       inject (EShare' i (return ()))
