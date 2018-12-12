@@ -331,3 +331,9 @@ coinis = nil `mplus` cons coini coinis
 dup_first_coin :: (Sharing m, MonadPlus m) => m (List m Int)
 dup_first_coin = do cs <- share coinis
                     dupl (firstM cs)
+-- [Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+distrib_bind_mplus :: (Sharing m, MonadPlus m) => m (List m Int)
+distrib_bind_mplus = do c <- share coini
+                        y <- coini
+                        x <- c
+                        cons (return x) (cons (return y) nil)
