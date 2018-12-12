@@ -1,0 +1,136 @@
+% !TEX TS-program = xelatex
+\documentclass{beamer}
+\usepackage{ulem}
+\usepackage{proof}
+\usepackage{bussproofs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{minted}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{scrextend}
+
+\usemintedstyle[haskell]{trac}
+\newminted{haskell}{fontsize=\small}
+\newminted{coq}{fontsize=\small}
+\newminted{text}{fontsize=\small}
+\newcommand{\coqinline}[1]{\mintinline{coq}{#1}}
+
+\usetheme[progressbar=foot]{metropolis}
+
+\usepackage[german]{babel}
+\usepackage[utf8]{inputenc}
+
+%\setbeamersize{text margin left=1.5em,text margin right=1.5em}
+
+\title{Modellierung von Call-Time Choice als Effekt mittels freier Monaden mit Scope}
+\subject{Modellierung von Call-Time Choice als Effekt mittels freier Monaden mit Scope}
+\date{19. Dezember 2018}
+\author{Niels Bunkenburg}
+\institute{ 
+	Arbeitsgruppe für Programmiersprachen und Übersetzerkonstruktion \par
+	Institut für Informatik \par
+	Christian-Albrechts-Universität zu Kiel}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Motivation}
+\end{frame}
+
+\begin{frame}[fragile]{Grundlagen}
+Programme
+\begin{haskellcode}
+data Prog sig a = Return a 
+                | Op (sig (Prog sig a))
+
+data Free f a = Pure a 
+              | Free (f (Free f a))
+\end{haskellcode}
+Programmsignaturen
+\begin{haskellcode}
+data (sig1 + sig2) cnt = Inl (sig1 cnt) 
+                       | Inr (sig2 cnt)
+
+class (Functor sub, Functor sup) => sub <: sup where
+  inj :: sub a -> sup a
+  prj :: sup a -> Maybe (sub a)
+\end{haskellcode}
+\end{frame}
+
+\begin{frame}[fragile]{Beispieleffekte}
+Effektfreie Programme
+\begin{haskellcode}
+data Void cnt
+
+data VoidProg a = Return a
+\end{haskellcode}
+Nichtdeterministische Programme
+\begin{haskellcode}
+data ND p = Fail | Choice p p
+
+data NDProg a = Return a 
+              | Fail
+              | Choice (NDProg a) (NDProg a)
+\end{haskellcode}
+\end{frame}
+
+\begin{frame}[fragile]{Handler}
+Effekte werden durch \alert{Handler} verarbeitet.
+\begin{haskellcode}
+run :: Prog Void a -> a
+run (Return x) = x
+
+runND :: (Functor sig) 
+      => Prog (ND + sig) a -> Prog sig (Tree a)
+runND (Return a) = return (Leaf a)
+runND Fail       = return Failed
+runND (Choice m p q ) = do
+  pt <- runND p
+  qt <- runND q
+  return (Choice m pt qt)
+runND (Other op) = Op (fmap runND op)
+\end{haskellcode}
+\end{frame}
+
+\begin{frame}[fragile]{Beispielprogramme}
+\begin{haskellcode}
+coin :: Prog (ND + Void) Int
+coin = Choice (return 0) (return 1)
+\end{haskellcode}
+
+\begin{haskellcode}
+λ> run . runND $ coin
+Choice (Leaf 0) (Leaf 1)
+\end{haskellcode}
+
+\begin{haskellcode}
+λ> putStrLn . pretty . run . runND $ addM coin coin
+?
+|---- ?
+      |---- 0
+      |---- 1
+|---- ?
+      |---- 1
+      |---- 2
+\end{haskellcode}
+\end{frame}
+
+\begin{frame}[fragile]{Weitere Effekte}
+\begin{haskellcode}
+data State s p = Get (s -> p)
+               | Put s p
+
+\end{haskellcode}
+\begin{haskellcode}
+data State s p = Get (s -> p)
+               | Put s p
+
+\end{haskellcode}
+\end{frame}
+\end{document}
+
+
