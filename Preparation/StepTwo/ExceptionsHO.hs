@@ -17,12 +17,12 @@ type HState s = Lift (State s)
 
 pattern Get k <- (project -> Just (Lift (Get' k)))
 
-get :: (HState s ⊂ sig) => Prog sig s
+get :: (HState s <: sig) => Prog sig s
 get = inject (Lift (Get' return))
 
 pattern Put s k <- (project -> Just (Lift (Put' s k)))
 
-put :: (HState s ⊂ sig) => s -> Prog sig ()
+put :: (HState s <: sig) => s -> Prog sig ()
 put s = inject (Lift (Put' s (return ())))
 
 runState :: Syntax sig => s -> Prog (HState s + sig) a -> Prog sig (s, a)
@@ -55,12 +55,12 @@ instance Syntax (HExc e) where
 
 pattern Throw e <- (project -> Just (Throw' e))
 
-throw :: (HExc e ⊂ sig) => e -> Prog sig a
+throw :: (HExc e <: sig) => e -> Prog sig a
 throw e = inject (Throw' e)
 
 pattern Catch p h k <- (project -> Just (Catch' p h k))
 
-catch :: (HExc e ⊂ sig) => Prog sig a -> (e -> Prog sig a) -> Prog sig a
+catch :: (HExc e <: sig) => Prog sig a -> (e -> Prog sig a) -> Prog sig a
 catch p h = inject (Catch' p h return)
 
 runExc :: Syntax sig => Prog (HExc e + sig) a -> Prog sig (Either e a)
@@ -80,10 +80,10 @@ runExc (Other op) = Op (handle (Right ()) hdl op)
             -> Prog sig (Either e x))
         hdl = either (return . Left) runExc
 
-tripleDecr :: (HState Int ⊂ sig, HExc () ⊂ sig) => Prog sig ()
+tripleDecr :: (HState Int <: sig, HExc () <: sig) => Prog sig ()
 tripleDecr = decr >> (catch (decr >> decr) return)
 
-decr :: (HState Int ⊂ sig, HExc () ⊂ sig) => Prog sig ()
+decr :: (HState Int <: sig, HExc () <: sig) => Prog sig ()
 decr = do x <- get
           if x > (0 :: Int) then put (pred x) else throw ()
 

@@ -90,41 +90,41 @@ remPar s = case (s, reverse s) of
 
 infixr 0 +
 
-class (Functor sub, Functor sup) => sub ⊂ sup where
+class (Functor sub, Functor sup) => sub <: sup where
   inj :: sub a -> sup a
   prj :: sup a -> Maybe (sub a)
 
-instance Functor sig => sig ⊂ sig where
+instance Functor sig => sig <: sig where
   inj = id
   prj = Just
 
 instance {-# OVERLAPPING #-}
-  (Functor sig1, Functor sig2) => sig1 ⊂ (sig1 + sig2) where
+  (Functor sig1, Functor sig2) => sig1 <: (sig1 + sig2) where
   inj = Inl
   prj (Inl fa) = Just fa
   prj _        = Nothing
 
 instance {-# OVERLAPPABLE #-}
-  (Functor sig1, sig ⊂ sig2) => sig ⊂ (sig1 + sig2) where
+  (Functor sig1, sig <: sig2) => sig <: (sig1 + sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
   prj _        = Nothing
 
-inject :: (sub ⊂ sup) => sub (Prog sup a) -> Prog sup a
+inject :: (sub <: sup) => sub (Prog sup a) -> Prog sup a
 inject = Op . inj
 
-project :: (sub ⊂ sup) => Prog sup a -> Maybe (sub (Prog sup a))
+project :: (sub <: sup) => Prog sup a -> Maybe (sub (Prog sup a))
 project (Op s) = prj s
 project _      = Nothing
 
 pattern Fail <- (project -> Just Fail')
 
-fail :: (Nondet ⊂ sig) => Prog sig a
+fail :: (Nondet <: sig) => Prog sig a
 fail = inject Fail'
 
 pattern p :|| q <- (project -> Just (p :|* q))
 
-(||) :: (Nondet ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
+(||) :: (Nondet <: sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject (p :|* q)
 
 data Void cnt
@@ -153,12 +153,12 @@ data State s cnt = Get' (s -> cnt)
 
 pattern Get k <- (project -> Just (Get' k))
 
-get :: (State s ⊂ sig) => Prog sig s
+get :: (State s <: sig) => Prog sig s
 get = inject (Get' return)
 
 pattern Put s k <- (project -> Just (Put' s k))
 
-put :: (State s ⊂ sig) => s -> Prog sig ()
+put :: (State s <: sig) => s -> Prog sig ()
 put s = inject (Put' s (return ()))
 
 runState :: Functor sig => s -> Prog (State s + sig) a -> Prog sig (s, a)
@@ -175,16 +175,16 @@ runGlobal
   :: Functor sig => s -> Prog (Nondet + State s + sig) a -> Prog sig (s, [a])
 runGlobal s = runState s . solutions
 
-choices :: (Nondet ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig a
+choices :: (Nondet <: sig, State Int <: sig) => Prog sig a -> Prog sig a
 choices (Return a) = return a
 choices (Fail    ) = fail
 choices (p :|| q ) = incr >> (choices p || choices q)
 choices (Op op   ) = Op (fmap choices op)
 
-incr :: (State Int ⊂ sig) => Prog sig ()
+incr :: (State Int <: sig) => Prog sig ()
 incr = get >>= put . (succ :: Int -> Int)
 
-knapsack' :: (Nondet ⊂ sig) => Int -> [Int] -> Prog sig [Int]
+knapsack' :: (Nondet <: sig) => Int -> [Int] -> Prog sig [Int]
 knapsack' w vs
   | w < 0 = fail
   | w == 0 = return []
@@ -193,7 +193,7 @@ knapsack' w vs
     vs' <- knapsack' (w - v) vs
     return (v : vs')
 
-select' :: (Nondet ⊂ sig) => [a] -> Prog sig a
+select' :: (Nondet <: sig) => [a] -> Prog sig a
 select' = foldr (||) fail . map return
 
 e1 :: (Int, [[Int]])
@@ -207,26 +207,26 @@ data Cut cnt = Cutfail'
 
 pattern Cutfail <- (project -> Just Cutfail')
 
-cutfail :: (Cut ⊂ sig) => Prog sig a
+cutfail :: (Cut <: sig) => Prog sig a
 cutfail = inject Cutfail'
 
-call :: (Nondet ⊂ sig) => Prog (Cut + sig) a -> Prog sig a
+call :: (Nondet <: sig) => Prog (Cut + sig) a -> Prog sig a
 call p = go p fail
  where
-  go :: (Nondet ⊂ sig) => Prog (Cut + sig) a -> Prog sig a -> Prog sig a
+  go :: (Nondet <: sig) => Prog (Cut + sig) a -> Prog sig a -> Prog sig a
   go (Return a ) q = return a || q
   go (Fail     ) q = q
   go (Cutfail  ) q = fail
   go (p1 :|| p2) q = go p1 (go p2 q)
   go (Other op ) q = Op (fmap (flip go q) op)
 
-cut :: (Nondet ⊂ sig, Cut ⊂ sig) => Prog sig ()
+cut :: (Nondet <: sig, Cut <: sig) => Prog sig ()
 cut = skip || cutfail
 
 skip :: Monad m => m ()
 skip = return ()
 
-once :: (Nondet ⊂ sig) => Prog (Cut + sig) b -> Prog sig b
+once :: (Nondet <: sig) => Prog (Cut + sig) b -> Prog sig b
 once p = call
   (do
     x <- p

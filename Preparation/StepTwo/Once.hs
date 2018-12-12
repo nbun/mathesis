@@ -37,12 +37,12 @@ instance Syntax HNondet where
 
 pattern Fail <- (project -> Just Fail')
 
-fail :: (HNondet ⊂ sig) => Prog sig a
+fail :: (HNondet <: sig) => Prog sig a
 fail = inject Fail'
 
 pattern p :|| q <- (project -> Just (p :|* q))
 
-(||) :: (HNondet ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
+(||) :: (HNondet <: sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject (p :|* q)
 
 -- HCut
@@ -63,15 +63,15 @@ instance Syntax HCut where
 
 pattern Cutfail <- (project -> Just Cutfail')
 
-cutfail :: (HCut ⊂ sig) => Prog sig a
+cutfail :: (HCut <: sig) => Prog sig a
 cutfail = inject Cutfail'
 
 pattern Call p <- (project -> Just (Call' p))
 
-call :: (HCut ⊂ sig) => Prog sig a -> Prog sig a
+call :: (HCut <: sig) => Prog sig a -> Prog sig a
 call p = inject $ Call' p
 
-runCut :: forall sig a. (Syntax sig, HNondet ⊂ sig) => Prog (HCut + sig) a
+runCut :: forall sig a. (Syntax sig, HNondet <: sig) => Prog (HCut + sig) a
      -> Prog sig (Identity a)
 runCut (Return a)  = fmap Identity (return a)
 runCut Fail        = fail
@@ -90,13 +90,13 @@ runCut (p1 :|| p2) = runCut p1 || runCut p2
 runCut (Other op)  = Op (handle (Identity ()) hdl op)
   where hdl imx = runCut (runIdentity imx)
 
-cut :: (HNondet ⊂ sig, HCut ⊂ sig) => Prog sig ()
+cut :: (HNondet <: sig, HCut <: sig) => Prog sig ()
 cut = skip || cutfail
 
 skip :: Monad m => m ()
 skip = return ()
 
-once :: (HNondet ⊂ sig) => Prog (HCut + sig) b -> Prog sig b
+once :: (HNondet <: sig) => Prog (HCut + sig) b -> Prog sig b
 once p = fmap runIdentity . runCut $
   do call $ do
        x <- p
@@ -116,7 +116,7 @@ solutions (Other op) = Op (handle [()] hdl op)
 e3 :: [[Int]]
 e3 = (run . solutions . once) (knapsack' 3 [3, 2, 1])
 
-knapsack' :: (HNondet ⊂ sig) => Int -> [Int] -> Prog sig [Int]
+knapsack' :: (HNondet <: sig) => Int -> [Int] -> Prog sig [Int]
 knapsack' w vs
   | w < 0 = fail
   | w == 0 = return []
@@ -125,10 +125,10 @@ knapsack' w vs
     vs' <- knapsack' (w - v) vs
     return (v : vs')
 
-select' :: (HNondet ⊂ sig) => [a] -> Prog sig a
+select' :: (HNondet <: sig) => [a] -> Prog sig a
 select' = foldr (||) fail . map return
 
-coin :: (HNondet ⊂ sig) => Prog sig Bool
+coin :: (HNondet <: sig) => Prog sig Bool
 coin = return True || return False
 
 e10 = (run . solutions . runCut) $

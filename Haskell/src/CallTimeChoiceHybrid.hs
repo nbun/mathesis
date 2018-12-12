@@ -31,12 +31,12 @@ data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
 pattern Fail <- (project -> Just Fail')
 pattern Choice m p q <- (project -> Just (Choice' m p q))
 
-fail :: (ND ⊂ sig) => Prog sig a
+fail :: (ND <: sig) => Prog sig a
 fail = inject Fail'
 
 choice p q = inject (Choice' Nothing p q)
 
-choiceID :: (ND ⊂ sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
+choiceID :: (ND <: sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
 choiceID m p q = inject (Choice' m p q)
 
 runND :: (Functor sig) => Prog (ND + sig) a -> Prog sig (Tree.Tree a)
@@ -55,14 +55,14 @@ data Share cnt = Share' Int cnt
 
 pattern Share i p <- (project -> Just (Share' i p))
 
-share' :: (Share ⊂ sig) => Int -> Prog sig a -> Prog sig a
+share' :: (Share <: sig) => Int -> Prog sig a -> Prog sig a
 share' i p = inject (Share' i p)
 
-runShare :: (Functor sig, ND ⊂ sig) => Prog (Share + sig) a -> (Prog sig a)
+runShare :: (Functor sig, ND <: sig) => Prog (Share + sig) a -> (Prog sig a)
 runShare (Return a)  = return a
 runShare (Share i p) = nameChoices i 1 p
   where
-    nameChoices :: (ND ⊂ sig) => Int -> Int -> Prog (Share + sig) a -> Prog sig a
+    nameChoices :: (ND <: sig) => Int -> Int -> Prog (Share + sig) a -> Prog sig a
     nameChoices scope next prog = case prog of
       Return a  -> Return a
       Share i p -> nameChoices i 1 p
@@ -81,15 +81,15 @@ type NDShare = Prog (State Int + Share + ND + Void)
 runCurry :: NDShare a -> Tree.Tree a
 runCurry = run . runND . runShare . fmap snd . runState 1
 
-instance (Functor sig, ND ⊂ sig) => Alternative (Prog sig) where
+instance (Functor sig, ND <: sig) => Alternative (Prog sig) where
   empty = fail
   (<|>) = choice
 
-instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
+instance (Functor sig, ND <: sig) => MonadPlus (Prog sig) where
   mplus = choice
   mzero = fail
 
-instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) where
+instance (Share <: sig, State Int <: sig, ND <: sig) => Sharing (Prog sig) where
   share p = do
     i <- get
     put (i * 2)
@@ -153,5 +153,5 @@ instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
 -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool)
 -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))) :: NDShare (Pair Identity (List Identity Bool)))
 
-coinID :: (ND ⊂ sig) => Prog sig Bool
+coinID :: (ND <: sig) => Prog sig Bool
 coinID = choiceID (Just (42,42)) (return True) (return False)

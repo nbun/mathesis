@@ -30,13 +30,13 @@ data ND cnt = Fail' | Choice' (Maybe Int) cnt cnt
 pattern Fail <- (project -> Just Fail')
 pattern Choice m p q <- (project -> Just (Choice' m p q))
 
-fail :: (ND ⊂ sig) => Prog sig a
+fail :: (ND <: sig) => Prog sig a
 fail = inject Fail'
 
-choice :: (ND ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
+choice :: (ND <: sig) => Prog sig a -> Prog sig a -> Prog sig a
 choice p q = inject (Choice' Nothing p q)
 
-choiceID :: (ND ⊂ sig) => Maybe Int -> Prog sig a -> Prog sig a -> Prog sig a
+choiceID :: (ND <: sig) => Maybe Int -> Prog sig a -> Prog sig a -> Prog sig a
 choiceID m p q = inject (Choice' m p q)
 
 data Choice = CLeft | CRight
@@ -67,7 +67,7 @@ data Share cnt = BShare' Int cnt | EShare' Int cnt
 pattern BShare i p <- (project -> Just (BShare' i p))
 pattern EShare i p <- (project -> Just (EShare' i p))
 
-share' :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig a
+share' :: (Share <: sig, State Int <: sig) => Prog sig a -> Prog sig a
 share' p = do i <- get
               put (i + 1)
               begin i
@@ -78,12 +78,12 @@ share' p = do i <- get
     begin i = inject (BShare' i (return ()))
     end   i = inject (EShare' i (return ()))
 
-instance (Share ⊂ sig, State Int ⊂ sig, ND ⊂ sig) => Sharing (Prog sig) where
+instance (Share <: sig, State Int <: sig, ND <: sig) => Sharing (Prog sig) where
   share p = do i <- get
                put (i + 1)
                return $ sharen' i p
 
-sharen' :: (Share ⊂ sig) => Int -> Prog sig a -> Prog sig a
+sharen' :: (Share <: sig) => Int -> Prog sig a -> Prog sig a
 sharen' n p = do begin n
                  x <- p
                  end n
@@ -92,21 +92,21 @@ sharen' n p = do begin n
     begin i = inject (BShare' i (return ()))
     end   i = inject (EShare' i (return ()))
 
-sharen :: (Share ⊂ sig, State Int ⊂ sig) => Int -> Prog sig a -> Prog sig (Prog sig a)
+sharen :: (Share <: sig, State Int <: sig) => Int -> Prog sig a -> Prog sig (Prog sig a)
 sharen n = return . sharen' n
 
-runShare :: (Functor sig, ND ⊂ sig)
+runShare :: (Functor sig, ND <: sig)
          => Int -> Prog (Share + sig) a -> (Prog sig a)
 runShare = bshare
 
-bshare :: (ND ⊂ sig)
+bshare :: (ND <: sig)
        => Int -> Prog (Share + sig) a -> Prog sig a
 bshare _ (Return a)   = return a
 bshare _ (BShare i p) = eshare i p >>= bshare i
 bshare _ (EShare _ p) = error "Mismatched Eshare!"
 bshare i (Other op)   = Op (fmap (bshare i) op)
 
-eshare :: (ND ⊂ sig)
+eshare :: (ND <: sig)
        => Int -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
 eshare _ (Return a) = return (Return a)
 eshare _ (BShare i p)  = eshare i p
@@ -146,11 +146,11 @@ runCurry = map snd . snd.  run . runND [] . runShare 1 . runState 1
 runTree :: (Pretty a, Show a) => Prog (State Int + Share + ND + Void) a -> IO ()
 runTree = putStrLn . pretty . toTree . runShare 1 . runState 1
 
-instance (Functor sig, ND ⊂ sig) => Alternative (Prog sig) where
+instance (Functor sig, ND <: sig) => Alternative (Prog sig) where
   empty = fail
   (<|>) = choice
 
-instance (Functor sig, ND ⊂ sig) => MonadPlus (Prog sig) where
+instance (Functor sig, ND <: sig) => MonadPlus (Prog sig) where
   mplus = choice
   mzero = fail
 

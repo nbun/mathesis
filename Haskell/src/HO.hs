@@ -41,7 +41,7 @@ instance Syntax sig => Monad (Prog sig) where
   Return v >>= prog = prog v
   Op op    >>= prog = Op (emap (>>= prog) op)
 
-class (Syntax sub, Syntax sup) => sub ⊂ sup where
+class (Syntax sub, Syntax sup) => sub <: sup where
   inj :: sub m a -> sup m a
   prj :: sup m a -> Maybe (sub m a)
 
@@ -51,13 +51,13 @@ data (sig1 + sig2) (m :: * -> *) a = Inl (sig1 m a) | Inr (sig2 m a)
 infixr 0 +
 
 instance {-# OVERLAPPING #-}
-  (Syntax sig1, Syntax sig2) => sig1 ⊂ (sig1 + sig2) where
+  (Syntax sig1, Syntax sig2) => sig1 <: (sig1 + sig2) where
   inj = Inl
   prj (Inl fa) = Just fa
   prj _        = Nothing
 
 instance {-# OVERLAPPABLE #-}
-  (Syntax sig1, sig ⊂ sig2) => sig ⊂ (sig1 + sig2) where
+  (Syntax sig1, sig <: sig2) => sig <: (sig1 + sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
   prj _        = Nothing
@@ -83,10 +83,10 @@ instance Functor sig => Syntax (Lift sig) where
   handle c hdl (Lift op) =
     Lift (fmap (\p -> hdl (fmap (const p) c)) op)
 
-inject :: (sub ⊂ sup) => sub (Prog sup) a -> Prog sup a
+inject :: (sub <: sup) => sub (Prog sup) a -> Prog sup a
 inject = Op . inj
 
-project :: (sub ⊂ sup) => Prog sup a -> Maybe (sub (Prog sup) a)
+project :: (sub <: sup) => Prog sup a -> Maybe (sub (Prog sup) a)
 project (Op s) = prj s
 project _      = Nothing
 

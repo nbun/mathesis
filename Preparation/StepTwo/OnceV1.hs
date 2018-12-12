@@ -24,12 +24,12 @@ type HNondet = Lift Nondet
 
 pattern Fail <- (project -> Just (Lift Fail'))
 
-fail :: (HNondet ⊂ sig) => Prog sig a
+fail :: (HNondet <: sig) => Prog sig a
 fail = inject $ Lift Fail'
 
 pattern p :|| q <- (project -> Just (Lift (p :|* q)))
 
-(||) :: (HNondet ⊂ sig) => Prog sig a -> Prog sig a -> Prog sig a
+(||) :: (HNondet <: sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject $ Lift (p :|* q)
 
 data Cut cnt = Cutfail'
@@ -39,10 +39,10 @@ type HCut = Lift Cut
 
 pattern Cutfail <- (project -> Just (Lift Cutfail'))
 
-cutfail :: (HCut ⊂ sig) => Prog sig a
+cutfail :: (HCut <: sig) => Prog sig a
 cutfail = inject $ Lift Cutfail'
 
-call :: forall sig a. (Syntax sig, HNondet ⊂ sig) => Prog (HCut + sig) a
+call :: forall sig a. (Syntax sig, HNondet <: sig) => Prog (HCut + sig) a
      -> Prog sig (Identity a)
 call p = go p fail
   where
@@ -56,13 +56,13 @@ call p = go p fail
     hdl :: (forall x. Identity (Prog (HCut + sig) x) -> Prog sig (Identity x))
     hdl imx = call (runIdentity imx)
 
-cut :: (HNondet ⊂ sig, HCut ⊂ sig) => Prog sig ()
+cut :: (HNondet <: sig, HCut <: sig) => Prog sig ()
 cut = skip || cutfail
 
 skip :: Monad m => m ()
 skip = return ()
 
-once :: (HNondet ⊂ sig) => Prog (HCut + sig) b -> Prog sig b
+once :: (HNondet <: sig) => Prog (HCut + sig) b -> Prog sig b
 once p = fmap runIdentity $ call
   (do
     x <- p
@@ -83,7 +83,7 @@ solutions (Other op) = Op (handle [()] hdl op)
 e3 :: [[Int]]
 e3 = (run . solutions . once) (knapsack' 3 [3, 2, 1])
 
-knapsack' :: (HNondet ⊂ sig) => Int -> [Int] -> Prog sig [Int]
+knapsack' :: (HNondet <: sig) => Int -> [Int] -> Prog sig [Int]
 knapsack' w vs
   | w < 0 = fail
   | w == 0 = return []
@@ -92,7 +92,7 @@ knapsack' w vs
     vs' <- knapsack' (w - v) vs
     return (v : vs')
 
-select' :: (HNondet ⊂ sig) => [a] -> Prog sig a
+select' :: (HNondet <: sig) => [a] -> Prog sig a
 select' = foldr (||) fail . map return
 
 e12 :: [(Int, Identity Int)]

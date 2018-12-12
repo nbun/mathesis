@@ -19,7 +19,7 @@ data Catch e cnt = BCatch' cnt (e -> cnt) | ECatch' cnt
 pattern BCatch p q <- (project -> Just (BCatch' p q))
 pattern ECatch p <- (project -> Just (ECatch' p))
 
-catch' :: forall sig e a . (Catch e ⊂ sig) => Prog sig a -> (e -> Prog sig a)
+catch' :: forall sig e a . (Catch e <: sig) => Prog sig a -> (e -> Prog sig a)
        -> Prog sig a
 catch' p h = begin (do x <- p; end; return x) h where
   begin p q = inject (BCatch' p q)
@@ -50,7 +50,7 @@ ecatch p | Just (ECatch' p :: Catch e (Prog (Catch e1 + (Exc e1 + sig)) a ))
 ecatch (Other op) = Op (fmap ecatch op)
 
 
-tripleDecr' :: (State Int ⊂ sig, Exc () ⊂ sig, Catch () ⊂ sig) => Prog sig ()
+tripleDecr' :: (State Int <: sig, Exc () <: sig, Catch () <: sig) => Prog sig ()
 tripleDecr' = decr >> catch' (decr >> decr) return
 
 e8 :: Either () (Int, ())

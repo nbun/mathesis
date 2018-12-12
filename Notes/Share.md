@@ -3,7 +3,7 @@
 * First version, directly derived from the implementation of `catch`.
 
 ```Haskell
-share :: (Share ⊂ sig) => Prog sig a -> Prog sig a
+share :: (Share <: sig) => Prog sig a -> Prog sig a
 share p = do begin ; x <- p ; end ; return x
   where
     begin = inject (BShare' (return ()))
@@ -27,7 +27,7 @@ way to reconstruct this information from the data structure. Thus, `share` needs
 provide this information.
 
 ```Haskell
-share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig a
+share :: (Share <: sig, State Int <: sig) => Prog sig a -> Prog sig a
 share p = do 
   i <- get
   put (i + 1)
@@ -55,7 +55,7 @@ as shown below.
 To solve this problem, another program layer is added.
 
 ```Haskell
-share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
+share :: (Share <: sig, State Int <: sig) => Prog sig a -> Prog sig (Prog sig a)
 share p = do 
   i <- get
   put (i + 1)
@@ -76,7 +76,7 @@ To support data structures that can contain nondeterminism within their argument
 some extensions are necessary.
 
 ```Haskell
-share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
+share :: (Share <: sig, State Int <: sig) => Prog sig a -> Prog sig (Prog sig a)
 share p = do 
   i <- get
   put (i + 1)
@@ -109,7 +109,7 @@ are evaluated. Thus, we need to give each inner program a unique state from whic
 computation can be continued.
 
 ```Haskell
-share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
+share :: (Share <: sig, State Int <: sig) => Prog sig a -> Prog sig (Prog sig a)
 share p = do 
   i <- get
   put (i + 1)
@@ -160,7 +160,7 @@ One easy fix to achieve this result is to make the new IDs unique by splitting t
 into two new, independent supplies, for example, as shown in the following.
 
 ```Haskell
-share :: (Share ⊂ sig, State Int ⊂ sig) => Prog sig a -> Prog sig (Prog sig a)
+share :: (Share <: sig, State Int <: sig) => Prog sig a -> Prog sig (Prog sig a)
 share p = do 
   i <- get
   put (i * 2)

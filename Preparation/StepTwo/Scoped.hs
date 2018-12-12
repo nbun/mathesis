@@ -18,29 +18,29 @@ data Call cnt = BCall' cnt | ECall' cnt
 pattern BCall p <- (project -> Just (BCall' p))
 pattern ECall p <- (project -> Just (ECall' p))
 
-call' :: (Call ⊂ sig) => Prog sig a -> Prog sig a
+call' :: (Call <: sig) => Prog sig a -> Prog sig a
 call' p = do begin ; x <- p ; end ; return x
   where
     begin = inject (BCall' (return ()))
     end   = inject (ECall' (return ()))
 
-expr3 :: (Nondet ⊂ sig, Symbol ⊂ sig, Call ⊂ sig, Cut ⊂ sig) => Prog sig Int
+expr3 :: (Nondet <: sig, Symbol <: sig, Call <: sig, Cut <: sig) => Prog sig Int
 expr3 = do i <- term
            call' (do symbol '+'; cut; j <- expr; return (i + j)
                    || do return i)
 
 e6 = run . solutions . runCut . parse "1" $ expr3
 
-runCut :: (Nondet ⊂ sig) => Prog (Call + Cut + sig) a -> Prog sig a
+runCut :: (Nondet <: sig) => Prog (Call + Cut + sig) a -> Prog sig a
 runCut p = call (bcall p)
 
-bcall :: (Nondet ⊂ sig) => Prog (Call + Cut + sig) a -> Prog (Cut + sig) a
+bcall :: (Nondet <: sig) => Prog (Call + Cut + sig) a -> Prog (Cut + sig) a
 bcall (Return a) = return a
 bcall (BCall p)  = upcast (call (ecall p)) >>= bcall
 bcall (ECall p)  = error "Mismatched ECall!"
 bcall (Other op) = Op (fmap bcall op)
 
-ecall :: (Nondet ⊂ sig) => Prog (Call + Cut + sig) a
+ecall :: (Nondet <: sig) => Prog (Call + Cut + sig) a
       -> Prog (Cut + sig) (Prog (Call + Cut + sig) a)
 ecall (Return a) = return (Return a)
 ecall (BCall p)  = upcast (call (ecall p)) >>= ecall

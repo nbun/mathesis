@@ -32,9 +32,9 @@ scope of the effect is limited by the function `call`, where the interplay of th
 can be observed.
 
 ```Haskell
-call :: (Nondet ⊂ sig) ⇒ Prog (Cut + sig) a → Prog sig a
+call :: (Nondet <: sig) ⇒ Prog (Cut + sig) a → Prog sig a
 call p = go p fail where
-  go :: (Nondet ⊂ sig) ⇒ Prog (Cut + sig) a → Prog sig a → Prog sig a
+  go :: (Nondet <: sig) ⇒ Prog (Cut + sig) a → Prog sig a → Prog sig a
   go (Return a) q = return a q
   go (Fail)     q = q
   go (Cutfail)  q = fail
