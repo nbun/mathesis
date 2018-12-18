@@ -155,3 +155,7 @@ instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
 
 coinID :: (ND <: sig) => Prog sig Bool
 coinID = choiceID (Just (42,42)) (return True) (return False)
+
+
+coiniID :: (ND <: sig) => Prog sig Int
+coiniID = choiceID (Just (42,42)) (return 0) (return 1)

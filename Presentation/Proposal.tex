@@ -9,11 +9,12 @@
 \usepackage{subcaption}
 \usepackage{graphicx}
 \usepackage{scrextend}
+\usepackage{appendixnumberbeamer}
 
-\usemintedstyle[haskell]{trac}
-\newminted{haskell}{fontsize=\small}
-\newminted{coq}{fontsize=\small}
-\newminted{text}{fontsize=\small}
+\usemintedstyle[haskell]{trac, fontsize=\small}
+\usemintedstyle[coq]{fontsize=\footnotesize}
+\usemintedstyle[text]{fontsize=\footnotesize}
+\newcommand{\haskellinline}[1]{\mintinline{haskell}{#1}}
 \newcommand{\coqinline}[1]{\mintinline{coq}{#1}}
 
 \usetheme[progressbar=foot]{metropolis}
@@ -23,8 +24,8 @@
 
 %\setbeamersize{text margin left=1.5em,text margin right=1.5em}
 
-\title{Modellierung von Call-Time Choice als Effekt mittels freier Monaden mit Scope}
-\subject{Modellierung von Call-Time Choice als Effekt mittels freier Monaden mit Scope}
+\title{Modellierung von Call-Time Choice als Effekt unter Verwendung von Freien Monaden}
+\subject{Modellierung von Call-Time Choice als Effekt unter Verwendung von Freien Monaden}
 \date{19. Dezember 2018}
 \author{Niels Bunkenburg}
 \institute{ 
@@ -39,76 +40,105 @@
 \end{frame}
 
 \begin{frame}{Motivation}
+\haskellinline{let x = 0?1 in x + x} $\quad \neq \quad$ \haskellinline{(0?1) + (0?1)}
+
+\begin{itemize}
+\item Ersetzungsregeln sind in Curry nicht immer wie in Haskell anwendbar
+\item Beweise über die Semantik eines Programms sind schwierig
+\item Ansatz: Übersetzung des Programms in andere Sprache
+\item Modellierung der Effekte (z.B. Nichtdeterminismus)
+\end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Grundlagen}
-Programme
-\begin{haskellcode}
+\begin{itemize}
+\item Programme
+\begin{minted}{haskell}
 data Prog sig a = Return a 
                 | Op (sig (Prog sig a))
-
-data Free f a = Pure a 
-              | Free (f (Free f a))
-\end{haskellcode}
-Programmsignaturen
-\begin{haskellcode}
-data (sig1 + sig2) cnt = Inl (sig1 cnt) 
-                       | Inr (sig2 cnt)
-
-class (Functor sub, Functor sup) => sub <: sup where
-  inj :: sub a -> sup a
-  prj :: sup a -> Maybe (sub a)
-\end{haskellcode}
+\end{minted}
+\item Programmsignaturen
+\begin{minted}{haskell}
+data (sig1 + sig2) p = Inl (sig1 p) 
+                     | Inr (sig2 p)
+\end{minted}
+\end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Beispieleffekte}
-Effektfreie Programme
-\begin{haskellcode}
-data Void cnt
-
+\begin{itemize}
+\item Effektfreie Programme
+\begin{minted}{haskell}
+data Void p
 data VoidProg a = Return a
-\end{haskellcode}
-Nichtdeterministische Programme
-\begin{haskellcode}
-data ND p = Fail | Choice p p
+\end{minted}
 
+\item Nichtdeterministische Programme
+\begin{minted}{haskell}
+data ND p = Fail | Choice p p
 data NDProg a = Return a 
               | Fail
               | Choice (NDProg a) (NDProg a)
-\end{haskellcode}
+\end{minted}
+\end{itemize}
+$\rightarrow$ Der konkrete Datentyp bestimmt die \alert{Syntax} eines Effekts
 \end{frame}
 
 \begin{frame}[fragile]{Handler}
-Effekte werden durch \alert{Handler} verarbeitet.
-\begin{haskellcode}
+Effekte werden durch \alert{Handler} verarbeitet
+\begin{minted}{haskell}
 run :: Prog Void a -> a
 run (Return x) = x
 
-runND :: (Functor sig) 
-      => Prog (ND + sig) a -> Prog sig (Tree a)
-runND (Return a) = return (Leaf a)
-runND Fail       = return Failed
-runND (Choice m p q ) = do
-  pt <- runND p
-  qt <- runND q
-  return (Choice m pt qt)
-runND (Other op) = Op (fmap runND op)
-\end{haskellcode}
+runND :: Prog ND a -> Tree a
+runND (Return a) = Leaf a
+runND Fail       = Empty
+runND (Choice p q) =
+  let pt = runND p
+      qt = runND q
+  in Branch pt qt
+\end{minted}
+$\rightarrow$ Der Handler bestimmt die \alert{Semantik} eines Effekts
 \end{frame}
 
-\begin{frame}[fragile]{Beispielprogramme}
-\begin{haskellcode}
-coin :: Prog (ND + Void) Int
+\begin{frame}[fragile]{Funktionen}
+\begin{minted}{haskell}
+coin :: Prog ND Int
 coin = Choice (return 0) (return 1)
-\end{haskellcode}
+\end{minted}
+\pause
+\begin{minted}{haskell}
+addM :: Prog sig Int -> Prog sig Int -> Prog sig Int
+addM p1 p2 = do
+  i1 <- p1
+  i2 <- p2
+  return $ i1 + i2
+\end{minted}
+$\rightarrow$ \haskellinline{liftM} bei strikten Funktionen
+\pause
+\begin{minted}{haskell}
+orM :: Prog sig Bool -> Prog sig Bool -> Prog sig Bool
+orM p1 p2 = p1 >>= \b -> case b of
+                           True  -> return True
+                           False -> p2
+\end{minted}
+$\rightarrow$ Pattern Matching erfordert Bind
+\end{frame}
 
-\begin{haskellcode}
-λ> run . runND $ coin
+\begin{frame}[fragile]{Beispielausdrücke}
+\begin{minted}{haskell}
+λ> run $ addM (return 42) undefined
+*** Exception: Prelude.undefined
+
+λ> run $ orM (return True) undefined
+True
+
+λ> runND coin
 Choice (Leaf 0) (Leaf 1)
-\end{haskellcode}
-
-\begin{haskellcode}
-λ> putStrLn . pretty . run . runND $ addM coin coin
+\end{minted}
+\pause
+\begin{minted}{haskell}
+λ> putStrLn . pretty . runND $ addM coin coin
 ?
 |---- ?
       |---- 0
@@ -116,20 +146,273 @@ Choice (Leaf 0) (Leaf 1)
 |---- ?
       |---- 1
       |---- 2
-\end{haskellcode}
+\end{minted}
 \end{frame}
 
-\begin{frame}[fragile]{Weitere Effekte}
-\begin{haskellcode}
-data State s p = Get (s -> p)
-               | Put s p
+\begin{frame}[fragile]{Call-Time Choice}
+\begin{itemize}
+\item Nichtdeterminismus und \alert{Sharing}
+\begin{minted}{haskell}
+Prelude> let x = 0 ? 1 in x + x
+0
+2
+\end{minted}
+\item \haskellinline{let} entspricht Sharing-Effekt
+\begin{minted}{haskell}
+?1
+|---- ?1
+      |---- 0
+      |---- 1
+|---- ?1
+      |---- 1
+      |---- 2
+\end{minted}
+\end{itemize}
+$\rightarrow$ Sharing-Effekt vergibt \alert{IDs} für Choices
+\end{frame}
 
-\end{haskellcode}
-\begin{haskellcode}
-data State s p = Get (s -> p)
-               | Put s p
+\begin{frame}[fragile]{Sharing-Effekt -- Idee}
+\begin{itemize}
+\item Explizite Sharing Syntax 
+\begin{minted}{haskell}
+share :: Prog sig a -> Prog sig (Prog sig a)
+\end{minted}
+\item \haskellinline{let x = coin in x + x} \\
+      wird zu\\
+      \haskellinline{share coin >>= \fx -> addM fx fx}
+\end{itemize}
+Wie werden Choice IDs innerhalb von \haskellinline{share} vergeben?
+\end{frame}
 
-\end{haskellcode}
+\begin{frame}[fragile]{Sharing-Effekt -- Datentyp und Handler}
+\begin{minted}{haskell}
+data Share p = Share p
+
+runShare :: Prog (Share + ND) a -> Prog ND a
+runShare (Return a) = return a
+runShare (Share  p) = nameChoices p
+runShare (Other op) = Op (fmap runShare op)
+
+nameChoices :: Prog (Share + ND) a -> Prog ND a
+nameChoices (Return a)     = return a
+nameChoices (Share  p)     = nameChoices p
+nameChoices Fail           = fail
+nameChoices (Choice _ p q) =
+  choice 42 (nameChoices p) (nameChoices q)
+\end{minted}
+$\rightarrow$ \haskellinline{Share} benötigt eine ID
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- IDs}
+\begin{minted}{haskell}
+data Share p = Share Int p
+\end{minted}
+$\rightarrow$ \haskellinline{share} muss ID selbst generieren
+
+Idee: Individuelle IDs durch \alert{State Effekt}
+% Monadengesetz Linksidentität: Left identity: return a >>= f ≡ f a
+\begin{minted}{haskell}
+share p = return $ do
+  i <- get
+  put (i + 1)
+  share' i p -- Smartkonstruktor für Share
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- Problem}
+\begin{minted}{haskell}
+do fx <- share coin
+   addM fx fx
+\end{minted}
+
+\begin{minted}{haskell}
+do fx <- return $ do
+     i <- get
+     put (i + 1)
+     share' i coin
+   addM fx fx -- State Code wird dupliziert!
+\end{minted}
+\pause
+\begin{minted}{haskell}
+do fx <- do -- State Code wird ausgewertet
+     i <- get
+     put (i + 1)
+     return (share' i coin)
+  addM fx fx
+\end{minted}
+$\rightarrow$ Zwei Programmebenen sind notwendig
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- Nested Sharing}
+\alert{Nested Sharing}
+
+\begin{minipage}[t]{0.48\linewidth}
+\begin{minted}{haskell}
+let x = let y = coin
+        in y + y
+in x + x
+\end{minted}
+\end{minipage}
+\begin{minipage}[t]{0.48\linewidth}
+\begin{minted}{haskell}
+share p = do
+  i <- get
+  put (i * 2)
+  return . share' i $ do
+    put (i * 2 + 1)
+    p
+\end{minted}
+\end{minipage}
+\vfill
+$\rightarrow$ Verschachtelte Aufrufe von \haskellinline{share} benötigen frische IDs
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- Deep Sharing}
+\alert{Deep Sharing}
+
+Geliftete Datentypen erlauben Effekte in den Komponenten, z.B.
+  \haskellinline{data List m a = Nil | Cons (m a) (m (List m a))}
+
+\vfill
+\begin{minipage}[t]{0.48\linewidth}
+\begin{minted}{haskell}
+let xs = [coin]
+in (xs, xs)
+\end{minted}
+\end{minipage}
+\begin{minipage}[t]{0.48\linewidth}
+\begin{minted}{haskell}
+share p = do
+  i <- get
+  put (i * 2)
+  return . share' i $ do
+    put (i * 2 + 1)
+    x <- p
+    shareArgs share x
+\end{minted}
+\end{minipage}
+
+$\rightarrow$ Rekursive \haskellinline{share} Aufrufe für Komponenten notwendig
+\end{frame}
+
+\begin{frame}[fragile]{Zusammenfassung und Ausblick}
+Zusammenfassung
+\begin{itemize}
+\item Effekte können als Instanzen des Datentyps \haskellinline{Prog} modelliert werden
+\item Handler setzen Effekte im Programm um
+\item Call-Time Choice in Curry wird durch Nichtdeterminismus und Sharing modelliert
+\item Sharing kennzeichnet Choices geschickt mit IDs
+\end{itemize}
+\vfill
+Ausblick
+\begin{itemize}
+\item Drei Ansätze $\rightarrow$ Implementierung in Coq
+\item Beweisen der \textit{laws of sharing} für die Implementierung
+\item Beweise über Eigenschaften von konkreten Curry Programmen
+\end{itemize}
+\end{frame}
+
+\appendix
+
+\begin{frame}[fragile]{Verschachteltes Sharing}
+
+\begin{minted}{haskell}
+share (share coin >>= \fx -> addM fx fx)
+  >>= \fy -> addM fy fy
+\end{minted}
+
+\begin{minipage}[t]{0.48\linewidth}
+\begin{minted}{haskell}
+?2
+|-- ?2
+    |-- ?4
+        |-- ?4
+            |-- 0
+            |-- 1
+        |-- ?4
+            |-- 1
+            |-- 2
+            ...
+\end{minted}
+{\tiny Ohne Berücksichtigung von verschachteltem Sharing}
+\end{minipage}
+\begin{minipage}[t]{0.48\linewidth}
+\begin{minted}{haskell}
+?3
+|-- ?3
+    |-- ?3
+        |-- ?3
+            |-- 0
+            |-- 1
+        |-- ?3
+            |-- 1
+            |-- 2
+            ...
+\end{minted}
+{\tiny Mit Berücksichtigung von verschachteltem Sharing}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- Vollständiger Handler}
+\begin{minted}{haskell}
+runShare :: (Functor sig, ND <: sig) 
+  => Prog (Share + sig) a -> (Prog sig a)
+runShare (Return a)  = return a
+runShare (Share i p) = nameChoices i 1 p
+runShare (Other op)  = Op (fmap runShare op)
+
+nameChoices :: (ND <: sig) 
+  => Int -> Int -> Prog (Share + sig) a -> Prog sig a
+nameChoices scope next prog = case prog of
+  Return a  -> Return a
+  Share i p -> nameChoices i 1 p
+  Choice _ p q ->
+    let p' = nameChoices scope (2 * next)      p
+        q' = nameChoices scope (2 * next + 1)  q
+    in choiceID (Just (scope, next)) p' q'
+  Other op -> Op (fmap (nameChoices scope next) op)
+\end{minted}
+\end{frame}
+
+\begin{frame}{Laws of Sharing}
+Purely Functional Lazy Non-deterministic Programming
+\includegraphics[width=\linewidth]{img/LawsOfSharing.png}
+\end{frame}
+
+\begin{frame}[fragile]{Bäume}
+\begin{minted}{haskell}
+data Decision = L | R
+type Memo = Map.Map ID Decision
+
+dfs :: Memo -> Tree a -> [a]
+dfs mem Failed = []
+dfs mem (Leaf x) = [x]
+dfs mem (Choice Nothing t1 t2) = dfs mem t1 
+                              ++ dfs mem t2
+dfs mem (Choice (Just n) t1 t2) =
+    case Map.lookup n mem of
+      Nothing -> dfs (Map.insert n L mem) t1 
+              ++ dfs (Map.insert n R mem) t2
+      Just L -> dfs mem t1
+      Just R -> dfs mem t2
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Explizite Scopes}
+\begin{minted}{haskell}
+data Share p = BShare Int p | EShare Int p
+
+share p = do
+  i <- get
+  put (i * 2)
+  return $ do
+    inject (BShare i (return ()))
+    put (i * 2 + 1)
+    x <- p
+    x' <- shareArgs share x
+    inject (EShare i (return ()))
+    return x'
+\end{minted}
 \end{frame}
 \end{document}
 

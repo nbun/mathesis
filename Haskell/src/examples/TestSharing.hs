@@ -337,3 +337,21 @@ distrib_bind_mplus = do c <- share coini
                         y <- coini
                         x <- c
                         cons (return x) (cons (return y) nil)
+
+e1 = run . runND $ (coini :: (Prog (ND + Void) Int))
+
+e2 :: Prog (ND + Void) Int
+e2 = addM coini coini
+
+e3 :: NDShare Int
+e3 = share coini >>= \fx -> addM fx fx
+
+e4 :: NDShare Int
+e4 = share (share coini >>= \fx -> addM fx fx)
+     >>= \fy -> addM fy fy
+
+e5 :: Prog Void Bool
+e5 = orM (return True) undefined
+
+e6 :: Prog Void Int
+e6 = addM (return 42) undefined

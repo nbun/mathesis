@@ -3,7 +3,7 @@
 * First version, directly derived from the implementation of `catch`.
 
 ```Haskell
-share :: (Share <: sig) => Prog sig a -> Prog sig a
+share :: (Share <: sig) => Prog sig a -> Prog sig (Prog sig a)
 share p = do begin ; x <- p ; end ; return x
   where
     begin = inject (BShare' (return ()))
@@ -35,8 +35,8 @@ share p = do
   x <- p
   end i
   return x
-    begin i = inject (BShare' i (return ()))
-    end   i = inject (EShare' i (return ()))
+    begin i = inject (bshare' i (return ()))
+    end   i = inject (eshare' i (return ()))
 ```
 
 The issue with this solution is that the added state code is "executed" at the
