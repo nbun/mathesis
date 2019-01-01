@@ -1,0 +1,127 @@
+\documentclass[a4paper, 11pt, fleqn, twoside]{scrreprt}
+% escapeinside
+%\usepackage[gray]{xcolor}
+\usepackage[T1]{fontenc}        % T1-Fonts
+\usepackage[utf8]{inputenc}     % Enkodierung
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{proof} % http://www.logicmatters.net/resources/ndexamples/proofsty.html
+%\usepackage{bussproofs}
+\usepackage{hyperref}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usepackage{natbib}
+\usepackage[automark, headsepline]{scrlayer-scrpage}
+
+% Kapitelüberschrift in der Kopfzeile
+%\usepackage[automark]{scrpage2} % Schickerer Satzspiegel mit KOMA-Script
+%\pagestyle{scrheadings}
+
+% Minted
+\usepackage{minted}
+\usemintedstyle[haskell]{trac}
+\newminted{haskell}{fontsize=\small}
+\newminted{coq}{fontsize=\small}
+\setmintedinline{style = bw}
+
+% Für schönere Tabellen (optional)
+% \usepackage{booktabs}           % Netteres Tabellenlayout
+% \usepackage{multicol}           % Mehrspaltige Bereiche
+% \usepackage{tabularx}           % Tabellen mit fester Breite
+
+% Für Listings
+% \usepackage{listings}
+
+% Eine kleine Hilfe für offene Lücken
+\newcommand{\todo}[1]{\marginpar{\textbf{TODO:} #1}}
+\newcommand{\coqinline}[1]{\mintinline{coq}{#1}}
+
+\begin{document}
+
+\pagenumbering{roman} % römische Seitenzahlen
+
+\begin{titlepage}
+	\vspace*{3cm}
+	\centering
+	{\huge\bfseries Modelling Call-Time Choice as Effect using Scoped Free Monads\par}
+	\vspace{1cm}
+	\textbf{Niels Bunkenburg} \par 
+	\vspace{6cm}
+	\textbf{Master's Thesis} \par
+	Programming Languages and Compiler Construction \par
+	Department of Computer Science \par
+	Kiel University
+	\vfill
+	Advised by\par
+	Priv.-Doz. Dr. Frank Huch \par
+	M. Sc. Sandra Dylus
+	\vfill
+	% Randloses Drucken nicht möglich...
+	\tikz[remember picture,overlay] \node[opacity=0.3,inner sep=0pt] at (9.5,-1.5){\includegraphics{img/cau-siegel-1400.png}};
+	{\large \today\par}
+\end{titlepage}
+
+\chapter*{Erklärung der Urheberschaft}
+\vspace{2cm}
+Ich erkläre hiermit an Eides statt, dass ich die vorliegende Arbeit
+ohne Hilfe Dritter und ohne Benutzung anderer als der angegebenen
+Hilfsmittel angefertigt habe. Aus fremden Quellen direkt oder
+indirekt übernommene Gedanken sind als solche kenntlich gemacht. Die
+Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen
+Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
+
+\vspace{4cm}
+\hspace{1cm} $\overline{~~~~~~~~~~\mbox{Ort, Datum}~~~~~~~~~~}$ \hfill $\overline{~~~~~~~~~~~~~\mbox{Unterschrift}~~~~~~~~~~~~~}$ \hspace{1cm}
+
+\newpage
+\mbox{}
+\thispagestyle{empty}
+\newpage
+
+% Verzeichnisse
+\renewcommand{\contentsname}{Contents}
+\tableofcontents   % Inhaltsverzeichnis
+%\listoffigures     % Abbildungsverzeichnis
+% \listoftables      % Tabellenverzeichnis
+% \lstlistoflistings % Abbildungsverzeichnis
+
+\newpage               % Expliziter Umbruch für Seitenzahlen
+\pagenumbering{arabic} % arabische Seitenzahlen
+
+% Inhalt
+
+\chapter{Introduction}
+
+\chapter{Preliminaries}
+
+\section{Coq}
+
+\section{Haskell}
+
+\section{Curry}
+\subsection{Non-strictness}
+\subsection{Sharing}
+\subsection{Non-determinism}
+
+\section{Modelling Curry Programs using Monadic Code Transformation}
+
+\chapter{Call-Time Choice modelled in Haskell}
+
+\section{Free Monads}
+
+\section{Modelling Effects}
+
+\section{Sharing}
+
+\chapter{Call-Time Choice modelled in Coq}
+
+\chapter{Conclusion}
+
+
+% Literatur
+\bibliographystyle{plainnat}
+\bibliography{curroqe} % Datei: seminar.bib
+% Anhang
+\appendix
+\end{document}
