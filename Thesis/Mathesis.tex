@@ -6,7 +6,8 @@
 \usepackage[english]{babel}
 \usepackage{amsmath}
 \usepackage{amssymb}
-%\usepackage{proof} % http://www.logicmatters.net/resources/ndexamples/proofsty.html
+%\usepackage{proof} % 
+%%http://www.logicmatters.net/resources/ndexamples/proofsty.html
 %\usepackage{bussproofs}
 \usepackage{hyperref}
 \usepackage{subcaption}
@@ -20,9 +21,7 @@
 
 % Minted
 \usepackage{minted}
-\usemintedstyle[haskell]{trac}
-\newminted{haskell}{fontsize=\small}
-\newminted{coq}{fontsize=\small}
+\usemintedstyle[Haskell]{trac, fontsize=\small}%,frame=lines, framesep=10pt}
 \setmintedinline{style = bw}
 
 % Für schönere Tabellen (optional)
@@ -44,7 +43,8 @@
 \begin{titlepage}
 	\vspace*{3cm}
 	\centering
-	{\huge\bfseries Modelling Call-Time Choice as Effect using Scoped Free Monads\par}
+	{\huge\bfseries Modelling Call-Time Choice as Effect using Scoped Free 
+	Monads\par}
 	\vspace{1cm}
 	\textbf{Niels Bunkenburg} \par 
 	\vspace{6cm}
@@ -58,7 +58,8 @@
 	M. Sc. Sandra Dylus
 	\vfill
 	% Randloses Drucken nicht möglich...
-	\tikz[remember picture,overlay] \node[opacity=0.3,inner sep=0pt] at (9.5,-1.5){\includegraphics{img/cau-siegel-1400.png}};
+	\tikz[remember picture,overlay] \node[opacity=0.3,inner sep=0pt] at 
+	(9.5,-1.5){\includegraphics{img/cau-siegel-1400.png}};
 	{\large \today\par}
 \end{titlepage}
 
@@ -105,6 +106,44 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 \subsection{Non-determinism}
 
 \section{Modelling Curry Programs using Monadic Code Transformation}
+Modelling Curry programs in a language like Haskell requires a transformation 
+of non-deterministic code into a semantically equivalent, deterministic 
+program. First, we have a look at the direct representation of non-determinism 
+used in the KiCS2 implementation as described by \citet{KiCS2-NewCompiler}.
+
+Non-determinism in Curry is not limited to \textit{flat} non-determinism but 
+can occur within components of data structures and anywhere in a computation. 
+This means that expressing non-determinism via Haskell's list monad is not 
+sufficient to model Curry's non-determinism. \todo{Example}
+Instead, existing data types receive additional constructors that represent 
+failure and the choice between two values. For example, the extended list data 
+type looks as follows.
+
+\begin{minted}{Haskell}
+data List a = Nil | Cons a (List a) | Choice (List a) (List a) | Fail
+\end{minted}
+
+Since this transformation adds new constructors, all functions need to cover 
+these cases, too. The new rules return \mintinline{Haskell}{Fail} if the 
+function's argument is a failed computation and distribute function calls to 
+both branches if the argument is a choice.
+
+One issue with this approach is that call-time choice is not implemented yet. 
+If a choice is duplicated during evaluation, this information cannot be 
+recovered later. Therefore, each \mintinline{Haskell}{Choice} constructor has 
+an additional \mintinline{Haskell}{ID} argument that identifies the same 
+choices. Since each choice needs a fresh ID, functions use an additional 
+\mintinline{Haskell}{IDSupply} argument when choices are created.
+
+The evaluation of a non-deterministic value is implemented by transforming the 
+value into a search tree which can be traversed with different search 
+strategies. In the process, each choice ID's decision is stored and then 
+repeated if the same ID is encountered again.
+
+While this approach is useful when the host language supports laziness and 
+sharing, another approach is necessary to model these effects in a language 
+without these features.
+\citet{PurelyFunctional} ...
 
 \chapter{Call-Time Choice modelled in Haskell}
 
@@ -121,7 +160,7 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 
 % Literatur
 \bibliographystyle{plainnat}
-\bibliography{curroqe} % Datei: seminar.bib
+\bibliography{Mathesis} % Datei: seminar.bib
 % Anhang
 \appendix
 \end{document}

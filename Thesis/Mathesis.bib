@@ -1,17 +1,40 @@
-@Article{p19mehner,
-  title = "Parametricity and {Proving} {Free} {Theorems} for
-		 {Functional-Logic} {Languages}",
-  author =	"Stefan Mehner and Daniel Seidel and Lutz
-		 Stra{\ss}burger and Janis Voigtl{\"a}nder",
-  publisher =	"HAL CCSD",
-  year = 	"2014",
-  month =	dec,
-  oai =  	"oai:HAL:hal-01092357v1",
-  type = 	"info:eu-repo/semantics/conferenceObject",
-  URL =  	"https://hal.inria.fr/hal-01092357;
-		 https://hal.inria.fr/hal-01092357/document;
-		 https://hal.inria.fr/hal-01092357/file/ppdp2014-final.pdf",
+@inproceedings{KiCS2-NewCompiler,
+ author = {Braßel, Bernd and Hanus, Michael and Peemöller, Björn and Reck, Fabian},
+ title = {Ki{CS}2: A New Compiler from Curry to Haskell},
+ booktitle = {Proceedings of the 20th International Conference on Functional and Constraint Logic Programming},
+ series = {WFLP'11},
+ year = {2011},
+ isbn = {978-3-642-22530-7},
+ location = {Odense, Denmark},
+ pages = {1--18},
+ numpages = {18},
+ url = {http://dl.acm.org/citation.cfm?id=2032603.2032605},
+ acmid = {2032605},
+ publisher = {Springer-Verlag},
+ address = {Berlin, Heidelberg},
+}
+
+@article{PurelyFunctional,
+ author = {Fischer, Sebastian and Kiselyov, Oleg and Shan, Chung-chieh},
+ title = {Purely Functional Lazy Non-deterministic Programming},
+ journal = {SIGPLAN Not.},
+ issue_date = {September 2009},
+ volume = {44},
+ number = {9},
+ month = aug,
+ year = {2009},
+ issn = {0362-1340},
+ pages = {11--22},
+ numpages = {12},
+ url = {http://doi.acm.org/10.1145/1631687.1596556},
+ doi = {10.1145/1631687.1596556},
+ acmid = {1596556},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {call-time choice, continuations, monads, side effects},
 } 
+
+
 @MISC{kics2manual,
     author = {Michael {Hanus} and Bernd Braßel and Björn Peemöller and Fabian Reck},
     title = {Ki{CS}2: The {Kiel} {Curry} {System} ({Version} 2) {User} {Manual}},
@@ -25,54 +48,6 @@
     title = {Curry: {An} {Integrated} {Functional} {Logic} {Language}},
     year = 2016,
     month = jan,
-}
-
-@inproceedings{2006-Leroy-Blazy-Dargaye,
-  author = {Sandrine Blazy and Zaynah Dargaye and Xavier Leroy},
-  title = {Formal Verification of a {C} Compiler Front-End},
-  booktitle = {FM 2006: Int. Symp. on Formal Methods},
-  series = {Lecture Notes in Computer Science},
-  publisher = {Springer},
-  volume = 4085,
-  year = 2006,
-  pages = {460--475},
-  url = {http://gallium.inria.fr/~xleroy/publi/cfront.pdf},
-  urlpublisher = {http://dx.doi.org/10.1007/11813040_31},
-  hal = {http://hal.inria.fr/inria-00106401/},
-  abstract = {This paper presents the formal verification of a compiler front-end
-that translates a subset of the C language into the Cminor
-intermediate language.  The semantics of the source and target
-languages as well as the translation between them have been written in
-the specification language of the Coq proof assistant. The proof of
-observational semantic equivalence between the source and generated
-code has been machine-checked using Coq.  An executable compiler was
-obtained by automatic extraction of executable Caml code from the Coq
-specification of the translator, combined with a certified compiler
-back-end generating PowerPC assembly code from Cminor, described in
-previous work.},
-  pubkind = {conf-int-multi}
-}
-
-@INPROCEEDINGS{Hanus13,
-author       = {Hanus, M.},
-title        = {Functional {Logic} {Programming}: {From} {Theory} to {Curry}},
-year         = {2013},
-booktitle    = {Programming Logics - Essays in Memory of Harald Ganzinger},
-pages        = {123-168},
-publisher    = {Springer LNCS 7797},
-abstract = {
-Functional logic programming languages combine the most important
-declarative programming paradigms, and attempts to combine these
-paradigms have a long history.  The declarative multi-paradigm
-language Curry is influenced by recent advances in the
-foundations and implementation of functional logic languages.
-The development of Curry is an international initiative intended
-to provide a common platform for the research, teaching, and
-application of integrated functional logic languages. This paper
-surveys the foundations of functional logic programming that are
-relevant for Curry, the main features of Curry, and extensions
-and applications of Curry and functional logic programming.
-}
 }
 
 @book{Pierce:SF,
@@ -97,15 +72,3 @@ and applications of Curry and functional logic programming.
   url = {https://coq.inria.fr/refman/},
   note = {\url{https://coq.inria.fr/refman/}},
 }
-
-@article{filliatre2011deductive,
-  title={Deductive software verification},
-  author={Filli{\^a}tre, Jean-Christophe},
-  journal={International Journal on Software Tools for Technology Transfer},
-  volume={13},
-  number={5},
-  pages={397--403},
-  year={2011},
-  publisher={Springer}
-}
-
