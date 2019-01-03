@@ -141,10 +141,46 @@ strategies. In the process, each choice ID's decision is stored and then
 repeated if the same ID is encountered again.
 
 While this approach is useful when the host language supports laziness and 
-sharing, another approach is necessary to model these effects in a language 
-without these features.
-\citet{PurelyFunctional} ...
+sharing, another approach is necessary to model these effects when they are not 
+built into the language. 
 
+\citet{PurelyFunctional} introduce a monadic representation of non-determinism 
+that supports sharing and non-strict evaluation. Out of simplicity, the 
+implementation idea is presented in Haskell, similar to the approach of the 
+original authors.
+
+As mentioned before, modelling non-determinism in Haskell requires us to adapt 
+data types so that components can contain non-determinism because 
+non-strictness is lost. \todo{Copy examples? New examples? No examples?}
+
+\begin{minted}{Haskell}
+data List m a = Nil | Cons (m a) (m (List m a))
+\end{minted}
+
+The list data type now has an additional argument \mintinline{Haskell}{m} of 
+type \mintinline{Haskell}{* -> *} that represents a non-determinism monad. 
+Instead of fixed constructors like \mintinline{Haskell}{Choice}, the monad 
+\mintinline{Haskell}{m} determines the structure and evaluation strategy 
+of the non-determinism effect.
+
+Data types with non-deterministic components solve the problem of 
+non-strictness because each component can be evaluated individually, instead of 
+forcing the evaluation of the whole term. Unfortunately, this leads to a 
+problem. When unevaluated components are shared via Haskell's built-in sharing, 
+computations, rather than results, are being shared. This means that the 
+results can be different, which contradicts the intuition of sharing.
+
+The solution to this problem is an explicit sharing combinator 
+\mintinline{Haskell}{share :: m a -> m (m a)} that allows sharing the results 
+of a computation in a non-strict way. Here, \mintinline{Haskell}{m} is a 
+\mintinline{Haskell}{MonadPlus} instance, similar to the monad used in the 
+definition of the data type. Thus, \mintinline{Haskell}{share} takes a 
+computation and then returns a computation that returns the result, that is, 
+the shared value. The reason for this nesting of monad layers is that, in 
+short, the \mintinline{Haskell}{share} combinator performs some actions that 
+can be immediately executed by bind (the outer monad layer), while the inner 
+monad layer should only be evaluated. This will be explained in more detail 
+later.
 \chapter{Call-Time Choice modelled in Haskell}
 
 \section{Free Monads}
