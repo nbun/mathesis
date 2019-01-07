@@ -18,6 +18,68 @@ Class Container F :=
 
 Arguments from {_} {_} {_} _.
 
+Section Free.
+  Variable F : Type -> Type.
+
+  Inductive Free (C__F : Container F) A :=
+  | pure : A -> Free C__F A
+  | impure : Ext Shape Pos (Free C__F A) -> Free C__F A.
+
+End Free.
+
+Arguments pure {_} {_} {_} _.
+
+Section Zero.
+  Inductive Void :=.
+
+  Definition Zero (A : Type) := Void.
+
+  Definition Shape_Zero := Void.
+
+  Definition Pos_Zero (s: Shape_Zero) := Void.
+
+  Definition Ext_Zero A := Ext Shape_Zero Pos_Zero A.
+
+  Definition to_Zero A (e: Ext_Zero A) : Zero A :=
+    match e with
+      ext s _ => match s with end
+    end.
+
+  Definition from_Zero A (z: Zero A) : Ext_Zero A :=
+    match z with end.
+
+  Lemma to_from_Zero : forall A (ox : Zero A), to_Zero (from_Zero ox) = ox.
+  Proof.
+    intros.
+    destruct ox.
+  Qed.
+
+  Lemma from_to_Zero : forall A (e : Ext_Zero A), from_Zero (to_Zero e) = e.
+  Proof.
+    intros.
+    destruct e.
+    destruct s.
+  Qed.
+
+  Instance C_Zero : Container Zero :=
+    {
+      Shape := Shape_Zero;
+      Pos   := Pos_Zero;
+      to    := to_Zero;
+      from  := from_Zero;
+      to_from := to_from_Zero;
+      from_to := from_to_Zero
+    }.
+End Zero.
+
+Definition run A (fz : Free C_Zero A) : A :=
+  match fz with
+    | pure x => x
+    | impure e => match e with
+                    ext s _ => match s with end
+                  end
+  end.
+
 Section Choice.
 
   Inductive Choice (A : Type) :=
@@ -27,6 +89,18 @@ Section Choice.
   Inductive Tree :=
   | sleaf : Tree
   | snode : Tree -> Tree -> Tree.
+
+  Fixpoint treeToChoice A (t : Tree) : Choice A :=
+    match t with
+    | sleaf => cfail A
+    | snode x y => cchoice (treeToChoice A x) (treeToChoice A y)
+    end.
+
+  Fixpoint choiceToTree A (c : Choice A) : Tree :=
+    match c with
+    | cfail _ => sleaf
+    | cchoice x y => snode (choiceToTree x) (choiceToTree y)
+    end.
 
   Inductive Path :=
   | phere  : Path
@@ -39,32 +113,26 @@ Section Choice.
 
   Definition Ext_Choice A := Ext Shape_Choice Pos_Choice A.
 
-  Fail Definition to_Choice A (e: Ext_Choice A) : Choice A :=
+  Definition to_Choice A (e: Ext_Choice A) : Choice A :=
     match e with
-      ext s f => f s
+      ext s _ => match s with
+                 | sleaf => cfail A
+                 | snode x y => cchoice (treeToChoice A x) (treeToChoice A y)
+                 end
     end.
 
   Fail Definition from_Choice A (z : Choice A) : Ext_Choice A :=
     match z with
     | cfail _ => ext sleaf (fun p : Pos_Choice sleaf => match p with
-                                                    | phere     => 42
-                                                    | pleft p'  => 42
-                                                    | pright p' => 42
+                                                        | phere     => 42
+                                                        | pleft p'  => 42
+                                                        | pright p' => 42
                                                         end)
-    | cchoice l r => 42
+    | cchoice l r => ext (snode (choiceToTree l) (choiceToTree r)) (fun p => 42)
     end.
 End Choice.
+
 (*
-Section Free.
-  Variable F : Type -> Type.
-
-  Inductive Free (C__F : Container F) A :=
-  | pure : A -> Free C__F A
-  | impure : Ext Shape Pos (Free C__F A) -> Free C__F A.
-
-End Free.
-
-Arguments pure {_} {_} {_} _.
 Section Free_Rect.
 
   Variable F : Type -> Type.
