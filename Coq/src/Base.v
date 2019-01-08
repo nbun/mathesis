@@ -84,52 +84,57 @@ Section Choice.
 
   Inductive Choice (A : Type) :=
   | cfail   : Choice A
-  | cchoice : Choice A -> Choice A -> Choice A.
+  | cchoice : A -> A -> Choice A.
 
-  Inductive Tree :=
-  | sleaf : Tree
-  | snode : Tree -> Tree -> Tree.
+  Inductive Shape_Choice :=
+  | sfail : Shape_Choice
+  | schoice : Shape_Choice.
 
-  Fixpoint treeToChoice A (t : Tree) : Choice A :=
-    match t with
-    | sleaf => cfail A
-    | snode x y => cchoice (treeToChoice A x) (treeToChoice A y)
+  Definition Pos_Choice (s: Shape_Choice) : Type :=
+    match s with
+    | sfail  => Void
+    | schoice => bool
     end.
-
-  Fixpoint choiceToTree A (c : Choice A) : Tree :=
-    match c with
-    | cfail _ => sleaf
-    | cchoice x y => snode (choiceToTree x) (choiceToTree y)
-    end.
-
-  Inductive Path :=
-  | phere  : Path
-  | pleft  : Path -> Path
-  | pright : Path -> Path.
-
-  Definition Shape_Choice := Tree.
-
-  Definition Pos_Choice (s: Shape_Choice) := Path.
 
   Definition Ext_Choice A := Ext Shape_Choice Pos_Choice A.
 
   Definition to_Choice A (e: Ext_Choice A) : Choice A :=
     match e with
-      ext s _ => match s with
-                 | sleaf => cfail A
-                 | snode x y => cchoice (treeToChoice A x) (treeToChoice A y)
-                 end
+    | ext sfail f   => cfail A
+    | ext schoice f => cchoice (f true) (f false)
     end.
 
-  Fail Definition from_Choice A (z : Choice A) : Ext_Choice A :=
+  Fixpoint from_Choice A (z : Choice A) : Ext_Choice A :=
     match z with
-    | cfail _ => ext sleaf (fun p : Pos_Choice sleaf => match p with
-                                                        | phere     => 42
-                                                        | pleft p'  => 42
-                                                        | pright p' => 42
-                                                        end)
-    | cchoice l r => ext (snode (choiceToTree l) (choiceToTree r)) (fun p => 42)
+    | cfail _     => ext sfail   (fun p : Pos_Choice sfail => match p with end)
+    | cchoice l r => ext schoice (fun p : Pos_Choice schoice => if p then l else r)
     end.
+
+  Lemma to_from_Choice : forall A (ox : Choice A), to_Choice (from_Choice ox) = ox.
+  Proof.
+    intros.
+    destruct ox; reflexivity.
+  Qed.
+
+  Lemma from_to_Choice : forall A (e : Ext_Choice A), from_Choice (to_Choice e) = e.
+  Proof.
+    intros.
+    destruct e.
+    destruct s; simpl; f_equal; apply functional_extensionality; intros.
+    - contradiction.
+    - destruct x; reflexivity.
+  Qed.
+      
+  Instance C_Choice : Container Choice :=
+    {
+      Shape := Shape_Choice;
+      Pos   := Pos_Choice;
+      to    := to_Choice;
+      from  := from_Choice;
+      to_from := to_from_Choice;
+      from_to := from_to_Choice
+    }.
+
 End Choice.
 
 (*
