@@ -69,15 +69,17 @@ Section Zero.
       to_from := to_from_Zero;
       from_to := from_to_Zero
     }.
-End Zero.
 
-Definition run A (fz : Free C_Zero A) : A :=
-  match fz with
+  Definition run A (fz : Free C_Zero A) : A :=
+    match fz with
     | pure x => x
     | impure e => match e with
                     ext s _ => match s with end
                   end
-  end.
+    end.
+
+End Zero.
+
 
 Section Choice.
 
@@ -132,6 +134,21 @@ Section Choice.
       to_from := to_from_Choice;
       from_to := from_to_Choice
     }.
+
+  Fixpoint runChoice A (fc : Free C_Choice A) : list A :=
+    match fc with
+    | pure x => cons x nil
+    | impure (ext sfail   _)  => nil
+    | impure (ext schoice pf) => app (runChoice (pf true)) (runChoice (pf false))
+    end.
+
+  Definition efail A : Free C_Choice A :=
+    impure (ext sfail (fun p : Pos_Choice sfail => match p with end)).
+
+  Arguments efail {_}.
+
+  Definition echoice A l r : Free C_Choice A :=
+    impure (ext schoice (fun p : Pos_Choice schoice => if p then l else r)).
 
 End Choice.
 
