@@ -50,14 +50,13 @@ Section Zero.
 
   Lemma to_from_Zero : forall A (ox : Zero A), to_Zero (from_Zero ox) = ox.
   Proof.
-    intros.
+    intros A ox.
     destruct ox.
   Qed.
 
   Lemma from_to_Zero : forall A (e : Ext_Zero A), from_Zero (to_Zero e) = e.
   Proof.
-    intros.
-    destruct e.
+    intros A [s pf].
     destruct s.
   Qed.
 
@@ -112,15 +111,14 @@ Section Choice.
 
   Lemma to_from_Choice : forall A (ox : Choice A), to_Choice (from_Choice ox) = ox.
   Proof.
-    intros.
+    intros A ox.
     destruct ox; reflexivity.
   Qed.
 
   Lemma from_to_Choice : forall A (e : Ext_Choice A), from_Choice (to_Choice e) = e.
   Proof.
-    intros.
-    destruct e.
-    destruct s; simpl; f_equal; apply functional_extensionality; intros.
+    intros A [s pf].
+    destruct s; simpl; f_equal; apply functional_extensionality; intros x.
     - contradiction.
     - destruct x; reflexivity.
   Qed.
