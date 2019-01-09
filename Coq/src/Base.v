@@ -34,43 +34,43 @@ Section Zero.
 
   Definition Zero (A : Type) := Void.
 
-  Definition Shape_Zero := Void.
+  Definition Shape__Zero := Void.
 
-  Definition Pos_Zero (s: Shape_Zero) := Void.
+  Definition Pos__Zero (s: Shape__Zero) := Void.
 
-  Definition Ext_Zero A := Ext Shape_Zero Pos_Zero A.
+  Definition Ext__Zero A := Ext Shape__Zero Pos__Zero A.
 
-  Definition to_Zero A (e: Ext_Zero A) : Zero A :=
+  Definition to__Zero A (e: Ext__Zero A) : Zero A :=
     match e with
       ext s _ => match s with end
     end.
 
-  Definition from_Zero A (z: Zero A) : Ext_Zero A :=
+  Definition from__Zero A (z: Zero A) : Ext__Zero A :=
     match z with end.
 
-  Lemma to_from_Zero : forall A (ox : Zero A), to_Zero (from_Zero ox) = ox.
+  Lemma to_from__Zero : forall A (ox : Zero A), to__Zero (from__Zero ox) = ox.
   Proof.
     intros A ox.
     destruct ox.
   Qed.
 
-  Lemma from_to_Zero : forall A (e : Ext_Zero A), from_Zero (to_Zero e) = e.
+  Lemma from_to__Zero : forall A (e : Ext__Zero A), from__Zero (to__Zero e) = e.
   Proof.
     intros A [s pf].
     destruct s.
   Qed.
 
-  Instance C_Zero : Container Zero :=
+  Instance C__Zero : Container Zero :=
     {
-      Shape := Shape_Zero;
-      Pos   := Pos_Zero;
-      to    := to_Zero;
-      from  := from_Zero;
-      to_from := to_from_Zero;
-      from_to := from_to_Zero
+      Shape := Shape__Zero;
+      Pos   := Pos__Zero;
+      to    := to__Zero;
+      from  := from__Zero;
+      to_from := to_from__Zero;
+      from_to := from_to__Zero
     }.
 
-  Definition run A (fz : Free C_Zero A) : A :=
+  Definition run A (fz : Free C__Zero A) : A :=
     match fz with
     | pure x => x
     | impure e => match e with
@@ -87,37 +87,37 @@ Section Choice.
   | cfail   : Choice A
   | cchoice : A -> A -> Choice A.
 
-  Inductive Shape_Choice :=
-  | sfail : Shape_Choice
-  | schoice : Shape_Choice.
+  Inductive Shape__Choice :=
+  | sfail : Shape__Choice
+  | schoice : Shape__Choice.
 
-  Definition Pos_Choice (s: Shape_Choice) : Type :=
+  Definition Pos__Choice (s: Shape__Choice) : Type :=
     match s with
     | sfail  => Void
     | schoice => bool
     end.
 
-  Definition Ext_Choice A := Ext Shape_Choice Pos_Choice A.
+  Definition Ext__Choice A := Ext Shape__Choice Pos__Choice A.
 
-  Definition to_Choice A (e: Ext_Choice A) : Choice A :=
+  Definition to__Choice A (e: Ext__Choice A) : Choice A :=
     match e with
     | ext sfail f   => cfail A
     | ext schoice f => cchoice (f true) (f false)
     end.
 
-  Fixpoint from_Choice A (z : Choice A) : Ext_Choice A :=
+  Fixpoint from__Choice A (z : Choice A) : Ext__Choice A :=
     match z with
-    | cfail _     => ext sfail   (fun p : Pos_Choice sfail => match p with end)
-    | cchoice l r => ext schoice (fun p : Pos_Choice schoice => if p then l else r)
+    | cfail _     => ext sfail   (fun p : Pos__Choice sfail => match p with end)
+    | cchoice l r => ext schoice (fun p : Pos__Choice schoice => if p then l else r)
     end.
 
-  Lemma to_from_Choice : forall A (ox : Choice A), to_Choice (from_Choice ox) = ox.
+  Lemma to_from__Choice : forall A (ox : Choice A), to__Choice (from__Choice ox) = ox.
   Proof.
     intros A ox.
     destruct ox; reflexivity.
   Qed.
 
-  Lemma from_to_Choice : forall A (e : Ext_Choice A), from_Choice (to_Choice e) = e.
+  Lemma from_to__Choice : forall A (e : Ext__Choice A), from__Choice (to__Choice e) = e.
   Proof.
     intros A [s pf].
     destruct s; simpl; f_equal; apply functional_extensionality; intros x.
@@ -125,32 +125,110 @@ Section Choice.
     - destruct x; reflexivity.
   Qed.
       
-  Instance C_Choice : Container Choice :=
+  Instance C__Choice : Container Choice :=
     {
-      Shape := Shape_Choice;
-      Pos   := Pos_Choice;
-      to    := to_Choice;
-      from  := from_Choice;
-      to_from := to_from_Choice;
-      from_to := from_to_Choice
+      Shape := Shape__Choice;
+      Pos   := Pos__Choice;
+      to    := to__Choice;
+      from  := from__Choice;
+      to_from := to_from__Choice;
+      from_to := from_to__Choice
     }.
 
-  Fixpoint runChoice A (fc : Free C_Choice A) : list A :=
+  Fixpoint runChoice A (fc : Free C__Choice A) : list A :=
     match fc with
     | pure x => cons x nil
     | impure (ext sfail   _)  => nil
     | impure (ext schoice pf) => app (runChoice (pf true)) (runChoice (pf false))
     end.
 
-  Definition efail A : Free C_Choice A :=
-    impure (ext sfail (fun p : Pos_Choice sfail => match p with end)).
+  Definition Fail A : Free C__Choice A :=
+    impure (ext sfail (fun p : Pos__Choice sfail => match p with end)).
 
-  Arguments efail {_}.
+  Arguments Fail {_}.
 
-  Definition echoice A l r : Free C_Choice A :=
-    impure (ext schoice (fun p : Pos_Choice schoice => if p then l else r)).
+  Definition Choice' A l r : Free C__Choice A :=
+    impure (ext schoice (fun p : Pos__Choice schoice => if p then l else r)).
 
 End Choice.
+
+Section State.
+
+  Variable S : Type.
+
+  Inductive State (A : Type) :=
+  | get : (S -> A) -> State A
+  | put : S -> A -> State A.
+
+  Inductive Shape__State :=
+  | sget : Shape__State
+  | sput : S -> Shape__State.
+  
+  Inductive Pos__State : Shape__State -> Type :=
+  | pget : forall (st : S), Pos__State sget
+  | pput : forall (st : S), Pos__State (sput st).
+
+  Definition Ext__State A := Ext Shape__State Pos__State A.
+
+  Definition to__State (A : Type) (e: Ext__State A) : State A :=
+    match e with
+    | ext sget     fp => get (fun s => fp (pget s))
+    | ext (sput s) fp => put s (fp (pput s))
+    end.
+
+  Fixpoint from__State A (z : State A) : Ext__State A :=
+    match z with
+    | get f   => ext sget     (fun p : Pos__State sget => match p with pget s => f s end)
+    | put s a => ext (sput s) (fun p : Pos__State (sput s) => a)
+    end.
+
+  Lemma to_from__State : forall A (ox : State A), to__State (from__State ox) = ox.
+  Proof.
+    intros A ox.
+    destruct ox.
+    - simpl. f_equal.
+    - reflexivity.
+  Qed.
+
+  Lemma from_to__State : forall A (e : Ext__State A), from__State (to__State e) = e.
+  Proof.
+    intros A [s pf].
+    destruct s;
+      (simpl;
+       f_equal;
+       apply functional_extensionality;
+       intros p;
+       dependent destruction p;
+       reflexivity).
+  Qed.
+
+  Instance C__State : Container State :=
+    {
+      Shape := Shape__State;
+      Pos   := Pos__State;
+      to    := to__State;
+      from  := from__State;
+      to_from := to_from__State;
+      from_to := from_to__State
+    }.
+
+  Fixpoint runState A (s : S) (fc : Free C__State A) : S * A :=
+    match fc with
+    | pure x => (s,x)
+    | impure (ext sget      pf) => runState s  (pf (pget s))
+    | impure (ext (sput s') pf) => runState s' (pf (pput s'))
+    end.
+
+  Definition Get (A : Type) : Free C__State S :=
+    impure (ext sget (fun p : Pos__State sget => match p with pget s => pure s end)).
+
+  Arguments Get {_}.
+
+  Definition Put (A : Type) (s : S) : Free C__State unit :=
+    impure (ext (sput s) (fun p : Pos__State (sput s) => match p with pput s => pure tt end)).
+
+  Arguments Put {_} s.
+End State.
 
 (*
 Section Free_Rect.
