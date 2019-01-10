@@ -230,6 +230,59 @@ Section State.
   Arguments Put {_} s.
 End State.
 
+Section Sharing.
+
+  Inductive Sharing (A : Type) :=
+  | csharing : nat -> A -> Sharing A.
+
+  Inductive Shape__Sharing :=
+  | ssharing : nat -> Shape__Sharing.
+
+  Inductive Pos__Sharing : Shape__Sharing -> Type :=
+  | psharing : forall (n : nat), Pos__Sharing (ssharing n).
+
+  Definition Ext__Sharing A := Ext Shape__Sharing Pos__Sharing A.
+
+  Definition to__Sharing A (e: Ext__Sharing A) : Sharing A :=
+    match e with
+    | ext (ssharing n) fp => csharing n (fp (psharing n))
+    end.
+
+  Fixpoint from__Sharing A (z : Sharing A) : Ext__Sharing A :=
+    match z with
+    | csharing n a => ext (ssharing n) (fun p : Pos__Sharing (ssharing n) => match p with psharing _ => a end)
+    end.
+
+  Lemma to_from__Sharing : forall A (ox : Sharing A), to__Sharing (from__Sharing ox) = ox.
+  Proof.
+    intros A ox.
+    destruct ox; reflexivity.
+  Qed.
+
+  Lemma from_to__Sharing : forall A (e : Ext__Sharing A), from__Sharing (to__Sharing e) = e.
+  Proof.
+    intros A [s pf].
+    destruct s;
+      (simpl;
+       f_equal;
+       apply functional_extensionality;
+       intros p;
+       dependent destruction p;
+       reflexivity).
+  Qed.
+     
+  Instance C__Sharing : Container Sharing :=
+    {
+      Shape := Shape__Sharing;
+      Pos   := Pos__Sharing;
+      to    := to__Sharing;
+      from  := from__Sharing;
+      to_from := to_from__Sharing;
+      from_to := from_to__Sharing
+    }.
+
+End Sharing.
+
 (*
 Section Free_Rect.
 
