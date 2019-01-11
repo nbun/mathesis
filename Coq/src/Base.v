@@ -80,6 +80,64 @@ Section Zero.
 
 End Zero.
 
+Section Combination.
+
+  Variable S1 S2 : Type -> Type.
+
+  Inductive Comb (A : Type) :=
+  | inl : Container S1 -> Comb A
+  | inr : Container S2 -> Comb A.
+
+  Inductive Shape__Comb :=
+  | sinl : Container S1 -> Shape__Comb
+  | sinr : Container S2 -> Shape__Comb.
+
+  Inductive Pos__Comb : Shape__Comb -> Type := .
+
+  Definition Ext__Comb A := Ext Shape__Comb Pos__Comb A.
+
+  Definition to__Comb (A : Type) (e: Ext__Comb A) : Comb A :=
+    match e with
+    | ext (sinl c1) fp => inl A c1
+    | ext (sinr c2) fp => inr A c2
+    end.
+
+  Fixpoint from__Comb A (z : Comb A) : Ext__Comb A :=
+    match z with
+    | inl _ c1 => ext (sinl c1) (fun p : Pos__Comb (sinl c1) => match p with end)
+    | inr _ c2 => ext (sinr c2) (fun p : Pos__Comb (sinr c2) => match p with end)
+    end.
+
+  Lemma to_from__Comb : forall A (ox : Comb A), to__Comb (from__Comb ox) = ox.
+  Proof.
+    intros A ox.
+    destruct ox; reflexivity.
+  Qed.
+
+  Lemma from_to__Comb : forall A (e : Ext__Comb A), from__Comb (to__Comb e) = e.
+  Proof.
+    intros A [s pf].
+    destruct s;
+      (simpl;
+       f_equal;
+       apply functional_extensionality;
+       intros p;
+       dependent destruction p;
+       reflexivity).
+  Qed.
+
+  Fail Instance C__Comb : Container Comb :=
+    {
+      Shape := Shape__Comb;
+      Pos   := Pos__Comb;
+      to    := to__Comb;
+      from  := from__Comb;
+      to_from := to_from__Comb;
+      from_to := from_to__Comb
+    }.
+
+End Combination.
+
 
 Section Choice.
 
@@ -280,6 +338,21 @@ Section Sharing.
       to_from := to_from__Sharing;
       from_to := from_to__Sharing
     }.
+
+  Fixpoint nameChoices (A : Type) (scope next : nat) (fs : Comb (Free C__Sharing) (Free C__Choice) A) : Free C__Choice A  :=
+    match fs with
+    | Inl _ _ _ (pure x) => pure x
+    | (Inl _ _ _ (impure (ext (ssharing n) pf))) => nameChoices n 1 (pf (psharing n))
+    end.
+
+  Fixpoint runSharing A  (fs : Comb (Free C__Sharing) (Free C__Choice) A) : Free C__Choice A :=
+    match fs with
+    | pure x => pure x
+    | impure (Inl _ _ _ (ext (ssharing n) pf)) => nameChoices i 1 n
+    | impure (ext (sput s') pf) => runState s' (pf (pput s'))
+    end.
+
+
 
 End Sharing.
 
