@@ -82,51 +82,66 @@ End Zero.
 
 Section Combination.
 
-  Variable S1 S2 : Type -> Type.
+  Variable F G : Type -> Type.
+  Variable C1 : Container F.
+  Variable C2 : Container G.
 
-  Inductive Comb (A : Type) :=
-  | inl : Container S1 -> Comb A
-  | inr : Container S2 -> Comb A.
+  Inductive Comb A : Type :=
+  | Inl : F A -> Comb A
+  | Inr : G A -> Comb A.
 
-  Inductive Shape__Comb :=
-  | sinl : Container S1 -> Shape__Comb
-  | sinr : Container S2 -> Shape__Comb.
+  Definition fold_sum (A B : Type) (C : sum A B -> Type)
+           (f : forall (a : A), C (inl _ a))
+           (g : forall (b : B), C (inr _ b))
+           (x : A + B) : C x :=
+  match x with
+  | inl y => f y
+  | inr y => g y
+  end.
 
-  Inductive Pos__Comb : Shape__Comb -> Type := .
+  Definition fold_sum' (A B : Type) (C : Type) (f : A -> C) (g : B -> C) (x : A + B) : C :=
+    fold_sum (fun _ => C) f g x.
+
+  Definition Shape__Comb : Type := sum (@Shape F C1) (@Shape G C2).
+  Definition Pos__Comb : Shape__Comb -> Type := fold_sum' (@Pos F C1) (@Pos G C2).
 
   Definition Ext__Comb A := Ext Shape__Comb Pos__Comb A.
 
   Definition to__Comb (A : Type) (e: Ext__Comb A) : Comb A :=
     match e with
-    | ext (sinl c1) fp => inl A c1
-    | ext (sinr c2) fp => inr A c2
+    | ext (inl s1) pf => Inl (to (ext s1 pf))
+    | ext (inr s2) pf => Inr (to (ext s2 pf))
     end.
 
   Fixpoint from__Comb A (z : Comb A) : Ext__Comb A :=
     match z with
-    | inl _ c1 => ext (sinl c1) (fun p : Pos__Comb (sinl c1) => match p with end)
-    | inr _ c2 => ext (sinr c2) (fun p : Pos__Comb (sinr c2) => match p with end)
+    | Inl fa => match from fa with
+                 ext s1 pf1 => ext (inl s1) pf1
+               end
+    | Inr ga => match from ga with
+                 ext s2 pf2 => ext (inr s2) pf2
+               end
     end.
 
   Lemma to_from__Comb : forall A (ox : Comb A), to__Comb (from__Comb ox) = ox.
   Proof.
     intros A ox.
-    destruct ox; reflexivity.
+    destruct ox as [f|f];
+      (simpl;
+       destruct (from f) eqn:H;
+       unfold to__Comb;
+       rewrite <- H;
+       rewrite to_from;
+       reflexivity).
   Qed.
 
   Lemma from_to__Comb : forall A (e : Ext__Comb A), from__Comb (to__Comb e) = e.
   Proof.
     intros A [s pf].
-    destruct s;
-      (simpl;
-       f_equal;
-       apply functional_extensionality;
-       intros p;
-       dependent destruction p;
-       reflexivity).
+    destruct s; (simpl; rewrite from_to; reflexivity).
   Qed.
 
-  Fail Instance C__Comb : Container Comb :=
+  Instance C__Comb : Container Comb :=
     {
       Shape := Shape__Comb;
       Pos   := Pos__Comb;
@@ -137,7 +152,6 @@ Section Combination.
     }.
 
 End Combination.
-
 
 Section Choice.
 
