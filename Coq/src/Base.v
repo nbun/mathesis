@@ -157,16 +157,16 @@ Section Choice.
 
   Inductive Choice (A : Type) :=
   | cfail   : Choice A
-  | cchoice : A -> A -> Choice A.
+  | cchoice : option (nat * nat) -> A -> A -> Choice A.
 
   Inductive Shape__Choice :=
   | sfail : Shape__Choice
-  | schoice : Shape__Choice.
+  | schoice : option (nat * nat) -> Shape__Choice.
 
   Definition Pos__Choice (s: Shape__Choice) : Type :=
     match s with
     | sfail  => Void
-    | schoice => bool
+    | schoice _ => bool
     end.
 
   Definition Ext__Choice A := Ext Shape__Choice Pos__Choice A.
@@ -174,13 +174,13 @@ Section Choice.
   Definition to__Choice A (e: Ext__Choice A) : Choice A :=
     match e with
     | ext sfail f   => cfail A
-    | ext schoice f => cchoice (f true) (f false)
+    | ext (schoice mid) f => cchoice mid (f true) (f false)
     end.
 
   Fixpoint from__Choice A (z : Choice A) : Ext__Choice A :=
     match z with
     | cfail _     => ext sfail   (fun p : Pos__Choice sfail => match p with end)
-    | cchoice l r => ext schoice (fun p : Pos__Choice schoice => if p then l else r)
+    | cchoice mid l r => ext (schoice mid) (fun p : Pos__Choice (schoice mid) => if p then l else r)
     end.
 
   Lemma to_from__Choice : forall A (ox : Choice A), to__Choice (from__Choice ox) = ox.
@@ -211,7 +211,7 @@ Section Choice.
     match fc with
     | pure x => cons x nil
     | impure (ext sfail   _)  => nil
-    | impure (ext schoice pf) => app (runChoice (pf true)) (runChoice (pf false))
+    | impure (ext (schoice mid) pf) => app (runChoice (pf true)) (runChoice (pf false))
     end.
 
   Definition Fail A : Free C__Choice A :=
@@ -219,8 +219,8 @@ Section Choice.
 
   Arguments Fail {_}.
 
-  Definition Choice' A l r : Free C__Choice A :=
-    impure (ext schoice (fun p : Pos__Choice schoice => if p then l else r)).
+  Definition Choice' A mid l r : Free C__Choice A :=
+    impure (ext (schoice mid) (fun p : Pos__Choice (schoice mid) => if p then l else r)).
 
 End Choice.
 
@@ -358,18 +358,19 @@ Section Sharing.
     | pure x => pure x
     | impure (ext (inl (ssharing n)) pf) => nameChoices n 1 (pf (psharing n))
     | impure (ext (inr sfail)        pf) => Fail A
-    | impure (ext (inr schoice)      pf) => let l := nameChoices scope (2 * next) (pf true) in
+    | impure (ext (inr (schoice _))  pf) => let l := nameChoices scope (2 * next) (pf true) in
                                            let r := nameChoices scope (2 * next + 1) (pf false)
-                                           in Choice' l r
+                                           in Choice' (Some (scope, next)) l r
     end.
 
   Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Choice A :=
     match fs with
     | pure x => pure x
-    | impure (ext (inl (ssharing n)) pf) => nameChoices n 1 (pf (psharing n))
-    | impure (ext (inr sfail)         _) => Fail A
-    | impure (ext (inr schoice)      pf) => Choice' (runSharing (pf true)) (runSharing (pf false))
+    | impure (ext (inl (ssharing n))  pf) => nameChoices n 1 (pf (psharing n))
+    | impure (ext (inr sfail)         _)  => Fail A
+    | impure (ext (inr (schoice mid)) pf) => Choice' mid (runSharing (pf true)) (runSharing (pf false))
     end.
+
 
 End Sharing.
 
