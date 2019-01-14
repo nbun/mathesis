@@ -1,6 +1,7 @@
 Require Import Thesis.Free.
 Require Import Thesis.Container.
 Require Import Thesis.Effect.
+Require Import Thesis.Base.
 
 Set Implicit Arguments.
 
@@ -19,11 +20,14 @@ Fixpoint runChoice A (fc : Free C__Choice A) : list A :=
   | impure (ext (schoice mid) pf) => app (runChoice (pf true)) (runChoice (pf false))
   end.
 
-Fixpoint runState A S (s : S) (fc : Free (C__State S) A) : S * A :=
+Fixpoint runState A (n : nat) (fc : Free NDShare A) : Free (C__Comb C__Sharing C__Choice) A :=
   match fc with
-  | pure x => (s,x)
-  | impure (ext (sget _)    pf) => runState s  (pf (pget s))
-  | impure (ext (sput s') pf) => runState s' (pf (pput s'))
+  | pure x => pure x
+  | impure (ext (inl (sget _))    pf) => runState n  (pf (pget n))
+  | impure (ext (inl (sput s'))   pf) => runState s' (pf (pput s'))
+  | impure (ext (inr (inr sfail)) _)  => Fail__SharingChoice
+  | impure (ext (inr (inr (schoice mid))) pf) => Choice__SharingChoice mid (runState n (pf true)) (runState n (pf false))
+  | impure (ext (inr (inl (ssharing n)))  pf) => Share'__SharingChoice n (runState n (pf (psharing n)))
   end.
 
 Fixpoint nameChoices (A : Type) (scope next : nat) (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Choice A  :=
@@ -43,3 +47,9 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
   | impure (ext (inr sfail)         _)  => Fail__Choice
   | impure (ext (inr (schoice mid)) pf) => Choice__Choice mid (runSharing (pf true)) (runSharing (pf false))
   end.
+
+Section Examples.
+  Definition p1 : Free NDShare nat := Choice None (ret 42) (ret 43).
+  Eval compute in runChoice (runSharing (runState 1 p1)).
+
+End Examples.
