@@ -1,6 +1,9 @@
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Program.Equality.
 Require Import Thesis.Container.
+Require Import Thesis.Free.
+
+Set Implicit Arguments.
 
 Section MonadClass.
 

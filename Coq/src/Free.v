@@ -1,4 +1,5 @@
 Require Import Thesis.Container.
+Set Implicit Arguments.
 
 Section Free.
   Variable F : Type -> Type.
