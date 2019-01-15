@@ -6,65 +6,53 @@ Set Implicit Arguments.
 
 Definition NDShare := C__Comb (C__State nat) (C__Comb C__Sharing C__Choice).
 
-Definition NDShare2 := C__Comb C__Sharing C__Choice.
-
-Definition NDShareF := Comb (State nat) (Comb Sharing Choice).
-
-Definition Pos__NDShare := @Pos__Comb (State nat) (Comb Sharing Choice) (C__State nat) (C__Comb C__Sharing C__Choice).
-
-Definition Pos__NDShare2 := @Pos__Comb Sharing Choice C__Sharing C__Choice.
-
-Definition effect (A : Type) := @impure NDShareF NDShare A.
-
-Definition effect2 (A : Type) := @impure (Comb Sharing Choice) (C__Comb C__Sharing C__Choice) A.
+Definition NDShare__SC := C__Comb C__Sharing C__Choice.
 
 Definition Fail A : Free NDShare A :=
-  let s := inr (inr sfail)
-  in effect (ext s (fun p : Pos__NDShare s => match p with end)).
-
-Definition Fail__Choice A : Free C__Choice A :=
-  let s := sfail
-  in @impure Choice C__Choice A (ext s (fun p : Pos__Choice s => match p with end)).
-
-Definition Fail__SharingChoice A : Free (C__Comb C__Sharing C__Choice) A :=
-  let s := inr sfail
-  in effect2 (ext s (fun p : Pos__NDShare2 s => match p with end)).
+  let s : @Shape _ NDShare := inr (inr sfail)
+  in impure (ext s (fun p : @Pos _ NDShare s => match p with end)).
 
 Arguments Fail {_}.
 
-Arguments Fail__Choice {_}.
+Definition Fail__C A : Free C__Choice A :=
+  let s : @Shape _ C__Choice := sfail
+  in impure (ext s (fun p : Pos__Choice s => match p with end)).
 
-Arguments Fail__SharingChoice {_}.
+Arguments Fail__C {_}.
+
+Definition Fail__SC A : Free (C__Comb C__Sharing C__Choice) A :=
+  let s : @Shape _ NDShare__SC := inr sfail
+  in impure (ext s (fun p : @Pos _ NDShare__SC s => match p with end)).
+
+Arguments Fail__SC {_}.
 
 Definition Get : Free NDShare nat :=
-  let s := inl (sget nat)
-  in effect (ext s (fun p : Pos__NDShare s => match p with pget s => pure s end)).
+  let s : @Shape _ NDShare := inl (sget nat)
+  in impure (ext s (fun p : @Pos _ NDShare s => match p with pget s => pure s end)).
 
 Definition Put (n : nat) : Free NDShare unit :=
-  let s := inl (sput n)
-  in effect (ext s (fun p : Pos__NDShare s => match p with pput s => pure tt end)).
+  let s : @Shape _ NDShare := inl (sput n)
+  in impure (ext s (fun p : @Pos _ NDShare s => match p with pput s => pure tt end)).
 
 Definition Share' (n : nat) A (fs : Free NDShare A) : Free NDShare A :=
-  let s := inr (inl (ssharing n))
-  in effect (ext s (fun p : Pos__NDShare s => fs)).
+  let s : @Shape _ NDShare := inr (inl (ssharing n))
+  in impure (ext s (fun p : @Pos _ NDShare s => fs)).
 
-Definition Share'__SharingChoice (n : nat) A (fs : Free NDShare2 A) : Free NDShare2 A :=
-  let s := inl (ssharing n)
-  in effect2 (ext s (fun p : Pos__NDShare2 s => fs)).
+Definition Share'__SC (n : nat) A (fs : Free NDShare__SC A) : Free NDShare__SC A :=
+  let s : @Shape _ NDShare__SC := inl (ssharing n)
+  in impure (ext s (fun p : @Pos _ NDShare__SC s => fs)).
 
 Definition Share A `(Monad (Free NDShare)) (fp : Free NDShare A) : Free NDShare (Free NDShare A) :=
   Get >>= fun i => Put (i * 2) >>= fun _=> ret (Share' i (Put (i * 2 + 1) >>= fun _ => ret fp)).
 
-Definition Choice__Choice A mid l r : Free C__Choice A :=
-  let s := schoice mid
-  in @impure Choice C__Choice A (ext s (fun p : Pos__Choice s => if p then l else r)).
+Definition Choice__C A mid l r : Free C__Choice A :=
+  let s : @Shape _ C__Choice := schoice mid
+  in impure (ext s (fun p : Pos__Choice s => if p then l else r)).
 
-Definition Choice__SharingChoice A mid l r : Free NDShare2 A :=
-  let s := inr (schoice mid)
-  in effect2 (ext s (fun p : Pos__NDShare2 s => if p then l else r)).
+Definition Choice__SC A mid l r : Free NDShare__SC A :=
+  let s : @Shape _ NDShare__SC := inr (schoice mid)
+  in impure (ext s (fun p : @Pos _ NDShare__SC s => if p then l else r)).
 
 Definition Choice A mid l r : Free NDShare A :=
-  let s := inr (inr (schoice mid))
-  in effect (ext s (fun p : Pos__NDShare s => if p then l else r)).
-
-
+  let s : @Shape _ NDShare := inr (inr (schoice mid))
+  in impure (ext s (fun p : @Pos _ NDShare s => if p then l else r)).
