@@ -97,6 +97,7 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 \chapter{Preliminaries}
 
 \section{Coq}
+\label{coq-intro}
 
 \section{Haskell}
 
@@ -190,6 +191,127 @@ later.
 \section{Sharing}
 
 \chapter{Call-Time Choice modelled in Coq}
+The goal of this chapter is to transfer the Haskell implementation of call-time 
+choice to Coq. We begin with the data structure \mintinline{Haskell}{Prog}, 
+that is, the free monad, which allowed us to model programs with effects of 
+type \mintinline{Haskell}{sig} and results of type \mintinline{Haskell}{a}.
+
+\begin{minted}{Haskell}
+data Prog sig a = Return a | Op (sig (Prog sig a))
+\end{minted}
+
+The definition in Coq looks very similar to the Haskell version, aside from 
+renaming and the explicit constructor types.
+
+\begin{minted}{Coq}
+Inductive Free F A :=
+| pure : A -> Free F A
+| impure : F (Free F A) -> Free F A.
+\end{minted}
+
+However, the definition is rejected by Coq upon loading the file with the 
+following error message.
+
+\begin{minted}{Text}
+Non-strictly positive occurrence of "Free" in "F (Free F A) -> Free F A".
+\end{minted}
+
+The reason for this error is explained in the next section.
+
+\section{Non-strictly Positive Occurrence}
+In \autoref{coq-intro}, we learned that Coq distinguishes between 
+non-recursive definitions and functions that use recursion. The reason for this 
+is that Coq checks functions for termination, which is an important part of 
+Coq's proof logic. To understand why functions must always terminate in Coq, we 
+consider the following function.
+
+% https://www.di.ens.fr/~zappa/teaching/coq/ecole11/summer/lectures/lec9.pdf
+\begin{minted}{Coq}
+Fail Fixpoint loop (x : unit) : A := loop x.
+\end{minted}
+
+The function receives an argument \mintinline{Coq}{x} and calls itself with the 
+same argument. Since this function obviously never terminates, the result type 
+\mintinline{Coq}{A} is arbitrary. In particular, we could instantiate 
+\mintinline{Coq}{A} with \mintinline{Coq}{False}, the false proposition. The 
+value \mintinline{Coq}{loop tt : False} could be used to prove anything,
+according to the principle of explosion. For this reason, Coq requires all 
+recursive functions to terminate provably.
+
+Returning to the original data type, what is link between 
+\mintinline{Coq}{Free} and termination? It is well known that recursion can be 
+implemented in languages without explicit recursion syntax by means of 
+constructs like the Y combinator or the data type \mintinline{Coq}{Mu} for 
+type-level recursion.
+
+\begin{minted}{Coq}
+Fail Inductive Mu A := mu : (Mu A -> A) -> Mu A.
+\end{minted}
+
+\mintinline{Coq}{Mu} is not accepted by Coq for the same reason as 
+\mintinline{Coq}{Free}: non-strictly positive occurrence of the respective data 
+type. The problematic property of non-strictly positive data types is that the 
+type occurs on the left-hand side of a constructor argument's function type. 
+This would allow general recursion and thus, as described above, make Coq's 
+logic inconsistent.
+
+In case of \mintinline{Coq}{Free}, the non-strictly positive occurrence is not 
+as apparent as before because the constructors do not have functional 
+arguments. However, \mintinline{Coq}{F} is being applied to 
+\mintinline{Coq}{Free F A}. If \mintinline{Coq}{F} has a functional argument 
+with appropriate types, the resulting type becomes non-strictly positive, as 
+shown below.
+
+\begin{minted}{Coq}
+Definition Cont R A := (A -> R) -> R.
+
+(* Free (Cont R) *)
+Fail Inductive ContF R A :=
+| pureC   : A -> ContF R A
+| impureC : ((ContF R A -> R) -> R) -> ContF R A.
+\end{minted}
+
+In the type of \mintinline{Coq}{impureC} contains a non-strictly positive 
+occurrence of \mintinline{Coq}{ContF R A}. Consequently, Coq rejects 
+\mintinline{Coq}{Free} because it is not guaranteed that no instance violates 
+the strict positivity requirement. Representing the \mintinline{Coq}{Free} data 
+type therefore requires a way to restrict the definition to strictly positive 
+data types. One approach to achieve this goal is described in the next section.
+
+\section{Containers}
+Containers are an abstraction of data types that store values, with the 
+property that only strictly positive data types can be modelled as a container. 
+This will allow us to define a version of \mintinline{Coq}{Free} that works 
+with containers of type constructors instead of the type constructors itself. 
+First, however, we will have a more detailed look at containers.
+
+The first component of a container is the type \mintinline{Coq}{Shape}. A 
+shape determines how the data type is structured, regardless of the stored 
+values. For example, the  shape of a list is the same as the shape of Peano 
+numbers: a number that  represents the length of the list, or rather the number 
+of \mintinline{Haskell}{Cons}/\mintinline{Haskell}{Succ} applications. A pair, 
+on the other hand, has only a single shape.
+
+The second component of a container is a function \mintinline{Coq}{Pos : Shape 
+-> Type} that gives each shape a type that represents the positions within the 
+shape. In the example of pairs, the shape has two positions, the first and 
+second component. Each element of a list is a position within the shape. 
+Therefore, the position type for lists with length $n$ is natural numbers 
+smaller than $n$. Peano numbers do not have elements and therefore, the 
+position type for each shape is empty.
+
+Containers can be extended by a function that maps all valid positions to 
+values. Since the position type depends on a concrete shape, the definition in 
+Coq is quantified universally over values of type \mintinline{Coq}{Shape}.
+
+\begin{minted}{Coq}
+Inductive Ext Shape (Pos : Shape -> Type) A := 
+  ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
+\end{minted}
+
+The extension of a container models the concrete data type.
+
+
 
 \chapter{Conclusion}
 
