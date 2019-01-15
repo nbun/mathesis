@@ -42,8 +42,8 @@ Definition Share'__SC (n : nat) A (fs : Free NDShare__SC A) : Free NDShare__SC A
   let s : @Shape _ NDShare__SC := inl (ssharing n)
   in impure (ext s (fun p : @Pos _ NDShare__SC s => fs)).
 
-Definition Share A `(Monad (Free NDShare)) (fp : Free NDShare A) : Free NDShare (Free NDShare A) :=
-  Get >>= fun i => Put (i * 2) >>= fun _=> ret (Share' i (Put (i * 2 + 1) >>= fun _ => ret fp)).
+Definition Share A (fp : Free NDShare A) : Free NDShare (Free NDShare A) :=
+  Get >>= fun i => Put (i * 2) >>= fun _=> pure (Share' i (Put (i * 2 + 1) >>= fun _ => fp)).
 
 Definition Choice__C A mid l r : Free C__Choice A :=
   let s : @Shape _ C__Choice := schoice mid
