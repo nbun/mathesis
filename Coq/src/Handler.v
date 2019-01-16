@@ -2,6 +2,7 @@ Require Import Thesis.Free.
 Require Import Thesis.Container.
 Require Import Thesis.Effect.
 Require Import Thesis.Base.
+Require Import Thesis.Search.
 
 Set Implicit Arguments.
 
@@ -13,11 +14,11 @@ Definition run A (fz : Free C__Zero A) : A :=
                end
   end.
 
-Fixpoint runChoice A (fc : Free C__Choice A) : list A :=
+Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
   match fc with
-  | pure x => cons x nil
-  | impure (ext sfail   _)  => nil
-  | impure (ext (schoice mid) pf) => app (runChoice (pf true)) (runChoice (pf false))
+  | pure x => Leaf x
+  | impure (ext sfail   _)  => Empty A
+  | impure (ext (schoice mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
   end.
 
 Fixpoint runState A (n : nat) (fc : Free NDShare A) : Free (C__Comb C__Sharing C__Choice) A :=
@@ -49,7 +50,20 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
   end.
 
 Section Examples.
-  Definition p1 : Free NDShare nat := Choice None (ret 42) (ret 43).
-  Eval compute in runChoice (runSharing (runState 1 p1)).
+  Definition Coin : Free NDShare nat := Choice None (pure 0) (pure 1).
+  Definition Coin__Bool : Free NDShare bool := Choice None (pure true) (pure false).
+
+  Definition addM (fn1 fn2 : Free NDShare nat) : Free NDShare nat :=
+    fn1 >>= fun n1 => fn2 >>= fun n2 => pure (n1 + n2).
+
+  Definition orM (fn1 fn2 : Free NDShare bool) : Free NDShare bool :=
+    fn1 >>= fun b => if b then pure true else fn2.
+
+  Definition duplicate A (fx : Free NDShare A) : Free NDShare (A * A) :=
+    fx >>= fun x => fx >>= fun y => pure (x,y).
+
+  Example e1 : Free NDShare (nat * nat) := Share Coin >>= fun x => duplicate x.
+
+  Eval compute in collectVals (runChoice (runSharing (runState 1 e1))).
 
 End Examples.

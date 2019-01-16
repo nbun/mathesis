@@ -1,5 +1,6 @@
 -Q src Thesis
 
+src/Search.v
 src/Container.v
 src/Free.v
 src/Base.v
