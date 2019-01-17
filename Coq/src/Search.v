@@ -35,8 +35,8 @@ Definition Memo := partial_map ID Decision.
 
 Fixpoint dfs A (m : Memo) (t : Tree A) : list A :=
   match t with
-  | Empty _ => nil
-  | Leaf x => cons x nil
+  | Empty _ => Datatypes.nil
+  | Leaf x => Datatypes.cons x Datatypes.nil
   | Branch None l r => app (dfs m l) (dfs m r)
   | Branch (Some id) l r => match m id with
                            | None => app (dfs (update beq_id m id L) l)
