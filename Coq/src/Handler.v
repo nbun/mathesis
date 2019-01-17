@@ -49,6 +49,9 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
   | impure (ext (inr (schoice mid)) pf) => Choice__C mid (runSharing (pf true)) (runSharing (pf false))
   end.
 
+Definition handle A (fs : Free NDShare A) : list A :=
+  collectVals (runChoice (runSharing (runState 1 fs))).
+
 Section Examples.
   Definition Coin : Free NDShare nat := Choice None (pure 0) (pure 1).
   Definition Coin__Bool : Free NDShare bool := Choice None (pure true) (pure false).
@@ -57,13 +60,19 @@ Section Examples.
     fn1 >>= fun n1 => fn2 >>= fun n2 => pure (n1 + n2).
 
   Definition orM (fn1 fn2 : Free NDShare bool) : Free NDShare bool :=
-    fn1 >>= fun b => if b then pure true else fn2.
+    fn1 >>= fun b => match b with
+                  | true => pure true
+                  | false => fn2
+                  end.
 
   Definition duplicate A (fx : Free NDShare A) : Free NDShare (A * A) :=
     fx >>= fun x => fx >>= fun y => pure (x,y).
 
   Example e1 : Free NDShare (nat * nat) := Share Coin >>= fun x => duplicate x.
+  
+  Example e2 : Free NDShare nat := Share Coin >>= fun x => addM x x.
 
-  Eval compute in collectVals (runChoice (runSharing (runState 1 e1))).
+  Example e3 : Free NDShare bool := orM (pure true) Fail.
+  Eval compute in handle e3.
 
 End Examples.
