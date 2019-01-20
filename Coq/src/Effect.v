@@ -69,6 +69,8 @@ Definition Choice A mid l r : Prog A :=
   let s : @Shape _ NDShare := inr (inr (schoice mid))
   in impure (ext s (fun p : @Pos _ NDShare s => if p then l else r)).
 
+Notation "x ? y" := (Choice None x y) (at level 80).
+
 Section Pair.
   Inductive Pair A B :=
   | Pair' : Prog A -> Prog B -> Pair A B.
