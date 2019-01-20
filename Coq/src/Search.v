@@ -46,4 +46,4 @@ Fixpoint dfs A (m : Memo) (t : Tree A) : list A :=
                            end
   end.
 
-Definition collectVals A  := @dfs A emptymap.
+Definition collectVals A := @dfs A emptymap.

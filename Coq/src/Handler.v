@@ -49,5 +49,5 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
   | impure (ext (inr (schoice mid)) pf) => Choice__C mid (runSharing (pf true)) (runSharing (pf false))
   end.
 
-Definition handle A (fs : Free NDShare A) : list A :=
-  collectVals (runChoice (runSharing (runState 1 fs))).
+Definition handle A `{Normalform A A} (fs : Prog A) : list A :=
+  collectVals (runChoice (runSharing (runState 1 (nf fs)))).

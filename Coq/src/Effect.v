@@ -19,6 +19,11 @@ Class Shareable (A : Type) :=
     shareArgs : A -> Prog A
   }.
 
+Class Normalform (A B : Type) :=
+  {
+    nf : Prog A -> Prog B
+  }.
+
 Definition Get : Prog nat :=
   let s : @Shape _ NDShare := inl (sget nat)
   in impure (ext s (fun p : @Pos _ NDShare s => match p with pget s => pure s end)).
@@ -102,6 +107,18 @@ Section Pair.
     {
       shareArgs := @shrrgs__Pair A B sa sb
     }.
+
+  Definition nf__Pair A B C D `(Normalform A C) `(Normalform B D) (stp : Prog (Pair A B)) : Prog (Pair C D) :=
+    stp >>= fun '(Pair' sp1 sp2) =>
+              nf sp1 >>= fun b1 =>
+                           nf sp2 >>= fun b2 =>
+                                        pairM (pure b1) (pure b2).
+
+  Global Instance nrmlfrm__Pair A B C D `(nf__AC : Normalform A C) `(nf__BD : Normalform B D) : Normalform (Pair A B) (Pair C D) :=
+    {
+      nf := nf__Pair nf__AC nf__BD
+    }.
+
 End Pair.
 
 Section List.
@@ -145,6 +162,21 @@ Section List.
     {
       shareArgs := @shrrgs__List A sa sas
     }.
+
+  Definition nf__List A B `(Normalform A B) `(Normalform (List A) (List B)) (stxs : Prog (List A)) : Prog (List B) :=
+    stxs >>= fun xs =>
+                match xs with
+                | Nil _ => nil B
+                | Cons sx sxs => nf sx >>= fun x =>
+                                            nf sxs >>= fun xs =>
+                                                         cons (pure x) (pure xs)
+                end.
+
+  Global Instance nrmlfrm__List A B `(nf__AB : Normalform A B) `(nf__AsBs : Normalform (List A) (List B)) : Normalform (List A) (List B) :=
+    {
+      nf := nf__List nf__AB nf__AsBs
+    }.
+
 End List.
 
 Section Prim.
@@ -172,4 +204,14 @@ Global Instance shrbl__Nat : Shareable nat :=
 Global Instance shrbl__Bool : Shareable bool :=
   {
     shareArgs := pure
+  }.
+
+Global Instance nrmlfrm__Nat : Normalform nat nat :=
+  {
+    nf := fun x => x
+  }.
+
+Global Instance nrmlfrm__Bool : Normalform bool bool :=
+  {
+    nf := fun x => x
   }.
