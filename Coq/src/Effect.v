@@ -95,7 +95,7 @@ Section Pair.
   Definition dup A (fx : Prog A) : Prog (Pair A A) :=
     pairM fx fx.
 
-  Definition dupShare A `(Shareable A) (fx : Prog A) : Prog (Pair A A) :=
+  Definition dupShare A `{Shareable A} (fx : Prog A) : Prog (Pair A A) :=
     Share fx >>= fun x => pairM x x.
 
   Definition shrrgs__Pair A B `(Shareable A) `(Shareable B) (p : Pair A B) : Prog (Pair A B) :=
@@ -129,7 +129,7 @@ Section List.
   Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
     pure (Cons' fx fxs).
 
-  Definition nilM A : Prog (List A) := pure (@Nil' A).
+  Definition nilM {A} : Prog (List A) := pure (@Nil' A).
 
   Definition headM A (fxs : Prog (List A)) : Prog A :=
     fxs >>= fun xs => match xs with
@@ -166,7 +166,7 @@ Section List.
   Definition nf__List A B `(Normalform A B) `(Normalform (List A) (List B)) (stxs : Prog (List A)) : Prog (List B) :=
     stxs >>= fun xs =>
                 match xs with
-                | Nil' _ => nilM B
+                | Nil' _ => nilM
                 | Cons' sx sxs => nf sx >>= fun x =>
                                              nf sxs >>= fun xs =>
                                                           consM (pure x) (pure xs)
