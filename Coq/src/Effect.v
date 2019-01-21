@@ -108,15 +108,15 @@ Section Pair.
       shareArgs := @shrrgs__Pair A B sa sb
     }.
 
-  Definition nf__Pair A B C D `(Normalform A C) `(Normalform B D) (stp : Prog (Pair A B)) : Prog (Pair C D) :=
+  Definition nf__Pair A B C D `{Normalform A C} `{Normalform B D} (stp : Prog (Pair A B)) : Prog (Pair C D) :=
     stp >>= fun '(Pair' sp1 sp2) =>
               nf sp1 >>= fun b1 =>
                            nf sp2 >>= fun b2 =>
                                         pairM (pure b1) (pure b2).
 
-  Global Instance nrmlfrm__Pair A B C D `(nf__AC : Normalform A C) `(nf__BD : Normalform B D) : Normalform (Pair A B) (Pair C D) :=
+  Global Instance nrmlfrm__Pair A B C D `{Normalform A C} `{Normalform B D} : Normalform (Pair A B) (Pair C D) :=
     {
-      nf := nf__Pair nf__AC nf__BD
+      nf := fun x => nf__Pair x
     }.
 
 End Pair.
@@ -140,7 +140,7 @@ Section List.
   Definition dupl A (fx : Prog A) : Prog (List A) :=
     consM fx (consM fx (@nilM A)).
 
-  Definition duplShare A `(Shareable A) (fx : Prog A) : Prog (List A) :=
+  Definition duplShare A `{Shareable A} (fx : Prog A) : Prog (List A) :=
     Share fx >>= fun x => consM x (consM x (@nilM A)).
 
   Fixpoint appM' A (xs : List A) (fxs : Prog (List A)) : Prog (List A) :=
@@ -149,8 +149,9 @@ Section List.
     | Cons' fz fzs => consM fz (fzs >>= fun zs => appM' zs fxs)
     end.
 
-  Fixpoint appM A (fxs fys : Prog (List A)) : Prog (List A) :=
+  Definition appM A (fxs fys : Prog (List A)) : Prog (List A) :=
     fxs >>= fun xs => appM' xs fys.
+
 
   Definition shrrgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
     match xs with
@@ -163,18 +164,20 @@ Section List.
       shareArgs := @shrrgs__List A sa sas
     }.
 
-  Definition nf__List A B `(Normalform A B) `(Normalform (List A) (List B)) (stxs : Prog (List A)) : Prog (List B) :=
-    stxs >>= fun xs =>
-                match xs with
-                | Nil' _ => nilM
-                | Cons' sx sxs => nf sx >>= fun x =>
-                                             nf sxs >>= fun xs =>
-                                                          consM (pure x) (pure xs)
-                end.
+  Fixpoint nf'__List A B `{Normalform A B} (xs : List A) : Prog (List B) :=
+    match xs with
+    | Nil' _ => nilM
+    | Cons' sx sxs => nf sx >>= fun x =>
+                                 sxs >>= fun xs => nf'__List xs >>= fun xs' =>
+                                                                 consM (pure x) (pure xs')
+    end.
 
-  Global Instance nrmlfrm__List A B `(nf__AB : Normalform A B) `(nf__AsBs : Normalform (List A) (List B)) : Normalform (List A) (List B) :=
+  Definition nf__List A B `{Normalform A B}  (stxs : Prog (List A)) : Prog (List B) :=
+    stxs >>= fun xs => nf'__List xs.
+
+  Global Instance nrmlfrm__List A B `{Normalform A B} : Normalform (List A) (List B) :=
     {
-      nf := nf__List nf__AB nf__AsBs
+      nf := fun x => nf__List x
     }.
 
 End List.

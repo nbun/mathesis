@@ -191,17 +191,65 @@ Section exPB.
                        ; (exDupFirst, res_exDupFirst)
                        ; (exDupShareFirst, res_exDupShareFirst)
                        ; (exShareNestedChoice, res_exShareNestedChoice)].
-  
+
   Lemma tests__exPBs : Forall (fun '(p,r) => handle p = r) exPBs.
   Proof. repeat econstructor. Qed.
 End exPB.
 
-Arguments nilM {_}.
+Section exLB.
+  Arguments nilM {_}.
+  Arguments Nil' {_}.
 
-Example exOrShareNestedList : Prog (List bool) :=
-  share coin >>= fun fx =>
-                   consM fx (share coin >>= fun fy =>
-                                             consM fy (consM fx (consM fy nilM))).
+  Example exDupl : Prog (List bool) := dupl (headM (consM coin Fail)).
+  Example res_exDupl := [Cons' (pure true) (consM (pure true) nilM)
+                         ; Cons' (pure true) (consM (pure false) nilM)
+                         ; Cons' (pure false) (consM (pure true) nilM)
+                         ; Cons' (pure false) (consM (pure false) nilM)].
+
+  Example exDupl2 : Prog (List bool) := consM (headM (consM coin Fail))
+                                           (consM (headM (consM coin Fail)) nilM).
+  Example res_exDupl2 := [Cons' (pure true) (consM (pure true) nilM)
+                          ; Cons' (pure true) (consM (pure false) nilM)
+                          ; Cons' (pure false) (consM (pure true) nilM)
+                          ; Cons' (pure false) (consM (pure false) nilM)].
+
+  Example exDuplShare : Prog (List bool) := duplShare (headM (consM coin Fail)).
+  Example res_exDuplShare := [Cons' (pure true) (consM (pure true) nilM)
+                              ; Cons' (pure false) (consM (pure false) nilM)].
+
+  Example exShareNestedChoice2 : Prog (List bool) :=
+    share (pure true ? coin) >>=
+          fun fx => share coin >>= fun fy => consM fx (consM fy (consM fx (consM fy nilM))).
+
+  Example res_exShareNestedChoice2 :=
+    [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
+     ; Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
+     ; Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM)))
+     ; Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
+
+  Example exOrShareNestedList : Prog (List bool) :=
+    share coin >>= fun fx =>
+                     consM fx (share coin >>= fun fy =>
+                                                consM fy (consM fx (consM fy nilM))).
+  Example res_exOrShareNestedList :=
+    [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
+     ; Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM)))
+     ; Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
+
+  Definition exLBs := [(exDupl, res_exDupl)
+                       ; (exDupl2,  res_exDupl2)
+                       ; (exDuplShare, res_exDuplShare)
+                       ; (exShareNestedChoice2, res_exShareNestedChoice2)
+                       ; (exOrShareNestedList, res_exOrShareNestedList)].
+
+  Lemma tests__exLBs : Forall (fun '(p,r) => handle p = r) exLBs.
+  Proof. repeat econstructor. Qed.
+
+End exLB.
+              
 (*
 recList :: (Sharing m, MonadPlus m) => m (List m Bool) => m (List m Bool)
 recList fxs = fxs >>= fun xfps => case xfps of
@@ -223,21 +271,6 @@ exLoop = let loop :: m ()
 exLoop2 :: Sharing m => m Bool
 exLoop2 = let loop :: m ()
               loop = loop in share loop >>= fun fx => const coin (const fx fx)
-
-exDupl :: MonadPlus m => m (List m Bool)
-exDupl = dupl (headM (consM coin (mzero :: MonadPlus m => m (List m Bool))))
-exDupl2 :: MonadPlus m => m (List m Bool)
-exDupl2 = consM (headM (consM coin (mzero :: MonadPlus m => m (List m Bool))))
-               (consM (headM (consM coin (mzero :: MonadPlus m => m (List m Bool))))
-                     nil)
-exDuplShare :: (Sharing m, MonadPlus m) => m (List m Bool)
-exDuplShare = duplShare (headM (consM coin (mzero :: MonadPlus m => m (List m Bool))))
-
-exShareNestedChoice2 :: (Sharing m, MonadPlus m) => m (List m Bool)
-exShareNestedChoice2 =
-  share (mplus (pure true) (mplus (pure false) (pure true))) >>=
-    fun fx => share (mplus (pure true) (pure false)) >>= fun fy => consM fx (consM fy (consM fx (consM fy nil)))
-
 
 exShareSingleton :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
 exShareSingleton =
@@ -374,3 +407,4 @@ tests = do
   mapM_ (fun (e,name,v) => putStr (prettyName name) >> pprint (collectVals (e :: NDShare (List NDShare Bool)) == v)) exLBs
   mapM_ (fun (e,name,v) => putStr (prettyName name) >>
     pprint (collectVals (e :: NDShare (Pair NDShare (List NDShare Bool))) == v)) exLPBs
+*)
