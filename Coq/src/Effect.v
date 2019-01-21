@@ -123,30 +123,30 @@ End Pair.
 
 Section List.
   Inductive List A :=
-  | Nil : List A
-  | Cons : Prog A -> Prog (List A) -> List A.
+  | Nil' : List A
+  | Cons' : Prog A -> Prog (List A) -> List A.
 
-  Definition cons A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
-    pure (Cons fx fxs).
+  Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
+    pure (Cons' fx fxs).
 
-  Definition nil A : Prog (List A) := pure (@Nil A).
+  Definition nilM A : Prog (List A) := pure (@Nil' A).
 
   Definition headM A (fxs : Prog (List A)) : Prog A :=
     fxs >>= fun xs => match xs with
-                   | Nil _    => @Fail A
-                   | Cons x _ => x
+                   | Nil' _    => @Fail A
+                   | Cons' x _ => x
                    end.
 
   Definition dupl A (fx : Prog A) : Prog (List A) :=
-    cons fx (cons fx (@nil A)).
+    consM fx (consM fx (@nilM A)).
 
   Definition duplShare A `(Shareable A) (fx : Prog A) : Prog (List A) :=
-    Share fx >>= fun x => cons x (cons x (@nil A)).
+    Share fx >>= fun x => consM x (consM x (@nilM A)).
 
   Fixpoint appM' A (xs : List A) (fxs : Prog (List A)) : Prog (List A) :=
     match xs with
-    | Nil _       => fxs
-    | Cons fz fzs => cons fz (fzs >>= fun zs => appM' zs fxs)
+    | Nil' _       => fxs
+    | Cons' fz fzs => consM fz (fzs >>= fun zs => appM' zs fxs)
     end.
 
   Fixpoint appM A (fxs fys : Prog (List A)) : Prog (List A) :=
@@ -154,8 +154,8 @@ Section List.
 
   Definition shrrgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
     match xs with
-    | Nil _     => @nil A
-    | Cons y ys => Share y >>= fun sy => Share ys >>= fun sys => cons sy sys
+    | Nil' _     => @nilM A
+    | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys
     end.
   
   Global Instance shrbl__List A `(sa : Shareable A) (sas : Shareable (List A)) : Shareable (List A) :=
@@ -166,10 +166,10 @@ Section List.
   Definition nf__List A B `(Normalform A B) `(Normalform (List A) (List B)) (stxs : Prog (List A)) : Prog (List B) :=
     stxs >>= fun xs =>
                 match xs with
-                | Nil _ => nil B
-                | Cons sx sxs => nf sx >>= fun x =>
-                                            nf sxs >>= fun xs =>
-                                                         cons (pure x) (pure xs)
+                | Nil' _ => nilM B
+                | Cons' sx sxs => nf sx >>= fun x =>
+                                             nf sxs >>= fun xs =>
+                                                          consM (pure x) (pure xs)
                 end.
 
   Global Instance nrmlfrm__List A B `(nf__AB : Normalform A B) `(nf__AsBs : Normalform (List A) (List B)) : Normalform (List A) (List B) :=

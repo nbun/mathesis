@@ -11,7 +11,6 @@ Set Implicit Arguments.
 Definition coin := Coin__Bool.
 Definition share := Share.
 Definition const := fun A (x _ : A) => x.
-Definition cons := Effect.cons.
 
 Example example1 : Prog bool := coin.
 Example res_example1 := [true; false].
@@ -85,7 +84,7 @@ Example res_exShareConstOrR2 := [true].
 Example exFailed : Prog bool := share Fail >>= fun fx => const (pure true) fx.
 Example res_exFailed := [true].
 
-Example exHead : Prog bool := headM (cons coin Fail).
+Example exHead : Prog bool := headM (consM coin Fail).
 Example res_exHead := [true; false].
 
 Example exOrShareShare : Prog bool :=
