@@ -3,6 +3,7 @@ Require Import Thesis.Effect.
 Require Import Thesis.Free.
 Require Import Thesis.Base.
 Require Import Lists.List.
+Require Import EqNat.
 
 Import List.ListNotations.
 
@@ -351,3 +352,67 @@ Section Extra.
   Lemma lem_exShareListInRepeatedShare : handle exShareListInRepeatedShare = res_exShareListInRepeatedShare.
   Proof. reflexivity. Qed.
 End Extra.
+
+Section PermSort.
+
+  (* Fixpoint insert' (e : Prog nat) (l : List nat) : Prog (List nat) := *)
+  (*   match l with *)
+  (*   | Cons' x xs => xs >>= fun xs' => consM x (insert' e xs') *)
+  (*   | Nil' _     => Fail *)
+  (*   end. *)
+
+  (* Definition insert (e : Prog nat) (l : Prog (List nat)) : Prog (List nat) := *)
+  (*   Share e >>= fun e' => *)
+  (*                (consM e' l) ? (l >>= fun ys => insert' e' ys). *)
+
+  Fixpoint insert' (e : Prog nat) (ys : List nat) : Prog (List nat) :=
+    consM e (pure ys) ? match ys with
+                | Cons' x xs => xs >>= fun xs' => consM x (insert' e xs')
+                | Nil' _     => Fail
+                end.
+
+  Definition insert (e : Prog nat) (l : Prog (List nat)) : Prog (List nat) :=
+    Share e >>= fun e' => l >>= fun ys => insert' e' ys.
+
+  Fixpoint perm' (xs : List nat) : Prog (List nat) :=
+    match xs with
+    | Nil' _ => nilM
+    | Cons' mx mxs => mxs >>= fun mxs' => insert mx (perm' mxs')
+    end.
+
+  Definition perm (mxs : Prog (List nat)) : Prog (List nat) :=
+    mxs >>= perm'.
+
+  Fixpoint isSorted'' (mx : Prog nat) (xs : List nat) : Prog bool :=
+    match xs with
+    | Nil' _ => pure true
+    | Cons' my mys => mx >>= fun x => my >>= fun y => mys >>= fun ys => if Nat.leb x y then isSorted'' (pure y) ys
+                                                              else pure false
+    end.
+
+  Fixpoint isSorted' (mx : Prog nat) (mxs : Prog (List nat)) : Prog bool :=
+    mxs >>= fun xs => isSorted'' mx xs.
+
+  Definition isSorted (mxs : Prog (List nat)) : Prog bool :=
+    mxs >>= fun xs => match xs with
+                   | Nil' _ => pure true
+                   | Cons' my mys => isSorted' my mys
+                   end.
+  
+  Definition sort (l : Prog (List nat)) : Prog (List nat) :=
+    Share (perm l) >>= fun xs => isSorted xs >>= fun b => if b then xs else Fail.
+  
+  Fixpoint convert (xs : list nat) : Prog (List nat) :=
+    match xs with
+    | nil => nilM
+    | cons x xs => consM (pure x) (convert xs)
+    end.
+  
+  Definition testList1 := convert [5;42;3;1].
+  Definition testList2 := convert [5;42;3;1;1337;51;123;125].
+  Definition testList3 := convert [5;42;3;1;1337;51;123;125;347;174;1000].
+
+  Compute handle (sort testList1). (* works! *)
+  (* Compute handle (sort testList2). (* might takes a while *) *)
+  (* Compute handle (sort testList3). (* does it even terminate? *) *)
+End PermSort.
