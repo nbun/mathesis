@@ -250,161 +250,104 @@ Section exLB.
 
 End exLB.
               
-(*
-recList :: (Sharing m, MonadPlus m) => m (List m Bool) => m (List m Bool)
-recList fxs = fxs >>= fun xfps => case xfps of
-                                    Nil' => nil
-                                    Cons' fy fys => share fys >>= fun fys' => consM fy (fys' `mplus` recList fys')
+Section exLPB.
 
-exRecList :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
-exRecList = share (recList (consM (pure true) (consM (pure false) nil))) >>= fun fx => pairM fx fx
+ Example exShareSingleton : Prog (Pair (List bool) (List bool)) :=
+   Share (consM (pure true ? pure false) nilM) >>= fun fx => pairM fx fx.
+ Example res_exShareSingleton := [Pair' (pure (Cons' (pure true) nilM))
+                                        (pure (Cons' (pure true) nilM))
+                                  ; Pair' (pure (Cons' (pure false) nilM))
+                                          (pure (Cons' (pure false) nilM))].
 
-exRecListNested :: (Sharing m, MonadPlus m) => m (List m (List m Bool))
-exRecListNested = share (recList (consM (pure true) (consM (pure false) nil)))
-  >>= fun fx => consM fx (share (recList (consM (pure true) (consM (pure false) nil)))
-                      >>= fun fz => consM fz (consM fx (consM fz nil)))
-exSkipIds :: (Sharing m, MonadPlus m) => m Bool
-exSkipIds = share coin >>= fun fx => const coin (const fx fx)
-exLoop :: Sharing m => m Bool
-exLoop = let loop :: m ()
-             loop = loop in share loop >>= fun fx => const (pure true) (const fx fx)
-exLoop2 :: Sharing m => m Bool
-exLoop2 = let loop :: m ()
-              loop = loop in share loop >>= fun fx => const coin (const fx fx)
+   Fixpoint recList' (n : nat) (xs : List bool) : Prog (List bool) :=
+     match n with
+     | 0 => Fail
+     | S n => match xs with
+             | Nil' _ => nilM
+             | Cons' fy fys =>
+               Share fys >>= fun fys' => consM fy (fys' ? fys' >>= fun zs => recList' n zs)
+             end
+     end.
 
-exShareSingleton :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
-exShareSingleton =
-  share (consM (pure true `mplus` pure false) nil) >>=
-    fun fx => pairM fx fx
+   Fixpoint lengthHelp A (xs : List A) : nat :=
+     match xs with
+     | Nil' _ => 0
+     | Cons' _ fxs => 1 + match fxs with
+                         | pure xs => lengthHelp xs
+                         | _ => 0
+                         end
+     end.
+   
+   Definition recList (fxs : Prog (List bool)) : Prog (List bool) :=
+     fxs >>= fun xfps => recList' (lengthHelp xfps)  xfps.
 
-exShareInShare :: (Sharing m, MonadPlus m) => m (Pair m Bool)
-exShareInShare = share (share coin >>= fun fx => orM fx fx) >>= fun fy => pairM fy fy
+   Example exRecList : Prog (Pair (List bool) (List bool)) :=
+     Share (recList (consM (pure true) (consM (pure false) nilM))) >>= fun fx => pairM fx fx.
+   Example res_exRecList := [Pair' (consM (pure true) (consM (pure false) nilM))
+                                   (consM (pure true) (consM (pure false) nilM))
+                             ; Pair' (consM (pure true) (consM (pure false) nilM))
+                                     (consM (pure true) (consM (pure false) nilM))
+                             ; Pair' (consM (pure true) (consM (pure false) nilM))
+                                     (consM (pure true) (consM (pure false) nilM))].
 
-exShareListInShare :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
-exShareListInShare =
-  share (share (consM coin (consM coin nil)) >>=
-          fun fx => appM fx fx) >>= fun fy => pairM fy fy
+   Definition exLPBs := [(exShareSingleton, res_exShareSingleton)
+                         ; (exRecList, res_exRecList)].
+   
+  Lemma tests__exLPBs : Forall (fun '(p,r) => handle p = r) exLBs.
+  Proof. repeat econstructor. Qed.
+End exLPB.
 
-exSharePutPos :: (Sharing m, MonadPlus m) =>  m (List m Bool)
-exSharePutPos =
-  share (share (consM coin nil) >>= fun fx => appM fx fx) >>= fun fy => appM fy fy
+Section Extra.
+  Example exSkipIds : Prog bool :=
+    Share coin >>= fun fx => const coin (const fx fx).
+  Example res_exSkipIds := [true; false].
 
-exShareListInRepeatedShare :: NDShare (List NDShare Bool)
-exShareListInRepeatedShare =
-  share (share (consM coin nil) >>= fun fx => appM fx fx) >>=
-  fun fy => share coin >>= fun fz => share coin >>= fun fa => consM fz (consM fa fy)
+  Lemma lem_exSkipIDs : handle exSkipIds = res_exSkipIds.
+  Proof. reflexivity. Qed.
 
-tests = do
-  let exBs  = [ (example1,"ex1",[true,false])
-              , (example2,"ex2",[true,false,true,false])
-              , (example3,"ex3",[true,false,true,false])
-              , (exOr0,"exOr0",[true,false])
-              , (exOr1,"exOr1",[true,true,false])
-              , (exOr2,"exOr2",[true,false])
-              , (exOr2a,"exOr2a",[true,false])
-              , (exOr2b,"exOr2b",[true])
-              , (exOr3,"exOr3",[true,true,true,true])
-              , (exOr3a,"exOr3a",[true,true,false,true,true,false])
-              , (exOr3b,"exOr3b",[true,true,false,true,false])
-              , (exOr3c,"exOr3c",[true,true,false,true,false,true,true,false,true,false])
-              , (exOr4,"exOr4",[true,true,false])
-              , (exOrShare,"exOrShare",[true,true,false])
-              , (exOr6,"exOr6",[true,true,false])
-              , (exOr7,"exOr7",[true,true,false])
-              , (exOr7a,"exOr7a",[true])
-              , (exOr7b,"exOr7b",[true,false])
-              , (exShareConst,"exShareConst",[true,false])
-              , (exShareConstOrR,"exShareConstOrR",[true,false])
-              , (exShareConstOrL,"exShareConstOrL",[true,false])
-              , (exShareConstOrR2,"exShareConstOrR2",[true])
-              , (exFailed,"exFailed",[true])
-              , (exHead,"exHead", [ true, false ])
-              , (exOrShareShare,"exOrShareShare", [true,true,false])
-              , (exOrShareNested,"exOrShareNested", [true,true,false])
-              , (exShareNestedChoiceOr, "exShareNestedChoiceOr", [true,false,true,false])
-              , (exShareIgnoreShare, "exShareIgnoreShare", [true])
-              , (exRepeatedShare, "exRepeatedShare", [true,false])
-              ]
-      exPBs = [ (exDup,"exDup",[ Pair (Identity true) (Identity true)
-                               , Pair (Identity true) (Identity false)
-                               , Pair (Identity false) (Identity true)
-                               , Pair (Identity false) (Identity false)
-                               ])
-              , (exDupShare,"exDupShare",[ Pair (Identity true) (Identity true)
-                                         , Pair (Identity false) (Identity false)
-                                         ])
-              , (exDupShare2,"exDupShare2",[ Pair (Identity true) (Identity true)
-                                           , Pair (Identity false) (Identity false)
-                                           ])
-              , (exDupFailed,"exDupFailed",[ Pair (Identity true) (Identity true) ])
-              , (exDupFirst,"exDupFirst",[ Pair (Identity true) (Identity true)
-                                         , Pair (Identity true) (Identity false)
-                                         , Pair (Identity false) (Identity true)
-                                         , Pair (Identity false) (Identity false)
-                                         ])
-              , (exDupShareFirst,"exShareDupFirst", [ Pair (Identity true) (Identity true)
-                                                    , Pair (Identity false) (Identity false)
-                                                    ])
-              , (exDupShare2,"exDupShare2",[ Pair (Identity true) (Identity true)
-                                           , Pair (Identity false) (Identity false)
-                                           ])
-              , (exShareNestedChoice, "exShareNestedChoice",
-                               [ Pair (Identity true) (Identity true)
-                               , Pair (Identity false) (Identity false)
-                               , Pair (Identity true) (Identity true)
-                               , Pair (Identity false) (Identity false)
-                               ])
-              ]
-      exLBs = [ (exDupl,"exDupl", [ ConsM (Identity true) (consM (Identity true) nil)
-                                    , ConsM (Identity true) (consM (Identity false) nil)
-                                    , ConsM (Identity false) (consM (Identity true) nil)
-                                    , ConsM (Identity false) (consM (Identity false) nil)
-                                    ])
-              , (exDuplShare,"exDuplShare", [ ConsM (Identity true) (consM (Identity true) nil)
-                                            , ConsM (Identity false) (consM (Identity false) nil)
-                                            ])
-              , (exDupl2,"exDupl2", [ ConsM (Identity true) (consM (Identity true) nil)
-                                    , ConsM (Identity true) (consM (Identity false) nil)
-                                    , ConsM (Identity false) (consM (Identity true) nil)
-                                    , ConsM (Identity false) (consM (Identity false) nil)
-                                    ])
-              , (exShareNestedChoice2, "exShareNestedChoice2",
-                  [ ConsM (Identity true) (consM (Identity true) (consM (Identity true) (consM (Identity true) nil)))
-                  , ConsM (Identity true) (consM (Identity false) (consM (Identity true) (consM (Identity false) nil)))
-                  , ConsM (Identity false) (consM (Identity true) (consM (Identity false) (consM (Identity true) nil)))
-                  , ConsM (Identity false) (consM (Identity false) (consM (Identity false) (consM (Identity false) nil)))
-                  , ConsM (Identity true) (consM (Identity true) (consM (Identity true) (consM (Identity true) nil)))
-                  , ConsM (Identity true) (consM (Identity false) (consM (Identity true) (consM (Identity false) nil)))
-                  ])
-              , (exOrShareNestedList, "exOrShareNestedList",
-                 [ ConsM (Identity true) (consM (Identity true) (consM (Identity true) (consM (Identity true) nil)))
-                 , ConsM (Identity true) (consM (Identity false) (consM (Identity true) (consM (Identity false) nil)))
-                 , ConsM (Identity false) (consM (Identity true) (consM (Identity false) (consM (Identity true) nil)))
-                 , ConsM (Identity false) (consM (Identity false) (consM (Identity false) (consM (Identity false) nil)))
-                 ])
-              ]
-      exLPBs = [ (exShareSingleton, "exShareSingleton", [ Pair (Identity (ConsM (Identity true) nil))
-                                                               (Identity (ConsM (Identity true) nil))
-                                                        , Pair (Identity (ConsM (Identity false) nil))
-                                                               (Identity (ConsM (Identity false) nil))
-                                                        ])
-               , (exRecList, "exRecList", [ Pair (consM (Identity true) (consM (Identity false) nil))
-                                                (consM (Identity true) (consM (Identity false) nil))
-                                          , Pair (consM (Identity true) (consM (Identity false) nil))
-                                                 (consM (Identity true) (consM (Identity false) nil))
-                                          , Pair (consM (Identity true) (consM (Identity false) nil))
-                                                (consM (Identity true) (consM (Identity false) nil))
-                                          ])
-               ]
-      maxName = maximum (map (fun (_,name,_) => length name) exBs ++
-                         map (fun (_,name,_) => length name) exPBs ++
-                         map (fun (_,name,_) => length name) exLBs)
-      prettyName name = name ++ ": " ++ replicate (maxName - length name) ' '
+  Example exShareInShare : Prog (Pair bool bool) :=
+    Share (Share coin >>= fun fx => orM fx fx) >>= fun fy => pairM fy fy.
+  Example res_exShareInShare := [Pair' (pure true) (pure true)
+                                 ; Pair' (pure false) (pure false)].
+  Lemma lem_exShareInShare : handle exShareInShare = res_exShareInShare.
+  Proof. reflexivity. Qed.
 
-  -- Based on the imported implementation, the annotations for `e` might have to be adapted!
-  mapM_ (fun (e,name,v) => putStr (prettyName name) >> pprint (collectVals (e :: NDShare Bool) == v)) exBs
-  mapM_ (fun (e,name,v) => putStr (prettyName name) >> pprint (collectVals (e :: NDShare (Pair NDShare Bool)) == v)) exPBs
-  mapM_ (fun (e,name,v) => putStr (prettyName name) >> pprint (collectVals (e :: NDShare (List NDShare Bool)) == v)) exLBs
-  mapM_ (fun (e,name,v) => putStr (prettyName name) >>
-    pprint (collectVals (e :: NDShare (Pair NDShare (List NDShare Bool))) == v)) exLPBs
-*)
+  Example exShareListInShare : Prog (Pair (List bool) (List bool)) :=
+    Share (Share (consM coin (consM coin nilM)) >>=
+                 fun fx => appM fx fx) >>= fun fy => pairM fy fy.
+  
+  Example res_exShareListInShare :=
+    [Pair' (consM (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM))))
+           (consM (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM))))
+     ; Pair' (consM (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM))))
+             (consM (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM))))
+     ; Pair' (consM (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM))))
+             (consM (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM))))
+     ; Pair' (consM (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM))))
+             (consM (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM))))].
+  Lemma lem_exShareListInShare : handle exShareListInShare = res_exShareListInShare.
+  Proof. reflexivity. Qed.
+
+  Example exSharePutPos : Prog (List bool) :=
+    Share (Share (consM coin nilM) >>= fun fx => appM fx fx) >>= fun fy => appM fy fy.
+  
+  Example res_exSharePutPos := [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+                                ; Cons'  (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
+  Lemma lem_exSharePutPos : handle exSharePutPos = res_exSharePutPos.
+  Proof. reflexivity. Qed.
+
+  Example exShareListInRepeatedShare : Prog (List bool) :=
+    Share (Share (consM coin nilM) >>= fun fx => appM fx fx) >>=
+          fun fy => Share coin >>= fun fz => Share coin >>= fun fa => consM fz (consM fa fy).
+  Example res_exShareListInRepeatedShare :=
+    [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+     ; Cons' (pure true) (consM (pure true) (consM (pure false) (consM (pure false) nilM)))
+     ;  Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure true) nilM)))
+     ;  Cons' (pure true) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))
+     ;  Cons' (pure false) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+     ;  Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure false) nilM)))
+     ;  Cons' (pure false) (consM (pure false) (consM (pure true) (consM (pure true) nilM)))
+     ;  Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
+  Lemma lem_exShareListInRepeatedShare : handle exShareListInRepeatedShare = res_exShareListInRepeatedShare.
+  Proof. reflexivity. Qed.
+End Extra.

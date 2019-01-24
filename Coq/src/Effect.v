@@ -44,6 +44,7 @@ Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
   Get >>= fun i => Put (i * 2) >>= fun _=> pure (Share' i (Put (i * 2 + 1) >>= fun _ => fp >>= fun x => shareArgs x)).
 Arguments Share {_} {_} fp.
 
+
 Definition Fail A : Prog A :=
   let s : @Shape _ NDShare := inr (inr sfail)
     in impure (ext s (fun p : @Pos _ NDShare s => match p with end)).
@@ -158,10 +159,22 @@ Section List.
     | Nil' _     => @nilM A
     | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys
     end.
-  
-  Global Instance shrbl__List A `(sa : Shareable A) (sas : Shareable (List A)) : Shareable (List A) :=
+
+  Global Instance shrbl__List A `(sa : Shareable A) : Shareable (List A) :=
     {
-      shareArgs := @shrrgs__List A sa sas
+      shareArgs := fun xs =>
+                     let fix aux xs :=
+                         let shr fp := Get >>= fun i =>
+                                       Put (i * 2) >>= fun _ =>
+                                       pure (Share' i (
+                                         Put (i * 2 + 1) >>= fun _ =>
+                                         fp >>= fun x => aux x))
+                         in
+                         match xs with
+                         | Nil' _     => @nilM A
+                         | Cons' y ys => Share y >>= fun sy => shr ys >>= fun sys => consM sy sys
+                         end
+                     in aux xs
     }.
 
   Fixpoint nf'__List A B `{Normalform A B} (xs : List A) : Prog (List B) :=
