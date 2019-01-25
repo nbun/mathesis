@@ -12,6 +12,12 @@ Section Prog.
   Definition Prog := Free NDShare.
   
   Definition Prog__SC := Free NDShare__SC.
+
+  Fixpoint fmap__NDShare A B (f : A -> B) (p : Prog A) : Prog B :=
+    match p with
+    | pure x => pure (f x)
+    | impure (ext s pf) => impure (ext s (fun p => fmap__NDShare f (pf p)))
+    end.
 End Prog.
  
 Class Shareable (A : Type) :=
