@@ -109,6 +109,8 @@ Section List.
   | Nil' : List A
   | Cons' : Prog A -> Prog (List A) -> List A.
 
+  Arguments Nil' {_}.
+
   Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
     pure (Cons' fx fxs).
 
@@ -116,7 +118,7 @@ Section List.
 
   Definition headM A (fxs : Prog (List A)) : Prog A :=
     fxs >>= fun xs => match xs with
-                   | Nil' _    => @Fail A
+                   | Nil'      => @Fail A
                    | Cons' x _ => x
                    end.
 
@@ -128,7 +130,7 @@ Section List.
 
   Fixpoint appM' A (xs : List A) (fxs : Prog (List A)) : Prog (List A) :=
     match xs with
-    | Nil' _       => fxs
+    | Nil'         => fxs
     | Cons' fz fzs => consM fz (fzs >>= fun zs => appM' zs fxs)
     end.
 
@@ -137,7 +139,7 @@ Section List.
 
   Definition shareArgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
     match xs with
-    | Nil' _     => @nilM A
+    | Nil'       => @nilM A
     | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys
     end.
 
@@ -152,7 +154,7 @@ Section List.
                                          fp >>= fun x => aux x))
                          in
                          match xs with
-                         | Nil' _     => @nilM A
+                         | Nil'       => @nilM A
                          | Cons' y ys => Share y >>= fun sy => shr ys >>= fun sys => consM sy sys
                          end
                      in aux xs
@@ -160,7 +162,7 @@ Section List.
 
   Fixpoint nf'__List A B `{Normalform A B} (xs : List A) : Prog (List B) :=
     match xs with
-    | Nil' _ => nilM
+    | Nil'   => nilM
     | Cons' sx sxs => nf sx >>= fun x =>
                      sxs >>= fun xs =>
                      nf'__List xs >>= fun xs' =>
@@ -182,7 +184,7 @@ Section List.
 
   Fixpoint lengthM A (xs : List A) : Prog nat :=
     match xs with
-    | Nil' _ => pure 0
+    | Nil'        => pure 0
     | Cons' _ fxs =>
       let m := match fxs with
                | pure xs => lengthM xs
@@ -205,4 +207,71 @@ Section List.
     | nil => nilM
     | cons x xs => consM (pure x) (convert xs)
     end.
-End List.
+
+  Section Eq_Prog.
+    Variable (A : Type).
+    Variable (eqA : A -> A -> Prop).
+    Axiom eqA_refl : forall (x : A), eqA x x.
+    Axiom eqA_symm : forall (x1 x2 : A), eqA x1 x2 -> eqA x2 x1.
+    Axiom eqA_trans : forall (x1 x2 x3 : A), eqA x1 x2 -> eqA x2 x3 -> eqA x1 x3.
+
+    Inductive Eq_Prog : Prog A -> Prog A -> Prop :=
+    | eqp_pure   : forall px py, eqA px py -> Eq_Prog (pure px) (pure py)
+    | eqp_impure : forall s pf1 pf2,
+        (forall p,
+            Eq_Prog (pf1 p) (pf2 p)) ->
+        Eq_Prog (impure (ext s pf1)) (impure (ext s pf2)).
+    
+    Lemma eq_prog_refl_fail : forall (p : Prog A), Eq_Prog p p.
+    Proof.
+      intros p.
+      induction p as [x | p'].
+      - apply eqp_pure. apply eqA_refl.
+      - destruct p' as [s pf]. apply eqp_impure.
+        intros p. (* induction hypothesis missing? *) 
+    Admitted.
+        
+    Axiom eq_prog_refl : forall (p : Prog A), Eq_Prog p p.
+    Axiom eq_prog_symm : forall (p1 p2 : Prog A),
+        Eq_Prog p1 p2 ->
+        Eq_Prog p2 p1.
+    Axiom eq_prog_trans : forall (p1 p2 p3 : Prog A),
+        Eq_Prog p1 p2 ->
+        Eq_Prog p2 p3 ->
+        Eq_Prog p1 p3.
+  End Eq_Prog.
+
+  Inductive Eq_List A (eqA : A -> A -> Prop) : List A -> List A -> Prop :=
+  | eql_nil  : Eq_List eqA Nil' Nil'
+  | eql_cons : forall px py pxs pys,
+      Eq_Prog eqA px py ->
+      Eq_Prog (Eq_List eqA) pxs pys ->
+      Eq_List eqA (Cons' px pxs) (Cons' py pys).
+
+  Lemma eq_list_refl : forall A eqA (xs : List A), Eq_List eqA xs xs.
+  Proof.
+    intros A eqA xs.
+    induction xs as [ | y ys].
+    - constructor.
+    - constructor.
+      + apply eq_prog_refl.
+      + apply eq_prog_refl.
+  Qed.
+
+  Lemma eq_list_symm : forall A eqA (xs ys : List A), Eq_List eqA xs ys -> Eq_List eqA ys xs.
+  Proof.
+    intros A eqA xs ys H.
+    inversion H.
+    - constructor.
+    - constructor; (apply eq_prog_symm; assumption).
+  Qed.
+
+  Lemma eq_list_trans : forall A eqA (xs ys zs : List A), Eq_List eqA xs ys -> Eq_List eqA ys zs -> Eq_List eqA xs zs.
+  Proof.
+    intros A eqA xs ys zs H1 H2.
+    induction xs; induction ys; induction zs; intuition; (try (inversion H1); try (inversion H2)).
+    subst.
+    constructor.
+    - apply eq_prog_trans with (p2 := p1); assumption.
+    - apply eq_prog_trans with (p2 := p2); assumption.
+  Qed.
