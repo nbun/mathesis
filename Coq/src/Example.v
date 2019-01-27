@@ -1,7 +1,9 @@
-Require Import Thesis.Handler.
-Require Import Thesis.Effect.
-Require Import Thesis.Free.
 Require Import Thesis.Base.
+Require Import Thesis.DataM.
+Require Import Thesis.Effect.
+Require Import Thesis.Handler.
+Require Import Thesis.Prog.
+
 Require Import Lists.List.
 
 Import List.ListNotations.
@@ -167,13 +169,13 @@ Section exPB.
   Example exDupFailed : Prog (Pair bool bool) := share Fail >>= fun x => dup (const (pure true) x).
   Example res_exDupFailed := [Pair' (pure true) (pure true)].
   
-  Example exDupFirst : Prog (Pair bool bool) := dup (@first bool bool (pairM coin Fail)).
+  Example exDupFirst : Prog (Pair bool bool) := dup (@firstM bool bool (pairM coin Fail)).
   Example res_exDupFirst := [Pair' (pure true) (pure true)
                              ; Pair' (pure true) (pure false)
                              ; Pair' (pure false) (pure true)
                              ; Pair' (pure false) (pure false)].
   
-  Example exDupShareFirst : Prog (Pair bool bool) := dupShare (@first bool bool (pairM coin Fail)).
+  Example exDupShareFirst : Prog (Pair bool bool) := dupShare (@firstM bool bool (pairM coin Fail)).
   Example res_exDupShareFirst :=  [Pair' (pure true) (pure true); Pair' (pure false) (pure false)].
   
   Example exShareNestedChoice : Prog (Pair bool bool) :=

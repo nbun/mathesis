@@ -1,7 +1,8 @@
-Require Import Thesis.Free.
 Require Import Thesis.Base.
 Require Import Thesis.Effect.
+Require Import Thesis.Prog.
 Require Import Thesis.Handler.
+Require Import Thesis.DataM.
 Require Import Lists.List.
 
 Import ListNotations.

@@ -1,7 +1,6 @@
-Require Import Thesis.Free.
-Require Import Thesis.Container.
+Require Import Thesis.Classes.
 Require Import Thesis.Effect.
-Require Import Thesis.Base.
+Require Import Thesis.Prog.
 Require Import Thesis.Search.
 
 Set Implicit Arguments.
@@ -21,7 +20,7 @@ Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
   | impure (ext (schoice mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
   end.
 
-Fixpoint runState A (n : nat) (fc : Free NDShare A) : Free (C__Comb C__Sharing C__Choice) A :=
+Fixpoint runState A (n : nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice) A :=
   match fc with
   | pure x => pure x
   | impure (ext (inl (sget _))    pf) => runState n  (pf (pget n))
