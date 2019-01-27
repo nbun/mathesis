@@ -220,16 +220,16 @@ Section exLB.
                               ; Cons' (pure false) (consM (pure false) nilM)].
 
   Example exShareNestedChoice2 : Prog (List bool) :=
-    share (pure true ? coin) >>=
+    share (pure true ? (pure false ? pure true)) >>=
           fun fx => share coin >>= fun fy => consM fx (consM fy (consM fx (consM fy nilM))).
 
   Example res_exShareNestedChoice2 :=
     [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
      ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
-     ; Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
      ; Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM)))
-     ; Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
+     ; Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))
+     ; Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
+     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))].
 
   Example exOrShareNestedList : Prog (List bool) :=
     share coin >>= fun fx =>
