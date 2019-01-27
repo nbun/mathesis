@@ -64,14 +64,14 @@ Section Pair.
   Definition dupShare A `{Shareable A} (fx : Prog A) : Prog (Pair A A) :=
     Share fx >>= fun x => pairM x x.
 
-  Definition shrrgs__Pair A B `(Shareable A) `(Shareable B) (p : Pair A B) : Prog (Pair A B) :=
+  Definition shareArgs__Pair A B `(Shareable A) `(Shareable B) (p : Pair A B) : Prog (Pair A B) :=
     match p with
     | Pair' a b => Share a >>= fun sa => Share b >>= fun sb => pairM sa sb
     end.
 
   Global Instance shareable__Pair A B `(sa : Shareable A) `(sb : Shareable B) : Shareable (Pair A B) :=
     {
-      shareArgs := @shrrgs__Pair A B sa sb
+      shareArgs := @shareArgs__Pair A B sa sb
     }.
 
   Definition nf__Pair A B C D `{Normalform A C} `{Normalform B D} (stp : Prog (Pair A B)) : Prog (Pair C D) :=
@@ -118,8 +118,7 @@ Section List.
   Definition appM A (fxs fys : Prog (List A)) : Prog (List A) :=
     fxs >>= fun xs => appM' xs fys.
 
-
-  Definition shrrgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
+  Definition shareArgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
     match xs with
     | Nil' _     => @nilM A
     | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys
