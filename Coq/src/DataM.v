@@ -30,15 +30,27 @@ Section Prim.
     {
       shareArgs := pure
     }.
-  
-  Global Instance normalform__Nat : Normalform nat nat :=
+
+  Definition nf__nat := fun (x : Prog nat) => x.
+  Lemma nf_impure__nat : forall s (pf : _ -> Prog nat),
+      nf__nat (impure (ext s pf)) = impure (ext s (fun p => nf__nat (pf p))).
+  Proof. trivial. Qed.
+                                        
+  Global Instance normalform__nat : Normalform nat nat :=
     {
-      nf := fun x => x
+      nf := nf__nat;
+      nf_impure := nf_impure__nat
     }.
   
-  Global Instance normalform__Bool : Normalform bool bool :=
+  Definition nf__bool := fun (x : Prog bool) => x.
+  Lemma nf_impure__bool : forall s (pf : _ -> Prog bool),
+      nf__bool (impure (ext s pf)) = impure (ext s (fun p => nf__bool (pf p))).
+  Proof. trivial. Qed.
+
+  Global Instance normalform__bool : Normalform bool bool :=
     {
-      nf := fun x => x
+      nf := nf__bool;
+      nf_impure := nf_impure__bool
     }.
 End Prim.
 
@@ -80,9 +92,14 @@ Section Pair.
                            nf sp2 >>= fun b2 =>
                                         pairM (pure b1) (pure b2).
 
-  Global Instance normalform__Pair A B C D `{Normalform A C} `{Normalform B D} : Normalform (Pair A B) (Pair C D) :=
+  Lemma nf_impure__Pair A B C D nf__AC nf__BD : forall s (pf : _ -> Prog (Pair A B)),
+      @nf__Pair A B C D nf__AC nf__BD (impure (ext s pf)) = impure (ext s (fun p => nf__Pair (pf p))).
+  Proof. trivial. Qed.
+
+  Global Instance normalform__Pair A B C D {nf__AC : Normalform A C} {nf__BD : Normalform B D} : Normalform (Pair A B) (Pair C D) :=
     {
-      nf := fun x => nf__Pair x
+      nf := fun x => nf__Pair x;
+      nf_impure := nf_impure__Pair nf__AC nf__BD
     }.
 
 End Pair.
@@ -145,16 +162,22 @@ Section List.
     match xs with
     | Nil' _ => nilM
     | Cons' sx sxs => nf sx >>= fun x =>
-                                 sxs >>= fun xs => nf'__List xs >>= fun xs' =>
-                                                                 consM (pure x) (pure xs')
+                     sxs >>= fun xs =>
+                     nf'__List xs >>= fun xs' =>
+                     consM (pure x) (pure xs')
     end.
 
   Definition nf__List A B `{Normalform A B}  (stxs : Prog (List A)) : Prog (List B) :=
     stxs >>= fun xs => nf'__List xs.
 
-  Global Instance normalform__List A B `{Normalform A B} : Normalform (List A) (List B) :=
+ Lemma nf_impure__List A B nf__AB : forall s (pf : _ -> Prog (List A)),
+      @nf__List A B nf__AB (impure (ext s pf)) = impure (ext s (fun p => nf__List (pf p))).
+  Proof. trivial. Qed.
+
+  Global Instance normalform__List A B {nf__AB : Normalform A B} : Normalform (List A) (List B) :=
     {
-      nf := fun x => nf__List x
+      nf := fun x => nf__List x;
+      nf_impure := nf_impure__List nf__AB
     }.
 
   Fixpoint lengthM A (xs : List A) : Prog nat :=
