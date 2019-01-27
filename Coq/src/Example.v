@@ -3,8 +3,6 @@ Require Import Thesis.Effect.
 Require Import Thesis.Free.
 Require Import Thesis.Base.
 Require Import Lists.List.
-Require Import EqNat.
-Require Import Thesis.Container.
 
 Import List.ListNotations.
 
@@ -271,28 +269,9 @@ Section exLPB.
              end
      end.
 
-   Fixpoint lengthHelp A (xs : List A) : Prog nat :=
-     match xs with
-     | Nil' _ => pure 0
-     | Cons' _ fxs =>
-       let m := match fxs with
-                | pure xs => lengthHelp xs
-                | impure (ext (inl (sget _)) pf) =>
-                  pf (pget 42) >>= fun xs => lengthHelp xs
-                | impure (ext (inl (sput s'))   pf) =>
-                  pf (pput s') >>= fun xs => lengthHelp xs
-                | impure (ext (inr (inr sfail)) _)  => pure 0
-                | impure (ext (inr (inr (schoice mid))) pf) =>
-                  (pf true >>= fun xs => lengthHelp xs) >>= fun x =>
-                    (pf false >>= fun xs => lengthHelp xs) >>= fun y => pure (max x y)
-                | impure (ext (inr (inl (ssharing n)))  pf) =>
-                  pf (psharing n) >>= fun xs => lengthHelp xs
-                end
-       in m >>= fun i => pure (i + 1)
-     end.
    
    Definition recList (fxs : Prog (List bool)) : Prog (List bool) :=
-     fxs >>= fun xfps => lengthHelp xfps >>= fun fuel => recList' (fuel + 1) xfps.
+     fxs >>= fun xfps => lengthM xfps >>= fun fuel => recList' (fuel + 1) xfps.
 
    Example exRecList : Prog (Pair (List bool) (List bool)) :=
      Share (recList (consM (pure true) (consM (pure false) nilM))) >>= fun fx => pairM fx fx.
@@ -364,58 +343,3 @@ Section Extra.
   Lemma lem_exShareListInRepeatedShare : handle exShareListInRepeatedShare = res_exShareListInRepeatedShare.
   Proof. reflexivity. Qed.
 End Extra.
-
-Section PermSort.
-
-  Fixpoint convert (xs : list nat) : Prog (List nat) :=
-    match xs with
-    | nil => nilM
-    | cons x xs => consM (pure x) (convert xs)
-    end.
-           
-  Fixpoint insert' fx xs : Prog (List nat) :=
-    match xs with
-    | Nil' _ => Fail
-    | Cons' fy fys => consM fy ((consM fx fys) ? (fys >>= insert' fx))
-    end.
-  
-  Definition insert (fx : Prog nat) (fxs : Prog (List nat)) : Prog (List nat) :=
-    (consM fx fxs) ? (fxs >>= insert' fx).
-
-  Fixpoint perm' (xs : List nat) : Prog (List nat) :=
-    match xs with
-    | Nil' _ => nilM
-    | Cons' mx mxs => mxs >>= fun mxs' => insert mx (perm' mxs')
-    end.
-
-  Definition perm (mxs : Prog (List nat)) : Prog (List nat) :=
-    mxs >>= perm'.
-
-  Fixpoint isSorted'' (mx : Prog nat) (xs : List nat) : Prog bool :=
-    match xs with
-    | Nil' _ => pure true
-    | Cons' my mys => mx >>= fun x => my >>= fun y => mys >>= fun ys =>
-      if Nat.leb x y then isSorted'' (pure y) ys
-      else pure false
-    end.
-
-  Fixpoint isSorted' (mx : Prog nat) (mxs : Prog (List nat)) : Prog bool :=
-    mxs >>= fun xs => isSorted'' mx xs.
-
-  Definition isSorted (mxs : Prog (List nat)) : Prog bool :=
-    mxs >>= fun xs => match xs with
-                   | Nil' _ => pure true
-                   | Cons' my mys => isSorted' my mys
-                   end.
-  
-  Definition sort (l : Prog (List nat)) : Prog (List nat) :=
-    Share (perm l) >>= fun xs => isSorted xs >>= fun b => if b then xs else Fail.
-  
-  Definition testList1 := convert [5;42;3;1].
-  Definition testList2 := convert [5;42;3;1;1337;51;123;125].
-  Definition testList3 := convert [5;42;3;1;1337;51;123;125;347;174;1000].
-
-  Compute handle (sort testList1). (* works! *)
-  (* Compute handle (sort testList2). (* might takes a while *) *)
-  (* Compute handle (sort testList3). (* does it even terminate? *) *)
-End PermSort.

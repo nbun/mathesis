@@ -7,3 +7,4 @@ src/Base.v
 src/Handler.v
 src/Effect.v
 src/Example.v
+src/PermSort.v

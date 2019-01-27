@@ -199,6 +199,31 @@ Section List.
       nf := fun x => nf__List x
     }.
 
+  Fixpoint lengthM A (xs : List A) : Prog nat :=
+    match xs with
+    | Nil' _ => pure 0
+    | Cons' _ fxs =>
+      let m := match fxs with
+               | pure xs => lengthM xs
+               | impure (ext (inl (sget _)) pf) =>
+                 pf (pget 42) >>= fun xs => lengthM xs
+               | impure (ext (inl (sput s'))   pf) =>
+                 pf (pput s') >>= fun xs => lengthM xs
+               | impure (ext (inr (inr sfail)) _)  => pure 0
+               | impure (ext (inr (inr (schoice mid))) pf) =>
+                 (pf true >>= fun xs => lengthM xs) >>= fun x =>
+                                                          (pf false >>= fun xs => lengthM xs) >>= fun y => pure (max x y)
+               | impure (ext (inr (inl (ssharing n)))  pf) =>
+                 pf (psharing n) >>= fun xs => lengthM xs
+               end
+      in m >>= fun i => pure (i + 1)
+    end.
+
+  Fixpoint convert (xs : list nat) : Prog (List nat) :=
+    match xs with
+    | nil => nilM
+    | cons x xs => consM (pure x) (convert xs)
+    end.
 End List.
 
 Section Prim.
