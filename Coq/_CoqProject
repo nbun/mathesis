@@ -11,4 +11,5 @@ src/Search.v
 src/Handler.v
 src/Example.v
 src/PermSort.v
-
+src/Eq.v
+src/Laws.v
