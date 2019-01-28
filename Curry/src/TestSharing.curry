@@ -93,33 +93,33 @@ exRepeatedShare = let x = coin
 exShareIgnoreShare :: Bool
 exShareIgnoreShare = let x = coin in const True (let y = x in y || y)
 
-dup :: a -> (a, a)
-dup x = (x,x)
+dupRT :: (() -> a) -> (a,a)
+dupRT rtX = (rtX (), rtX ())
 
 dupShare :: a -> (a, a)
 dupShare x = let y = x in (y,y)
 
 exDup :: (Bool, Bool)
-exDup = dup coin
+exDup = dupRT (\_ -> coin)
 exDupShare :: (Bool, Bool)
-exDupShare = let x = coin in dup x
+exDupShare = let x = coin in dupRT (\_ -> x)
 exDupShare2 :: (Bool, Bool)
 exDupShare2 = dupShare coin
 exDupFailed :: (Bool, Bool)
-exDupFailed = let x = failed in dup (const True x)
+exDupFailed = let x = failed in dupRT (\_ -> const True x)
 exDupFirst :: (Bool, Bool)
-exDupFirst = dup (fst (coin, failed))
+exDupFirst = dupRT (\_ -> fst (coin, failed))
 exDupShareFirst :: (Bool, Bool)
 exDupShareFirst = dupShare (fst (coin, failed))
 
-dupl :: a -> [a]
-dupl x = [x, x]
+duplRT :: (() -> a) -> [a]
+duplRT rtX = [rtX (), rtX ()]
 
 duplShare :: a -> [a]
 duplShare x = let y = x in [y, y]
 
 exDupl :: [Bool]
-exDupl = dupl (head (coin : failed))
+exDupl = duplRT (\_ -> head (coin : failed))
 exDupl2 :: [Bool]
 exDupl2 =  (head (coin : failed )) : [head (coin : failed)]
 exDuplShare :: [Bool]
