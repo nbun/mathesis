@@ -2,6 +2,7 @@ Require Import Thesis.Prog.
 Require Import Thesis.Base.
 Require Import Thesis.Effect.
 Require Import Thesis.Classes.
+Require Import Logic.FunctionalExtensionality.
 
 Set Implicit Arguments.
 
@@ -31,18 +32,29 @@ Section Prim.
       shareArgs := pure
     }.
 
-  Definition nf__nat := fun (x : Prog nat) => x.
+  Fixpoint nf__nat (n : Prog nat) :=
+    n >>= fun n' => pure n'.
+
   Lemma nf_impure__nat : forall s (pf : _ -> Prog nat),
       nf__nat (impure (ext s pf)) = impure (ext s (fun p => nf__nat (pf p))).
-  Proof. trivial. Qed.
-                                        
+  Proof. 
+    intros s pf.
+    simpl. 
+    f_equal.
+    f_equal.
+    apply functional_extensionality.
+    intros. destruct (pf x); reflexivity.
+  Qed.
+
   Global Instance normalform__nat : Normalform nat nat :=
     {
       nf := nf__nat;
       nf_impure := nf_impure__nat
     }.
   
-  Definition nf__bool := fun (x : Prog bool) => x.
+  Definition nf__bool (b : Prog bool) :=
+    b >>= fun b' => pure b'.
+
   Lemma nf_impure__bool : forall s (pf : _ -> Prog bool),
       nf__bool (impure (ext s pf)) = impure (ext s (fun p => nf__bool (pf p))).
   Proof. trivial. Qed.
@@ -227,7 +239,7 @@ Section List.
       intros p.
       induction p as [x | p'] using Free_Ind.
       - apply eqp_pure. apply eqA_refl.
-      - destruct p' as [s1 | s2 pf];
+      - destruct p' as [s1 | s2];
           (apply eqp_impure; assumption).
     Qed.
         
@@ -293,3 +305,4 @@ Section List.
     - apply eq_prog_trans with (p2 := p1); assumption.
     - apply eq_prog_trans with (p2 := p2); assumption.
   Qed.
+End List.
