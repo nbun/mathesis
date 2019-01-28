@@ -2,6 +2,7 @@ Require Import Thesis.Prog.
 Require Import Thesis.Base.
 Require Import Thesis.Effect.
 Require Import Thesis.Classes.
+Require Import Thesis.Handler.
 Require Import Logic.FunctionalExtensionality.
 
 Set Implicit Arguments.
@@ -32,19 +33,12 @@ Section Prim.
       shareArgs := pure
     }.
 
-  Fixpoint nf__nat (n : Prog nat) :=
-    n >>= fun n' => pure n'.
+  Definition nf__nat (n : Prog nat) :=
+    free_bind n (fun n' => pure n').
 
   Lemma nf_impure__nat : forall s (pf : _ -> Prog nat),
       nf__nat (impure (ext s pf)) = impure (ext s (fun p => nf__nat (pf p))).
-  Proof. 
-    intros s pf.
-    simpl. 
-    f_equal.
-    f_equal.
-    apply functional_extensionality.
-    intros. destruct (pf x); reflexivity.
-  Qed.
+  Proof. trivial. Qed.
 
   Global Instance normalform__nat : Normalform nat nat :=
     {
@@ -220,21 +214,21 @@ Section List.
     | cons x xs => consM (pure x) (convert xs)
     end.
 
-  Section Eq_Prog.
+  Section Eq_Prog_Alt.
     Variable (A : Type).
     Variable (eqA : A -> A -> Prop).
     Axiom eqA_refl : forall (x : A), eqA x x.
     Axiom eqA_symm : forall (x1 x2 : A), eqA x1 x2 -> eqA x2 x1.
     Axiom eqA_trans : forall (x1 x2 x3 : A), eqA x1 x2 -> eqA x2 x3 -> eqA x1 x3.
 
-    Inductive Eq_Prog : Prog A -> Prog A -> Prop :=
-    | eqp_pure   : forall px py, eqA px py -> Eq_Prog (pure px) (pure py)
+    Inductive Eq_Prog_Alt : Prog A -> Prog A -> Prop :=
+    | eqp_pure   : forall px py, eqA px py -> Eq_Prog_Alt (pure px) (pure py)
     | eqp_impure : forall s pf1 pf2,
         (forall p,
-            Eq_Prog (pf1 p) (pf2 p)) ->
-        Eq_Prog (impure (ext s pf1)) (impure (ext s pf2)).
+            Eq_Prog_Alt (pf1 p) (pf2 p)) ->
+        Eq_Prog_Alt (impure (ext s pf1)) (impure (ext s pf2)).
 
-    Lemma eq_prog_refl : forall (p : Prog A), Eq_Prog p p.
+    Lemma eq_prog_refl_alt : forall (p : Prog A), Eq_Prog_Alt p p.
     Proof.
       intros p.
       induction p as [x | p'] using Free_Ind.
@@ -244,8 +238,8 @@ Section List.
     Qed.
         
     Lemma eq_prog_symm_fail : forall (p1 p2 : Prog A),
-        Eq_Prog p1 p2 ->
-        Eq_Prog p2 p1.
+        Eq_Prog_Alt p1 p2 ->
+        Eq_Prog_Alt p2 p1.
     Proof.
       intros p1 p2 H.
       induction p1 as [x1 | s1] using Free_Ind;
@@ -261,48 +255,122 @@ Section List.
         intros p.
       Admitted.
       
-    Axiom eq_prog_symm : forall (p1 p2 : Prog A),
-        Eq_Prog p1 p2 ->
-        Eq_Prog p2 p1.
+    Axiom eq_prog_symm_alt : forall (p1 p2 : Prog A),
+        Eq_Prog_Alt p1 p2 ->
+        Eq_Prog_Alt p2 p1.
 
-    Axiom eq_prog_trans : forall (p1 p2 p3 : Prog A),
-        Eq_Prog p1 p2 ->
-        Eq_Prog p2 p3 ->
-        Eq_Prog p1 p3.
-  End Eq_Prog.
+    Axiom eq_prog_trans_alt : forall (p1 p2 p3 : Prog A),
+        Eq_Prog_Alt p1 p2 ->
+        Eq_Prog_Alt p2 p3 ->
+        Eq_Prog_Alt p1 p3.
+  End Eq_Prog_Alt.
 
   Inductive Eq_List A (eqA : A -> A -> Prop) : List A -> List A -> Prop :=
   | eql_nil  : Eq_List eqA Nil' Nil'
   | eql_cons : forall px py pxs pys,
-      Eq_Prog eqA px py ->
-      Eq_Prog (Eq_List eqA) pxs pys ->
+      Eq_Prog_Alt eqA px py ->
+      Eq_Prog_Alt (Eq_List eqA) pxs pys ->
       Eq_List eqA (Cons' px pxs) (Cons' py pys).
 
-  Lemma eq_list_refl : forall A eqA (xs : List A), Eq_List eqA xs xs.
+  Lemma eq_List_refl_alt : forall A eqA (xs : List A), Eq_List eqA xs xs.
   Proof.
     intros A eqA xs.
     induction xs as [ | y ys].
     - constructor.
     - constructor.
-      + apply eq_prog_refl.
-      + apply eq_prog_refl.
+      + apply eq_prog_refl_alt.
+      + apply eq_prog_refl_alt.
   Qed.
 
-  Lemma eq_list_symm : forall A eqA (xs ys : List A), Eq_List eqA xs ys -> Eq_List eqA ys xs.
+  Lemma eq_List_symm_alt : forall A eqA (xs ys : List A), Eq_List eqA xs ys -> Eq_List eqA ys xs.
   Proof.
     intros A eqA xs ys H.
     inversion H.
     - constructor.
-    - constructor; (apply eq_prog_symm; assumption).
+    - constructor; (apply eq_prog_symm_alt; assumption).
   Qed.
 
-  Lemma eq_list_trans : forall A eqA (xs ys zs : List A), Eq_List eqA xs ys -> Eq_List eqA ys zs -> Eq_List eqA xs zs.
+  Lemma eq_List_trans : forall A eqA (xs ys zs : List A), Eq_List eqA xs ys -> Eq_List eqA ys zs -> Eq_List eqA xs zs.
   Proof.
     intros A eqA xs ys zs H1 H2.
     induction xs; induction ys; induction zs; intuition; (try (inversion H1); try (inversion H2)).
     subst.
     constructor.
-    - apply eq_prog_trans with (p2 := p1); assumption.
-    - apply eq_prog_trans with (p2 := p2); assumption.
+    - apply eq_prog_trans_alt with (p2 := p1); assumption.
+    - apply eq_prog_trans_alt with (p2 := p2); assumption.
   Qed.
+
+  Section Eq_list.
+    Variable A : Type.
+    Variable eq_A : A -> A -> Prop.
+
+    Axiom eq_A_refl  : forall (x : A), eq_A x x.
+    Axiom eq_A_symm  : forall (x1 x2 : A), eq_A x1 x2 -> eq_A x2 x1.
+    Axiom eq_A_trans : forall (x1 x2 x3 : A), eq_A x1 x2 -> eq_A x2 x3 -> eq_A x1 x3.
+
+    Inductive Eq_list : list A -> list A -> Prop :=
+    | eq_nil  : Eq_list nil nil
+    | eq_cons : forall x y xs ys,
+        eq_A x y ->
+        Eq_list xs ys ->
+        Eq_list (cons x xs) (cons y ys).
+
+    Lemma eq_list_refl : forall (xs : list A), Eq_list xs xs.
+    Proof.
+      induction xs as [ | y ys].
+      - constructor.
+      - constructor.
+        + apply eq_A_refl.
+        + assumption.
+    Qed.
+    
+    Lemma eq_list_symm : forall (xs ys : list A), Eq_list xs ys -> Eq_list ys xs.
+    Proof.
+      intros xs ys H.
+      induction H; constructor.
+      - apply eq_A_symm. assumption.
+      - apply IHEq_list.
+    Qed.
+    
+    Lemma eq_list_trans : forall (xs ys zs : list A),
+        Eq_list xs ys -> Eq_list ys zs -> Eq_list xs zs.
+    Proof.
+      induction xs; induction ys; induction zs;
+        intros; auto; try inversion H0; try inversion H; subst.
+      - constructor.
+        + apply eq_A_trans with (x2 := a0); assumption.
+        + apply IHxs with (ys := ys); assumption.
+    Qed.
+
+    Variable nf__A : Normalform A A.
+
+    Definition Eq_Prog `{Normalform A A} (p1 p2 : Prog A) :=
+      Eq_list (handle p1) (handle p2).
+
+    Lemma eq_prog_refl : forall (p : Prog A), Eq_Prog p p.
+    Proof. 
+      intros p.
+      unfold Eq_Prog.
+      apply eq_list_refl.
+    Qed.
+
+    Lemma eq_prog_symm : forall (p1 p2 : Prog A), Eq_Prog p1 p2 -> Eq_Prog p2 p1.
+    Proof.
+      intros p1 p2 H.
+      unfold Eq_Prog.
+      unfold Eq_Prog in H.
+      apply eq_list_symm.
+      assumption.
+    Qed.
+        
+    Lemma eq_prog_trans : forall (p1 p2 p3 : Prog A),
+        Eq_Prog p1 p2 -> Eq_Prog p2 p3 -> Eq_Prog p1 p3.
+    Proof.
+      intros p1 p2 p3 H1 H2.
+      unfold Eq_Prog.
+      unfold Eq_Prog in H1.
+      unfold Eq_Prog in H2.
+      apply eq_list_trans with (ys := handle p2); assumption.
+    Qed.
+  End Eq_list.
 End List.
