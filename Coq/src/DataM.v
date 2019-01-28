@@ -221,20 +221,38 @@ Section List.
         (forall p,
             Eq_Prog (pf1 p) (pf2 p)) ->
         Eq_Prog (impure (ext s pf1)) (impure (ext s pf2)).
-    
-    Lemma eq_prog_refl_fail : forall (p : Prog A), Eq_Prog p p.
+
+    Lemma eq_prog_refl : forall (p : Prog A), Eq_Prog p p.
     Proof.
       intros p.
-      induction p as [x | p'].
+      induction p as [x | p'] using Free_Ind.
       - apply eqp_pure. apply eqA_refl.
-      - destruct p' as [s pf]. apply eqp_impure.
-        intros p. (* induction hypothesis missing? *) 
-    Admitted.
+      - destruct p' as [s1 | s2 pf];
+          (apply eqp_impure; assumption).
+    Qed.
         
-    Axiom eq_prog_refl : forall (p : Prog A), Eq_Prog p p.
+    Lemma eq_prog_symm_fail : forall (p1 p2 : Prog A),
+        Eq_Prog p1 p2 ->
+        Eq_Prog p2 p1.
+    Proof.
+      intros p1 p2 H.
+      induction p1 as [x1 | s1] using Free_Ind;
+        induction p2 as [x2 | s2] using Free_Ind.
+      - inversion H.
+        constructor.
+        apply eqA_symm.
+        assumption.
+      - inversion H.
+      - inversion H.
+      - inversion H.
+        constructor.
+        intros p.
+      Admitted.
+      
     Axiom eq_prog_symm : forall (p1 p2 : Prog A),
         Eq_Prog p1 p2 ->
         Eq_Prog p2 p1.
+
     Axiom eq_prog_trans : forall (p1 p2 p3 : Prog A),
         Eq_Prog p1 p2 ->
         Eq_Prog p2 p3 ->
