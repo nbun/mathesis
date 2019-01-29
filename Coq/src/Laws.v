@@ -86,6 +86,11 @@ Section SharingLaws.
     reflexivity.
   Qed.
 
+  Lemma Ldistr' : forall p1 p2 (f : A -> Prog A), ((p1 ? p2) >>= f) = ((p1 >>= f) ? (p2 >>= f)).
+  Proof.
+    Admitted.
+    
+
   Theorem Ldistr : forall p1 p2 (f : A -> Prog A), Eq_Prog eqA ((p1 ? p2) >>= f) ((p1 >>= f) ? (p2 >>= f)).
   Proof.
     intros p1 p2 f.
@@ -103,20 +108,23 @@ Section SharingLaws.
     repeat (rewrite nf_impure; simpl).
     econstructor.
   Qed.
-  
+
+  (* Mark id as volatile to enable automatic unfolding *)
+  Arguments id / A x.
+
   Theorem T__Fail_id :
     Eq_Prog eqA (Share Fail >>= id) (pure Fail >>= id).
   Proof.
     unfold Eq_Prog, handle, Search.collectVals, Share', Fail.
     simpl.
-    unfold id.
-    repeat (rewrite nf_impure; simpl).
-    unfold Share'.
-    repeat (rewrite nf_impure; simpl).
+    repeat (rewrite nf_impure; try unfold Share'; simpl).
     constructor.
   Qed.
 
   Definition const A B (x : A) (y : B) := x.
+
+  (* Mark const as volatile to enable automatic unfolding *)
+  Arguments const / A B x y.
 
   Theorem State_ND_independence : forall n m (p : Prog A),
       runState n p = runState m p.
@@ -134,10 +142,9 @@ Section SharingLaws.
   Theorem T__Fail_const : forall x,
       Eq_Prog eqA (Share Fail >>= const x) (pure (@Fail A) >>= const x).
   Proof. 
-    intros x. unfold const.
-    unfold Eq_Prog, handle, Search.collectVals, Share', const. simpl.
+    intros x. 
+    unfold Eq_Prog, handle, Search.collectVals, Share'. simpl.
     do 2 (rewrite nf_impure; simpl).
-    simpl.
     rewrite State_ND_independence with (m := 1).
     reflexivity.
   Qed.
