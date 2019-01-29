@@ -8,6 +8,9 @@ Require Import Thesis.Eq.
 
 Require Import Program.Equality.
 Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Classes.RelationClasses.
+Require Import Equivalence.
+
 
 Set Implicit Arguments.
 
@@ -44,25 +47,31 @@ End Free_Share_Ind.
 Section SharingLaws.
   Variable (A : Type).
   Variable nf__A : Normalform A A.
+  Variable s__A : Shareable A.
+  Variable eqA : A -> A -> Prop.
 
-  Theorem Lret : forall f (x : A), Eq_Prog eq (pure x >>= f) (f x).
+  Variable eqA_refl  : Reflexive eqA.
+  Variable eqA_symm  : Symmetric eqA.
+  Variable eqA_trans : Transitive eqA.
+
+  Theorem Lret : forall f (x : A), Eq_Prog eqA (pure x >>= f) (f x).
   Proof. reflexivity. Qed.
   
-  Theorem Rret : forall (p : Prog A), Eq_Prog eq (p >>= pure) p.
+  Theorem Rret : forall (p : Prog A), Eq_Prog eqA (p >>= pure) p.
   Proof.
     intros p.
     rewrite bind_pure.
     reflexivity.
   Qed.
 
-  Theorem Bassc : forall (p : Prog A) (f g : A -> Prog A), Eq_Prog eq ((p >>= f) >>= g) (p >>= fun x => f x >>= g).
+  Theorem Bassc : forall (p : Prog A) (f g : A -> Prog A), Eq_Prog eqA ((p >>= f) >>= g) (p >>= fun x => f x >>= g).
   Proof.
     intros p f g.
     rewrite free_bind_assoc.
     reflexivity.
   Qed.
 
-  Theorem Lzero' : forall (f : A -> Prog A), (Fail >>= f) = Fail.
+  Lemma Lzero' : forall (f : A -> Prog A), (Fail >>= f) = Fail.
     intros f.
     simpl.
     unfold Fail.
@@ -71,22 +80,41 @@ Section SharingLaws.
     inversion p.
   Qed.
 
-  Theorem Lzero : forall (f : A -> Prog A), Eq_Prog eq (Fail >>= f) Fail.
+  Theorem Lzero : forall (f : A -> Prog A), Eq_Prog eqA (Fail >>= f) Fail.
     intros f.
     rewrite Lzero'.
     reflexivity.
   Qed.
 
-  Theorem Ldistr : forall p1 p2 (f : A -> Prog A), (p1 ? p2) >>= f = ((p1 >>= f) ? (p2 >>= f)).
+  Theorem Ldistr : forall p1 p2 (f : A -> Prog A), Eq_Prog eqA ((p1 ? p2) >>= f) ((p1 >>= f) ? (p2 >>= f)).
+  Proof.
+    intros p1 p2 f.
+    unfold Eq_Prog, handle, Search.collectVals, Share'.
+    simpl.
+    repeat (rewrite nf_impure; simpl).
     Admitted.
 
-  Theorem T__Fail_fstrict : forall (f' : bool -> Prog bool),
-      Eq_Prog eq (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
-  Proof. econstructor. Qed.
-
+  Theorem T__Fail_fstrict : forall (f' : A -> Prog A),
+      Eq_Prog eqA (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
+  Proof. 
+    intros f'.
+    unfold Eq_Prog, handle, Search.collectVals, Share'.
+    simpl.
+    repeat (rewrite nf_impure; simpl).
+    econstructor.
+  Qed.
+  
   Theorem T__Fail_id :
-    Eq_Prog eq (Share Fail >>= id) (pure Fail >>= id).
-  Proof. econstructor. Qed.
+    Eq_Prog eqA (Share Fail >>= id) (pure Fail >>= id).
+  Proof.
+    unfold Eq_Prog, handle, Search.collectVals, Share', Fail.
+    simpl.
+    unfold id.
+    repeat (rewrite nf_impure; simpl).
+    unfold Share'.
+    repeat (rewrite nf_impure; simpl).
+    constructor.
+  Qed.
 
   Definition const A B (x : A) (y : B) := x.
 
@@ -104,7 +132,7 @@ Section SharingLaws.
   Qed.
 
   Theorem T__Fail_const : forall x,
-      Eq_Prog eq (Share Fail >>= const x) (pure (@Fail A) >>= const x).
+      Eq_Prog eqA (Share Fail >>= const x) (pure (@Fail A) >>= const x).
   Proof. 
     intros x. unfold const.
     unfold Eq_Prog, handle, Search.collectVals, Share', const. simpl.
