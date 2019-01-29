@@ -6,34 +6,85 @@ Require Import Thesis.Prog.
 Require Import Thesis.Base.
 Require Import Thesis.Eq.
 
+Require Import Program.Equality.
+
 Set Implicit Arguments.
 
-Theorem T__Fail_fstrict : forall (f' : bool -> Prog bool),
-    Eq_Prog eq (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
-Proof. econstructor. Qed.
+Axiom Free_Share_dec :
+  forall (A : Type) (p : Prog A),
+    { exists x, p = pure x } +
+    { p = Fail } +
+    { exists p1 p2, p = (p1 ? p2)}.
 
-Theorem T__Fail_id :
+Section Free_Share_Ind.
+  Variable A : Type.
+  Variable P : Prog A -> Prop.
+
+  Hypothesis HPure : forall (x : A), P (pure x).
+  Hypothesis HFail : P Fail.
+  Hypothesis HChoice : forall (p1 p2 : Prog A), P p1 -> P p2 -> P (p1 ? p2).
+
+  Lemma Free_Share_Ind : forall (p : Prog A), P p.
+  Proof.
+    intros p.
+    induction p using Free_Ind; eauto.
+    destruct (Free_Share_dec (impure (ext s pf))) as [H1 | Hchoice].
+    - destruct H1 as [Hpure | Hfail].
+      + destruct Hpure as [x Hx]; discriminate Hx.
+      + rewrite Hfail; eauto.
+    - destruct Hchoice as [p1 [p2 H12]]; rewrite H12.
+      dependent destruction H12.
+      apply HChoice.
+      + apply (H true).
+      + apply (H false).
+  Defined.
+End Free_Share_Ind.
+
+Section SharingLaws.
+  Variable (A : Type).
+  Variable nf__A : Normalform A A.
+
+  Theorem Lret : forall f (x : A), Eq_Prog eq (pure x >>= f) (f x).
+  Proof. reflexivity. Qed.
+  
+  Theorem Rret : forall (p : Prog A), Eq_Prog eq (p >>= pure) p.
+  Proof.
+    intros p.
+    rewrite bind_pure.
+    reflexivity.
+  Qed.
+
+  Theorem T__Fail_fstrict : forall (f' : bool -> Prog bool),
+      Eq_Prog eq (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
+  Proof. econstructor. Qed.
+
+  Theorem T__Fail_id :
     Eq_Prog eq (Share Fail >>= id) (pure Fail >>= id).
-Proof. econstructor. Qed.
+  Proof. econstructor. Qed.
 
-Definition const A B (x : A) (y : B) := x.
+  Definition const A B (x : A) (y : B) := x.
 
-Theorem state_init : forall A n m (p : Prog A),
-    (* runState n p = runState m p. *)
-    Eq_list eq (Search.dfs Search.emptymap (runChoice (runSharing (runState n p))))
-    (Search.dfs Search.emptymap (runChoice (runSharing (runState m p)))).
-Proof.
-  intros A n m p.
-  induction p using Free_Ind.
-  - repeat econstructor.
-  - destruct s.
-    + destruct s.
-      * simpl.
-Admitted.
+  Theorem State_ND_independence : forall n m (p : Prog A),
+      runState n p = runState m p.
+  Proof.
+    intros n m p.
+    induction p using Free_Share_Ind.
+    - reflexivity.
+    - reflexivity.
+    - simpl.
+      rewrite IHp1.
+      rewrite IHp2.
+      reflexivity.
+  Qed.
 
-Theorem T__Fail_const : forall A x,
-    Eq_Prog eq (Share Fail >>= const x) (pure (@Fail A) >>= const x).
-Proof. 
-  intros A x. unfold const.
-  unfold Eq_Prog, handle, Search.collectVals, Share', const. simpl.
-Admitted.
+  Theorem T__Fail_const : forall x,
+      Eq_Prog eq (Share Fail >>= const x) (pure (@Fail A) >>= const x).
+  Proof. 
+    intros x. unfold const.
+    unfold Eq_Prog, handle, Search.collectVals, Share', const. simpl.
+    do 2 (rewrite nf_impure; simpl).
+    simpl.
+    rewrite State_ND_independence with (m := 1).
+    reflexivity.
+  Qed.
+End SharingLaws.

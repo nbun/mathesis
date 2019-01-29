@@ -50,9 +50,9 @@ Section MonadInstance.
     free_bind' f ffA.
 
   Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
-  Notation "'do' x <- mx ; f" :=
-    (free_bind mx (fun x => f))
-      (at level 50, x ident, mx at level 40, f at level 50).
+  (* Notation "'do' x <- mx ; f" := *)
+  (*   (free_bind mx (fun x => f)) *)
+  (*     (at level 50, x ident, mx at level 40, f at level 50). *)
 
   Lemma pure_bind :
     forall A B (x: A) (f: A -> Free C__F B), pure x >>= f = f x.
@@ -65,9 +65,9 @@ Section MonadInstance.
   Proof.
     induction fA using Free_Ind.
     - reflexivity.
-    - simpl free_bind.
-      repeat apply f_equal.
-      apply functional_extensionality.
+    - simpl.
+      do 2 f_equal.
+      extensionality p.
       apply H.
   Qed.
 
@@ -97,9 +97,9 @@ End MonadInstance.
 Arguments cmap {_} {_} {_} {_}.
 
 Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
-Notation "'do' x <- mx ; f" :=
-  (free_bind mx (fun x => f))
-    (at level 50, x ident, mx at level 40, f at level 50).
+(* Notation "'do' x <- mx ; f" := *)
+(*   (free_bind mx (fun x => f)) *)
+(*     (at level 50, x ident, mx at level 40, f at level 50). *)
 
 Section MonadInstances.
 
