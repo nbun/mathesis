@@ -88,16 +88,20 @@ Section SharingLaws.
 
   Lemma Ldistr' : forall p1 p2 (f : A -> Prog A), ((p1 ? p2) >>= f) = ((p1 >>= f) ? (p2 >>= f)).
   Proof.
-    Admitted.
-    
+    intros p1 p2 f.
+    unfold Effect.Choice.
+    simpl.
+    do 2 f_equal.
+    extensionality p.
+    destruct p; reflexivity.
+  Qed.
 
   Theorem Ldistr : forall p1 p2 (f : A -> Prog A), Eq_Prog eqA ((p1 ? p2) >>= f) ((p1 >>= f) ? (p2 >>= f)).
   Proof.
     intros p1 p2 f.
-    unfold Eq_Prog, handle, Search.collectVals, Share'.
-    simpl.
-    repeat (rewrite nf_impure; simpl).
-    Admitted.
+    rewrite Ldistr'.
+    reflexivity.
+  Qed.
 
   Theorem T__Fail_fstrict : forall (f' : A -> Prog A),
       Eq_Prog eqA (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
