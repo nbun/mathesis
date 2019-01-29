@@ -7,6 +7,7 @@ Require Import Thesis.Base.
 Require Import Thesis.Eq.
 
 Require Import Program.Equality.
+Require Import Coq.Logic.FunctionalExtensionality.
 
 Set Implicit Arguments.
 
@@ -53,6 +54,31 @@ Section SharingLaws.
     rewrite bind_pure.
     reflexivity.
   Qed.
+
+  Theorem Bassc : forall (p : Prog A) (f g : A -> Prog A), Eq_Prog eq ((p >>= f) >>= g) (p >>= fun x => f x >>= g).
+  Proof.
+    intros p f g.
+    rewrite free_bind_assoc.
+    reflexivity.
+  Qed.
+
+  Theorem Lzero' : forall (f : A -> Prog A), (Fail >>= f) = Fail.
+    intros f.
+    simpl.
+    unfold Fail.
+    do 2 f_equal.
+    extensionality p.
+    inversion p.
+  Qed.
+
+  Theorem Lzero : forall (f : A -> Prog A), Eq_Prog eq (Fail >>= f) Fail.
+    intros f.
+    rewrite Lzero'.
+    reflexivity.
+  Qed.
+
+  Theorem Ldistr : forall p1 p2 (f : A -> Prog A), (p1 ? p2) >>= f = ((p1 >>= f) ? (p2 >>= f)).
+    Admitted.
 
   Theorem T__Fail_fstrict : forall (f' : bool -> Prog bool),
       Eq_Prog eq (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
