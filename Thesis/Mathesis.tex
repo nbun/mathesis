@@ -13,6 +13,7 @@
 \usepackage{subcaption}
 \usepackage{tikz}
 \usepackage{natbib}
+\usepackage{abstract}
 \usepackage[automark, headsepline]{scrlayer-scrpage}
 
 % Kapitelüberschrift in der Kopfzeile
@@ -63,6 +64,11 @@
 	{\large \today\par}
 \end{titlepage}
 
+\newpage
+\thispagestyle{empty}
+\strut
+\newpage
+
 \chapter*{Erklärung der Urheberschaft}
 \vspace{2cm}
 Ich erkläre hiermit an Eides statt, dass ich die vorliegende Arbeit
@@ -77,6 +83,15 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 
 \newpage
 \mbox{}
+\thispagestyle{empty}
+\newpage
+
+\begin{abstract}
+
+\end{abstract}
+
+\newpage
+\strut
 \thispagestyle{empty}
 \newpage
 
@@ -100,6 +115,7 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 \label{coq-intro}
 
 \section{Haskell}
+\subsection{Monad and MonadPlus}
 
 \section{Curry}
 \subsection{Non-strictness}
@@ -148,10 +164,57 @@ built into the language.
 \citet{PurelyFunctional} introduce a monadic representation of non-determinism 
 that supports sharing and non-strict evaluation. Out of simplicity, the 
 implementation idea is presented in Haskell, similar to the approach of the 
-original authors.
+original authors, using the example of permutation sort.
+The algorithm consists  of three components. Firstly, a function 
+\mintinline{Haskell}{insert} that inserts an element non-deterministically at 
+every possible position within a list.
+
+\begin{minted}{Haskell}
+insert :: MonadPlus m => a -> [a] -> m [a]
+insert x xs = return (x:xs)
+      `mplus` case xs of
+                []     -> mzero
+                (y:ys) -> do zs <- insert x ys
+                             return (y:zs)
+\end{minted}
+
+The second part is the function \mintinline{Haskell}{perm} that inserts the 
+head of a given list into the permutations of the list's tail.
+\begin{minted}{Haskell}
+perm :: MonadPlus m => [a] -> m [a]
+perm [] = return []
+perm (x:xs) = do ys <- perm xs
+                 zs <- insert x ys
+                 return zs
+\end{minted}
+
+Finally, the function \mintinline{Haskell}{sort} generates permutations and 
+then tests whether they are sorted.
+
+\begin{minted}{Haskell}
+sort :: MonadPlus m => [Int] -> m [Int]
+sort xs = do ys <- perm xs
+             guard (isSorted ys)
+             return ys
+\end{minted}
+
+The function \mintinline{Haskell}{isSorted} compares each element in a list to 
+the next one to determine whether the list is sorted.
+
+\begin{minted}{Haskell}
+*Test> sort [8,7..0] :: [[Int]]
+[[0,1,2,3,4,5,6,7,8]]
+(1.05 secs, 717,910,424 bytes)
+*Test> sort [9,8..0] :: [[Int]]
+[[0,1,2,3,4,5,6,7,8,9]]
+(9.64 secs, 7,437,956,760 bytes)
+*Test> sort [10,9..0] :: [[Int]]
+[[0,1,2,3,4,5,6,7,8,9,10]]
+(107.09 secs, 84,743,412,160 bytes)
+\end{minted}
 
 As mentioned before, modelling non-determinism in Haskell requires us to adapt 
-data types so that components can contain non-determinism because 
+data types so that components can contain non-determinism because otherwise
 non-strictness is lost. \todo{Copy examples? New examples? No examples?}
 
 \begin{minted}{Haskell}
