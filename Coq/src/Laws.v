@@ -18,7 +18,7 @@ Axiom Free_Share_dec :
   forall (A : Type) (p : Prog A),
     { exists x, p = pure x } +
     { p = Fail } +
-    { exists p1 p2, p = (p1 ? p2)}.
+    { exists id p1 p2, p = Effect.Choice id p1 p2}.
 
 Section Free_Share_Ind.
   Variable A : Type.
@@ -26,7 +26,7 @@ Section Free_Share_Ind.
 
   Hypothesis HPure : forall (x : A), P (pure x).
   Hypothesis HFail : P Fail.
-  Hypothesis HChoice : forall (p1 p2 : Prog A), P p1 -> P p2 -> P (p1 ? p2).
+  Hypothesis HChoice : forall id (p1 p2 : Prog A), P p1 -> P p2 -> P (Effect.Choice id p1 p2).
 
   Lemma Free_Share_Ind : forall (p : Prog A), P p.
   Proof.
@@ -36,13 +36,28 @@ Section Free_Share_Ind.
     - destruct H1 as [Hpure | Hfail].
       + destruct Hpure as [x Hx]; discriminate Hx.
       + rewrite Hfail; eauto.
-    - destruct Hchoice as [p1 [p2 H12]]; rewrite H12.
+    - destruct Hchoice as [cid [p1 [p2 H12]]]; rewrite H12.
       dependent destruction H12.
       apply HChoice.
       + apply (H true).
       + apply (H false).
   Defined.
 End Free_Share_Ind.
+
+Fixpoint upcast__SC A (fc : Free (C__Comb C__Sharing C__Choice) A) : Prog A :=
+  match fc with
+  | pure x => pure x
+  | impure (ext (inr sfail)          _)  => Fail
+  | impure (ext (inr (schoice mid)) pf)  => Effect.Choice mid (upcast__SC (pf true)) (upcast__SC (pf false))
+  | impure (ext (inl (ssharing n))  pf)  => Share' n (upcast__SC (pf (psharing n)))
+  end.
+
+Fixpoint upcast__C A (fc : Free C__Choice A) : Prog A :=
+  match fc with
+  | pure x => pure x
+  | impure (ext sfail          _)  => Fail
+  | impure (ext (schoice mid) pf)  => Effect.Choice mid (upcast__C (pf true)) (upcast__C (pf false))
+  end.
 
 Section SharingLaws.
   Variable (A : Type).
@@ -103,7 +118,7 @@ Section SharingLaws.
     reflexivity.
   Qed.
 
-  Theorem T__Fail_fstrict : forall (f' : A -> Prog A),
+  Theorem Fail__fstrict : forall (f' : A -> Prog A),
       Eq_Prog eqA (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
   Proof. 
     intros f'.
@@ -116,7 +131,7 @@ Section SharingLaws.
   (* Mark id as volatile to enable automatic unfolding *)
   Arguments id / A x.
 
-  Theorem T__Fail_id :
+  Theorem Fail__id :
     Eq_Prog eqA (Share Fail >>= id) (pure Fail >>= id).
   Proof.
     unfold Eq_Prog, handle, Search.collectVals, Share', Fail.
@@ -143,7 +158,7 @@ Section SharingLaws.
       reflexivity.
   Qed.
 
-  Theorem T__Fail_const : forall x,
+  Theorem Fail__const : forall x,
       Eq_Prog eqA (Share Fail >>= const x) (pure (@Fail A) >>= const x).
   Proof. 
     intros x. 
@@ -152,4 +167,23 @@ Section SharingLaws.
     rewrite State_ND_independence with (m := 1).
     reflexivity.
   Qed.
+
+  Lemma sharing_id_independence : forall (p : Free (C__Comb C__Sharing C__Choice) A) i j k,
+      upcast__C (nameChoices i j p) = upcast__C (nameChoices i k p).
+  Proof.
+    intros p i j k.
+    induction p using Free_Share_Ind.
+      
+  Theorem Choice__fstrict : forall (f' : A -> Prog A) p1 p2,
+      Eq_Prog eqA (Share (p1 ? p2) >>= fun fx => fx >>= f') ((Share p1 ? Share p2) >>= fun fx => fx >>= f').
+  Proof.
+    intros f' p1 p2.
+    unfold Eq_Prog, handle, Search.collectVals, Share'.
+    simpl.
+    repeat (rewrite nf_impure; simpl).
+Print nameChoices.    
+Print Free_Share_Ind.        
+      
+
+
 End SharingLaws.
