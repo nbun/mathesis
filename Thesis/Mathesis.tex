@@ -113,16 +113,32 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 
 \section{Coq}
 \label{coq-intro}
+\begin{itemize}
+\item Introduce the necessary Coq concepts to understand the paper
+\end{itemize}
 
 \section{Haskell}
+\begin{itemize}
+\item Introduce the necessary Haskell concepts to understand the paper
+\end{itemize}
 \subsection{Monad and MonadPlus}
 
 \section{Curry}
+\begin{itemize}
+\item Introduce the necessary Curry concepts to understand the paper
+\end{itemize}
 \subsection{Non-strictness}
 \subsection{Sharing}
 \subsection{Non-determinism}
 
 \section{Modelling Curry Programs using Monadic Code Transformation}
+\begin{itemize}
+\item Why is the naive MonadPlus approach not sufficient to model Curry 
+semantic?
+\item Motivate usage of monadic data types
+\item Introduce explicit sharing
+\end{itemize}
+
 Modelling Curry programs in a language like Haskell requires a transformation 
 of non-deterministic code into a semantically equivalent, deterministic 
 program. First, we have a look at the direct representation of non-determinism 
@@ -199,19 +215,53 @@ sort xs = do ys <- perm xs
 \end{minted}
 
 The function \mintinline{Haskell}{isSorted} compares each element in a list to 
-the next one to determine whether the list is sorted.
+the next one to determine whether the list is sorted. When we test this 
+implementation, we can see that the runtime increases significantly when adding 
+even a few elements.
 
 \begin{minted}{Haskell}
-*Test> sort [8,7..0] :: [[Int]]
-[[0,1,2,3,4,5,6,7,8]]
-(1.05 secs, 717,910,424 bytes)
-*Test> sort [9,8..0] :: [[Int]]
-[[0,1,2,3,4,5,6,7,8,9]]
-(9.64 secs, 7,437,956,760 bytes)
-*Test> sort [10,9..0] :: [[Int]]
-[[0,1,2,3,4,5,6,7,8,9,10]]
-(107.09 secs, 84,743,412,160 bytes)
+*Test> sort [1..9] :: [[Int]]
+[[1,2,3,4,5,6,7,8,9]]
+(0.69 secs, 717,914,784 bytes)
+*Test> sort [1..10] :: [[Int]]
+[[1,2,3,4,5,6,7,8,9,10]]
+(6.67 secs, 7,437,960,280 bytes)
+*Test> sort [1..11] :: [[Int]]
+[[1,2,3,4,5,6,7,8,9,10,11]]
+(77.54 secs, 84,743,416,080 bytes)
 \end{minted}
+
+The reason for the factorial runtime is non-strictness. A list of length $n$ 
+has $n!$ permutations, all of which are generated when running 
+\mintinline{Haskell}{sort}. This matches our observation above, since adding a 
+tenth element increases the runtime by a factor of 10 and an eleventh element 
+multiplies the runtime of the ten-element list by eleven. 
+
+Since our algorithm applies the generate and test paradigm, is the former or 
+the latter component too strict? If we consider the implementation of 
+\mintinline{Haskell}{isSorted}, we can see that, as soon as the comparison of 
+two elements yields \mintinline{Haskell}{False}, the function returns 
+\mintinline{Haskell}{False} and does not evaluate the remainder of the list.
+
+\begin{minted}{Haskell}
+isSorted :: [Int] -> Bool
+isSorted (x:y:zs) = (x <= y) && isSorted (y:zs)
+isSorted _        = True
+\end{minted}
+
+Therefore the \textit{test} part of our implementation is not the culprit of 
+the non-strictness. Generating the elements is not strict either, as evidenced 
+by taking only a few elements from the list of permutations of length eleven.
+
+\begin{minted}{Haskell}
+*Test> take 2 (perm [1..10])
+[[1,2,3,4,5,6,7,8,9,10],[2,1,3,4,5,6,7,8,9,10]]
+(0.01 secs, 103,208 bytes)
+\end{minted}
+
+Thus, only the function that combines \mintinline{Haskell}{perm} and 
+\mintinline{Haskell}{isSorted}, that is, the bind operator 
+\mintinline{Haskell}{>>=}, remains.
 
 As mentioned before, modelling non-determinism in Haskell requires us to adapt 
 data types so that components can contain non-determinism because otherwise
@@ -248,10 +298,24 @@ later.
 \chapter{Call-Time Choice modelled in Haskell}
 
 \section{Free Monads}
+\begin{itemize}
+\item What are free monads?
+\item Why do we use free monads?
+\end{itemize}
 
 \section{Modelling Effects}
+\begin{itemize}
+\item Explanation of the Prog/sig infrastructure
+\item ND and state effect implementation 
+\end{itemize}
 
 \section{Sharing}
+\begin{itemize}
+\item How can we implement simple sharing as an effect?
+\item What about deep/nested sharing?
+\item Examples (exRecList, ...)
+\end{itemize}
+
 
 \chapter{Call-Time Choice modelled in Coq}
 The goal of this chapter is to transfer the Haskell implementation of call-time 
@@ -282,6 +346,11 @@ Non-strictly positive occurrence of "Free" in "F (Free F A) -> Free F A".
 The reason for this error is explained in the next section.
 
 \section{Non-strictly Positive Occurrence}
+\begin{itemize}
+\item What does non-strictly positive occurrence mean?
+\item Motivation for usage of containers
+\end{itemize}
+
 In \autoref{coq-intro}, we learned that Coq distinguishes between 
 non-recursive definitions and functions that use recursion. The reason for this 
 is that Coq checks functions for termination, which is an important part of 
@@ -342,6 +411,12 @@ type therefore requires a way to restrict the definition to strictly positive
 data types. One approach to achieve this goal is described in the next section.
 
 \section{Containers}
+
+\begin{itemize}
+\item How do containers work?
+\item How do we translate effect functors into containers?
+\end{itemize}
+
 Containers are an abstraction of data types that store values, with the 
 property that only strictly positive data types can be modelled as a container. 
 This will allow us to define a version of \mintinline{Coq}{Free} that works 
@@ -374,7 +449,23 @@ Inductive Ext Shape (Pos : Shape -> Type) A :=
 
 The extension of a container models the concrete data type.
 
+\section{Modelling Effects}
+\begin{itemize}
+\item In which ways is the Coq implementation simplified, compared to Haskell?
+\item How does the adapted Prog/sig infrastructure work?
+\item How do we translate recursive functions?
+\end{itemize}
 
+\section{Sharing}
+\begin{itemize}
+\item Laws of sharing
+\end{itemize}
+
+\chapter{Curry Programs modelled in Coq}
+\begin{itemize}
+\item Can we use the Coq model of call-time choice to prove properties about 
+actual Curry programs?
+\end{itemize}
 
 \chapter{Conclusion}
 
