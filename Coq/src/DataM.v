@@ -19,6 +19,9 @@ Section Prim.
                   | false => fn2
                   end.
   
+  Definition notM (fn : Prog bool) : Prog bool :=
+    fn >>= fun b => pure (negb b).
+ 
   Definition duplicate A (fx : Prog A) : Prog (A * A) :=
     fx >>= fun x => fx >>= fun y => pure (x,y).
 
@@ -126,6 +129,14 @@ Section List.
                    | Nil'      => @Fail A
                    | Cons' x _ => x
                    end.
+
+
+  Definition tailM A (fxs : Prog (List A)) : Prog (List A) :=
+    fxs >>= fun xs => match xs with
+                   | Nil'      => @Fail (List A)
+                   | Cons' _ xs => xs
+                   end.
+
 
   Definition dupl A (fx : Prog A) : Prog (List A) :=
     consM fx (consM fx (@nilM A)).

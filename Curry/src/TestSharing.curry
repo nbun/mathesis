@@ -67,7 +67,7 @@ exOrShareNestedList = let x = coin
 recList :: [Bool] -> [Bool]
 recList xs = case xs of
                []     -> []
-               y : ys -> let ys' = ys in y : (ys' ? recList ys')
+               y : ys -> not y : (ys ? recList ys)
 
 exRecList :: ([Bool], [Bool])
 exRecList = let xs = recList [True, False] in (xs, xs)
@@ -116,7 +116,7 @@ duplRT :: (() -> a) -> [a]
 duplRT rtX = [rtX (), rtX ()]
 
 duplShare :: a -> [a]
-duplShare x = let y = x in [y, y]
+duplShare x = [x, x]
 
 exDupl :: [Bool]
 exDupl = duplRT (\_ -> head (coin : failed))
@@ -246,9 +246,9 @@ tests = do
       exLPBs = [ (exShareSingleton, "exShareSingleton", [ ([True], [True])
                                                         , ([False], [False])
                                                         ])
-               , (exRecList, "exRecList", [ ([True,False], [True,False])
-                                          , ([True,False], [True,False])
-                                          , ([True,False], [True,False])
+               , (exRecList, "exRecList", [ ([False,False], [False,False])
+                                          , ([False,True],[False,True])
+                                          , ([False,True],[False,True])
                                           ])
                ]
       maxName = maximum (map (\(_,name,_) -> length name) exBs ++

@@ -163,13 +163,14 @@ Section exPB.
                              ; Pair' (pure false) (pure false)].
   
   Example exDupShare2 : Prog (Pair bool bool) := dupShare coin.
+
   Example res_exDupShare2 := [Pair' (pure true) (pure true)
                               ; Pair' (pure false) (pure false)].
   
   Example exDupFailed : Prog (Pair bool bool) := share Fail >>= fun x => dup (const (pure true) x).
   Example res_exDupFailed := [Pair' (pure true) (pure true)].
   
-  Example exDupFirst : Prog (Pair bool bool) := dup (@firstM bool bool (pairM coin Fail)).
+  Example exDupFirst : Prog (Pair bool bool) := dup (firstM (pairM coin (@Fail bool))).
   Example res_exDupFirst := [Pair' (pure true) (pure true)
                              ; Pair' (pure true) (pure false)
                              ; Pair' (pure false) (pure true)
@@ -267,7 +268,7 @@ Section exLPB.
      | S n => match xs with
              | Nil' _ => nilM
              | Cons' fy fys =>
-               Share fys >>= fun fys' => consM fy (fys' ? fys' >>= fun zs => recList' n zs)
+               Share fys >>= fun fys' => consM (notM fy) (fys' ? fys' >>= fun zs => recList' n zs)
              end
      end.
 
@@ -277,12 +278,12 @@ Section exLPB.
 
    Example exRecList : Prog (Pair (List bool) (List bool)) :=
      Share (recList (consM (pure true) (consM (pure false) nilM))) >>= fun fx => pairM fx fx.
-   Example res_exRecList := [Pair' (consM (pure true) (consM (pure false) nilM))
-                                   (consM (pure true) (consM (pure false) nilM))
-                             ; Pair' (consM (pure true) (consM (pure false) nilM))
-                                     (consM (pure true) (consM (pure false) nilM))
-                             ; Pair' (consM (pure true) (consM (pure false) nilM))
-                                     (consM (pure true) (consM (pure false) nilM))].
+   Example res_exRecList :=  [ Pair' (consM (pure false) (consM (pure false) nilM))
+                                     (consM (pure false) (consM (pure false) nilM))
+                             ; Pair' (consM (pure false) (consM (pure true) nilM))
+                                     (consM (pure false) (consM (pure true) nilM))
+                             ; Pair' (consM (pure false) (consM (pure true) nilM))
+                                     (consM (pure false) (consM (pure true) nilM))].
    
    Definition exLPBs := [(exShareSingleton, res_exShareSingleton)
                          ; (exRecList, res_exRecList)].

@@ -85,7 +85,7 @@ exOrShareNestedList = share coin >>= \fx ->
 recList :: (Sharing m, MonadPlus m) => m (List m Bool) -> m (List m Bool)
 recList fxs = fxs >>= \xfps -> case xfps of
                                     Nil -> nil
-                                    Cons fy fys -> share fys >>= \fys' -> cons fy (fys' `mplus` recList fys')
+                                    Cons fy fys -> share fys >>= \fys' -> cons (notM fy) (fys' `mplus` recList fys')
 
 exRecList :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
 exRecList = share (recList (cons (return True) (cons (return False) nil))) >>= \fx -> pairM fx fx
@@ -267,12 +267,12 @@ tests = do
                                                         , Pair (Identity (Cons (Identity False) nil))
                                                                (Identity (Cons (Identity False) nil))
                                                         ])
-               , (exRecList, "exRecList", [ Pair (cons (Identity True) (cons (Identity False) nil))
-                                                (cons (Identity True) (cons (Identity False) nil))
-                                          , Pair (cons (Identity True) (cons (Identity False) nil))
-                                                 (cons (Identity True) (cons (Identity False) nil))
-                                          , Pair (cons (Identity True) (cons (Identity False) nil))
-                                                (cons (Identity True) (cons (Identity False) nil))
+               , (exRecList, "exRecList", [ Pair (cons (Identity False) (cons (Identity False) nil))
+                                                 (cons (Identity False) (cons (Identity False) nil))
+                                          , Pair (cons (Identity False) (cons (Identity True) nil))
+                                                 (cons (Identity False) (cons (Identity True) nil))
+                                          , Pair (cons (Identity False) (cons (Identity True) nil))
+                                                 (cons (Identity False) (cons (Identity True) nil))
                                           ])
                ]
       maxName = maximum (map (\(_,name,_) -> length name) exBs ++
