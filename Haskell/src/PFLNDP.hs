@@ -69,19 +69,19 @@ isSorted' ml = ml >>= \l ->
         _ -> return True
     _ -> return True
 
+insert' :: MonadPlus m => m a -> m (List m a) -> m (List m a)
+insert' mx mxs = cons mx mxs
+  `mplus` do xs <- mxs
+             case xs of
+               Nil         -> mzero
+               Cons my mys -> cons my (insert' mx mys)
+
 perm' :: MonadPlus m => m (List m a) -> m (List m a)
 perm' ml = ml >>= \l ->
   case l of
     Nil -> nil
     Cons mx mxs -> insert' mx (perm' mxs)
 
-insert' :: MonadPlus m => m a -> m (List m a) -> m (List m a)
-insert' mx mxs = cons mx mxs
-  `mplus` do Cons my mys <- mxs
-             cons my (insert' mx mys)
-
 sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
 sort' xs = let ys = perm' xs in
-  do sorted <- isSorted' ys
-     guard sorted
-     ys
+  isSorted' ys >>= \sorted -> guard sorted >> ys
