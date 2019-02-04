@@ -220,28 +220,27 @@ implementation, we can see that the runtime increases significantly when adding
 even a few elements.
 
 \begin{minted}{Haskell}
-*Test> sort [1..9] :: [[Int]]
+*Test> sort [9, 8..1] :: [[Int]]
 [[1,2,3,4,5,6,7,8,9]]
 (0.69 secs, 717,914,784 bytes)
-*Test> sort [1..10] :: [[Int]]
+*Test> sort [10, 9..1] :: [[Int]]
 [[1,2,3,4,5,6,7,8,9,10]]
 (6.67 secs, 7,437,960,280 bytes)
-*Test> sort [1..11] :: [[Int]]
+*Test> sort [11, 10..1] :: [[Int]]
 [[1,2,3,4,5,6,7,8,9,10,11]]
 (77.54 secs, 84,743,416,080 bytes)
 \end{minted}
 
-The reason for the factorial runtime is non-strictness. A list of length $n$ 
-has $n!$ permutations, all of which are generated when running 
-\mintinline{Haskell}{sort}. This matches our observation above, since adding a 
-tenth element increases the runtime by a factor of 10 and an eleventh element 
-multiplies the runtime of the ten-element list by eleven. 
+The reason for the factorial runtime is that the implementations is needlessly 
+strict. A list of length $n$  has $n!$ permutations, all of which are generated 
+when running \mintinline{Haskell}{sort}. This matches our observation above, 
+since adding a tenth element increases the runtime by a factor of 10 and an 
+eleventh element multiplies the runtime of the ten-element list by eleven. 
 
-Since our algorithm applies the generate and test paradigm, is the former or 
-the latter component too strict? If we consider the implementation of 
-\mintinline{Haskell}{isSorted}, we can see that, as soon as the comparison of 
-two elements yields \mintinline{Haskell}{False}, the function returns 
-\mintinline{Haskell}{False} and does not evaluate the remainder of the list.
+If we consider the implementation of \mintinline{Haskell}{isSorted}, we can see 
+that, as soon as the comparison of two elements yields 
+\mintinline{Haskell}{False}, the function returns \mintinline{Haskell}{False} 
+and does not evaluate the remainder of the list.
 
 \begin{minted}{Haskell}
 isSorted :: [Int] -> Bool
@@ -249,23 +248,35 @@ isSorted (x:y:zs) = (x <= y) && isSorted (y:zs)
 isSorted _        = True
 \end{minted}
 
-Therefore the \textit{test} part of our implementation is not the culprit of 
-the non-strictness. Generating the elements is not strict either, as evidenced 
-by taking only a few elements from the list of permutations of length eleven.
+However, since we use bind to pass permutations from \mintinline{Haskell}{perm} 
+to \mintinline{Haskell}{isSorted}, each permutation is fully evaluated before 
+it is determined whether the permutation is sorted. This leads to the complete 
+evaluation of every permutation, which results in an inefficient program.
 
-\begin{minted}{Haskell}
-*Test> take 2 (perm [1..10])
-[[1,2,3,4,5,6,7,8,9,10],[2,1,3,4,5,6,7,8,9,10]]
-(0.01 secs, 103,208 bytes)
-\end{minted}
+Similarly, when we consider the Curry example \mintinline{Haskell}{head (1 : 
+head [] : [])}, the strictness of our \mintinline{Haskell}{MonadPlus} approach 
+shows again. The corresponding Haskell expression is as follows.
 
-Thus, only the function that combines \mintinline{Haskell}{perm} and 
-\mintinline{Haskell}{isSorted}, that is, the bind operator 
-\mintinline{Haskell}{>>=}, remains.
+\mint{Haskell}{hd [] >>= \x -> hd (1 : x : [])}
 
-As mentioned before, modelling non-determinism in Haskell requires us to adapt 
-data types so that components can contain non-determinism because otherwise
-non-strictness is lost. \todo{Copy examples? New examples? No examples?}
+Here \mintinline{Haskell}{hd :: MonadPlus a => [a] -> m a} is the lifted 
+\mintinline{Haskell}{head} function. Evaluating the expression in Haskell 
+yields \mintinline{Haskell}{mzero}, that is, no result, while Curry returns 
+\mintinline{Haskell}{1}. The reason is the definition of the bind operator. For 
+example, the monad instance for lists defines bind as \mintinline{Haskell}{xs 
+>>= f = concatMap f xs}. In the expression above, this means that the pattern 
+matching within \mintinline{Haskell}{concatMap} evaluates 
+\mintinline{Haskell}{hd []} to \mintinline{Haskell}{mzero} and thus returns 
+\mintinline{Haskell}{mzero}.
+
+The strictness observed in both examples is the motivation for an alternative 
+approach. The problem with the above implementations is that non-deterministic 
+arguments of constructors need to be evaluated completely before the 
+computation can continue. Therefore, we would like to be able to use 
+unevaluated, non-deterministic computations as arguments of constructors.
+
+As mentioned before, we can implement this idea by adapting all data types so 
+that they may contain non-deterministic components.
 
 \begin{minted}{Haskell}
 data List m a = Nil | Cons (m a) (m (List m a))
@@ -275,14 +286,66 @@ The list data type now has an additional argument \mintinline{Haskell}{m} of
 type \mintinline{Haskell}{* -> *} that represents a non-determinism monad. 
 Instead of fixed constructors like \mintinline{Haskell}{Choice}, the monad 
 \mintinline{Haskell}{m} determines the structure and evaluation strategy 
-of the non-determinism effect.
+of the non-determinism effect. Two smart constructors 
+\mintinline{Haskell}{cons} and \mintinline{Haskell}{nil} make handling the new 
+list type more convenient.
+
+\begin{minted}{Haskell}
+nil :: Monad m => m (List m a)
+nil = return Nil
+
+cons :: Monad m => m a -> m (List m a) -> m (List m a)
+cons x y = return (Cons x y)
+\end{minted}
+
+Adapting the permutation sort functions to the lifted data type requires us to 
+replace \mintinline{Haskell}{[]} with \mintinline{Haskell}{List m}. However, 
+this is not sufficient because the list itself can be the result of a 
+non-deterministic computation. Therefore, an additional \mintinline{Haskell}{m} 
+is wrapped around every occurrence of \mintinline{Haskell}{List}.
+
+\begin{minted}{Haskell}
+insert' :: MonadPlus m => m a -> m (List m a) -> m (List m a)
+insert' mx mxs = cons mx mxs
+  `mplus` mxs >>= \xs -> case xs of
+                           Nil         -> mzero
+                           Cons my mys -> cons my (insert' mx mys)
+
+perm' :: MonadPlus m => m (List m a) -> m (List m a)
+perm' ml = ml >>= \l ->
+  case l of
+    Nil -> nil
+    Cons mx mxs -> insert' mx (perm' mxs)
+\end{minted}
+
+Whenever pattern matching occurred in the original definition, we now use bind 
+to extract a \mintinline{Haskell}{List} value. Since this only evaluates flat 
+non-determinism and not non-determinism that occurs in the components, 
+non-strictness is upheld as much as possible. 
+
+All functions now take arguments of the same type they return. Thus, the 
+definition of \mintinline{Haskell}{sort} does not need bind in order to pass 
+permutations to \mintinline{Haskell}{isSorted}.
+
+\begin{minted}{Haskell}
+sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
+sort' xs = let ys = perm' xs in
+  isSorted' ys >>= \sorted -> guard sorted >> ys
+\end{minted}
+
+We are now able to take advantage of \mintinline{Haskell}{isSorted}'s lazy 
+definition. The implementation generates permutations only if there is a chance 
+that the permutation is sorted, that is, only recursive calls of 
+\mintinline{Haskell}{perm} that are demanded by \mintinline{Haskell}{isSorted} 
+are executed.
 
 Data types with non-deterministic components solve the problem of 
 non-strictness because each component can be evaluated individually, instead of 
 forcing the evaluation of the whole term. Unfortunately, this leads to a 
 problem. When unevaluated components are shared via Haskell's built-in sharing, 
 computations, rather than results, are being shared. This means that the 
-results can be different, which contradicts the intuition of sharing.
+results can be different each time the computation is evaluated, which 
+contradicts the intuition of sharing.
 
 The solution to this problem is an explicit sharing combinator 
 \mintinline{Haskell}{share :: m a -> m (m a)} that allows sharing the results 
@@ -293,8 +356,8 @@ computation and then returns a computation that returns the result, that is,
 the shared value. The reason for this nesting of monad layers is that, in 
 short, the \mintinline{Haskell}{share} combinator performs some actions that 
 can be immediately executed by bind (the outer monad layer), while the inner 
-monad layer should only be evaluated. This will be explained in more detail 
-later.
+monad layer should only be evaluated when needed. This will be explained in 
+more detail later.
 \chapter{Call-Time Choice modelled in Haskell}
 
 \section{Free Monads}
