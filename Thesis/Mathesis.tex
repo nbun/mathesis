@@ -351,13 +351,29 @@ The solution to this problem is an explicit sharing combinator
 \mintinline{Haskell}{share :: m a -> m (m a)} that allows sharing the results 
 of a computation in a non-strict way. Here, \mintinline{Haskell}{m} is a 
 \mintinline{Haskell}{MonadPlus} instance, similar to the monad used in the 
-definition of the data type. Thus, \mintinline{Haskell}{share} takes a 
-computation and then returns a computation that returns the result, that is, 
-the shared value. The reason for this nesting of monad layers is that, in 
-short, the \mintinline{Haskell}{share} combinator performs some actions that 
-can be immediately executed by bind (the outer monad layer), while the inner 
-monad layer should only be evaluated when needed. This will be explained in 
-more detail later.
+definition of the data type, that supports sharing. Thus, 
+\mintinline{Haskell}{share} takes a  computation and then returns a computation 
+that returns the result, that is, the shared value. The reason for this nesting 
+of monad layers is that, in short, the \mintinline{Haskell}{share} combinator 
+performs some actions that can be immediately executed by bind (the outer monad 
+layer), while the inner monad layer should only be evaluated when needed. This 
+is explained in more detail later.
+With the explicit sharing operator we can adapt \mintinline{Haskell}{perm'} to
+share the generated permutations in order to achieve non-strictness in 
+combination with sharing.
+
+\begin{minted}{Haskell}
+sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
+sort' xs = do ys <- share (perm' xs)
+              sorted <- isSorted'
+              guard sorted
+              ys
+\end{minted}
+
+The \mintinline{Haskell}{share} operator must satisfy certain laws, which we 
+discuss in \autoref{LOS}. The implementation of \mintinline{Haskell}{share} is 
+subject of the next chapter.
+
 \chapter{Call-Time Choice modelled in Haskell}
 
 \section{Free Monads}
@@ -520,6 +536,7 @@ The extension of a container models the concrete data type.
 \end{itemize}
 
 \section{Sharing}
+\label{LOS}
 \begin{itemize}
 \item Laws of sharing
 \end{itemize}
