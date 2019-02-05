@@ -35,7 +35,8 @@
 
 % Eine kleine Hilfe für offene Lücken
 \newcommand{\todo}[1]{\marginpar{\textbf{TODO:} #1}}
-\newcommand{\coqinline}[1]{\mintinline{coq}{#1}}
+\newcommand{\hinl}[1]{\mintinline{Haskell}{#1}}
+\newcommand{\cinl}[1]{\mintinline{Coq}{#1}}
 
 \begin{document}
 
@@ -157,16 +158,16 @@ data List a = Nil | Cons a (List a) | Choice (List a) (List a) | Fail
 \end{minted}
 
 Since this transformation adds new constructors, all functions need to cover 
-these cases, too. The new rules return \mintinline{Haskell}{Fail} if the 
+these cases, too. The new rules return \hinl{Fail} if the 
 function's argument is a failed computation and distribute function calls to 
 both branches if the argument is a choice.
 
 One issue with this approach is that call-time choice is not implemented yet. 
 If a choice is duplicated during evaluation, this information cannot be 
-recovered later. Therefore, each \mintinline{Haskell}{Choice} constructor has 
-an additional \mintinline{Haskell}{ID} argument that identifies the same 
+recovered later. Therefore, each \hinl{Choice} constructor has 
+an additional \hinl{ID} argument that identifies the same 
 choices. Since each choice needs a fresh ID, functions use an additional 
-\mintinline{Haskell}{IDSupply} argument when choices are created.
+\hinl{IDSupply} argument when choices are created.
 
 The evaluation of a non-deterministic value is implemented by transforming the 
 value into a search tree which can be traversed with different search 
@@ -182,7 +183,7 @@ that supports sharing and non-strict evaluation. Out of simplicity, the
 implementation idea is presented in Haskell, similar to the approach of the 
 original authors, using the example of permutation sort.
 The algorithm consists  of three components. Firstly, a function 
-\mintinline{Haskell}{insert} that inserts an element non-deterministically at 
+\hinl{insert} that inserts an element non-deterministically at 
 every possible position within a list.
 
 \begin{minted}{Haskell}
@@ -194,7 +195,7 @@ insert x xs = return (x:xs)
                              return (y:zs)
 \end{minted}
 
-The second part is the function \mintinline{Haskell}{perm} that inserts the 
+The second part is the function \hinl{perm} that inserts the 
 head of a given list into the permutations of the list's tail.
 \begin{minted}{Haskell}
 perm :: MonadPlus m => [a] -> m [a]
@@ -204,7 +205,7 @@ perm (x:xs) = do ys <- perm xs
                  return zs
 \end{minted}
 
-Finally, the function \mintinline{Haskell}{sort} generates permutations and 
+Finally, the function \hinl{sort} generates permutations and 
 then tests whether they are sorted.
 
 \begin{minted}{Haskell}
@@ -214,7 +215,7 @@ sort xs = do ys <- perm xs
              return ys
 \end{minted}
 
-The function \mintinline{Haskell}{isSorted} compares each element in a list to 
+The function \hinl{isSorted} compares each element in a list to 
 the next one to determine whether the list is sorted. When we test this 
 implementation, we can see that the runtime increases significantly when adding 
 even a few elements.
@@ -233,13 +234,13 @@ even a few elements.
 
 The reason for the factorial runtime is that the implementations is needlessly 
 strict. A list of length $n$  has $n!$ permutations, all of which are generated 
-when running \mintinline{Haskell}{sort}. This matches our observation above, 
+when running \hinl{sort}. This matches our observation above, 
 since adding a tenth element increases the runtime by a factor of 10 and an 
 eleventh element multiplies the runtime of the ten-element list by eleven. 
 
-If we consider the implementation of \mintinline{Haskell}{isSorted}, we can see 
+If we consider the implementation of \hinl{isSorted}, we can see 
 that, as soon as the comparison of two elements yields 
-\mintinline{Haskell}{False}, the function returns \mintinline{Haskell}{False} 
+\hinl{False}, the function returns \hinl{False} 
 and does not evaluate the remainder of the list.
 
 \begin{minted}{Haskell}
@@ -248,26 +249,26 @@ isSorted (x:y:zs) = (x <= y) && isSorted (y:zs)
 isSorted _        = True
 \end{minted}
 
-However, since we use bind to pass permutations from \mintinline{Haskell}{perm} 
-to \mintinline{Haskell}{isSorted}, each permutation is fully evaluated before 
+However, since we use bind to pass permutations from \hinl{perm} 
+to \hinl{isSorted}, each permutation is fully evaluated before 
 it is determined whether the permutation is sorted. This leads to the complete 
 evaluation of every permutation, which results in an inefficient program.
 
-Similarly, when we consider the Curry example \mintinline{Haskell}{head (1 : 
-head [] : [])}, the strictness of our \mintinline{Haskell}{MonadPlus} approach 
+Similarly, when we consider the Curry example \hinl{head (1 : 
+head [] : [])}, the strictness of our \hinl{MonadPlus} approach 
 shows again. The corresponding Haskell expression is as follows.
 
 \mint{Haskell}{hd [] >>= \x -> hd (1 : x : [])}
 
-Here \mintinline{Haskell}{hd :: MonadPlus a => [a] -> m a} is the lifted 
-\mintinline{Haskell}{head} function. Evaluating the expression in Haskell 
-yields \mintinline{Haskell}{mzero}, that is, no result, while Curry returns 
-\mintinline{Haskell}{1}. The reason is the definition of the bind operator. For 
-example, the monad instance for lists defines bind as \mintinline{Haskell}{xs 
+Here \hinl{hd :: MonadPlus a => [a] -> m a} is the lifted 
+\hinl{head} function. Evaluating the expression in Haskell 
+yields \hinl{mzero}, that is, no result, while Curry returns 
+\hinl{1}. The reason is the definition of the bind operator. For 
+example, the monad instance for lists defines bind as \hinl{xs 
 >>= f = concatMap f xs}. In the expression above, this means that the pattern 
-matching within \mintinline{Haskell}{concatMap} evaluates 
-\mintinline{Haskell}{hd []} to \mintinline{Haskell}{mzero} and thus returns 
-\mintinline{Haskell}{mzero}.
+matching within \hinl{concatMap} evaluates 
+\hinl{hd []} to \hinl{mzero} and thus returns 
+\hinl{mzero}.
 
 The strictness observed in both examples is the motivation for an alternative 
 approach. The problem with the above implementations is that non-deterministic 
@@ -282,12 +283,12 @@ that they may contain non-deterministic components.
 data List m a = Nil | Cons (m a) (m (List m a))
 \end{minted}
 
-The list data type now has an additional argument \mintinline{Haskell}{m} of 
-type \mintinline{Haskell}{* -> *} that represents a non-determinism monad. 
-Instead of fixed constructors like \mintinline{Haskell}{Choice}, the monad 
-\mintinline{Haskell}{m} determines the structure and evaluation strategy 
+The list data type now has an additional argument \hinl{m} of 
+type \hinl{* -> *} that represents a non-determinism monad. 
+Instead of fixed constructors like \hinl{Choice}, the monad 
+\hinl{m} determines the structure and evaluation strategy 
 of the non-determinism effect. Two smart constructors 
-\mintinline{Haskell}{cons} and \mintinline{Haskell}{nil} make handling the new 
+\hinl{cons} and \hinl{nil} make handling the new 
 list type more convenient.
 
 \begin{minted}{Haskell}
@@ -299,10 +300,10 @@ cons x y = return (Cons x y)
 \end{minted}
 
 Adapting the permutation sort functions to the lifted data type requires us to 
-replace \mintinline{Haskell}{[]} with \mintinline{Haskell}{List m}. However, 
+replace \hinl{[]} with \hinl{List m}. However, 
 this is not sufficient because the list itself can be the result of a 
-non-deterministic computation. Therefore, an additional \mintinline{Haskell}{m} 
-is wrapped around every occurrence of \mintinline{Haskell}{List}.
+non-deterministic computation. Therefore, an additional \hinl{m} 
+is wrapped around every occurrence of \hinl{List}.
 
 \begin{minted}{Haskell}
 insert' :: MonadPlus m => m a -> m (List m a) -> m (List m a)
@@ -319,13 +320,13 @@ perm' ml = ml >>= \l ->
 \end{minted}
 
 Whenever pattern matching occurred in the original definition, we now use bind 
-to extract a \mintinline{Haskell}{List} value. Since this only evaluates flat 
+to extract a \hinl{List} value. Since this only evaluates flat 
 non-determinism and not non-determinism that occurs in the components, 
 non-strictness is upheld as much as possible. 
 
 All functions now take arguments of the same type they return. Thus, the 
-definition of \mintinline{Haskell}{sort} does not need bind in order to pass 
-permutations to \mintinline{Haskell}{isSorted}.
+definition of \hinl{sort} does not need bind in order to pass 
+permutations to \hinl{isSorted}.
 
 \begin{minted}{Haskell}
 sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
@@ -333,10 +334,10 @@ sort' xs = let ys = perm' xs in
   isSorted' ys >>= \sorted -> guard sorted >> ys
 \end{minted}
 
-We are now able to take advantage of \mintinline{Haskell}{isSorted}'s non-strict
+We are now able to take advantage of \hinl{isSorted}'s non-strict
 definition. The implementation generates permutations only if there is a chance 
 that the permutation is sorted, that is, only recursive calls of 
-\mintinline{Haskell}{perm} that are demanded by \mintinline{Haskell}{isSorted} 
+\hinl{perm} that are demanded by \hinl{isSorted} 
 are executed.
 
 Data types with non-deterministic components solve the problem of 
@@ -348,17 +349,17 @@ results can be different each time the computation is evaluated, which
 contradicts the intuition of sharing.
 
 The solution to this problem is an explicit sharing combinator 
-\mintinline{Haskell}{share :: m a -> m (m a)} that allows sharing the results 
-of a computation in a non-strict way. Here, \mintinline{Haskell}{m} is a 
-\mintinline{Haskell}{MonadPlus} instance, similar to the monad used in the 
+\hinl{share :: m a -> m (m a)} that allows sharing the results 
+of a computation in a non-strict way. Here, \hinl{m} is a 
+\hinl{MonadPlus} instance, similar to the monad used in the 
 definition of the data type, that supports sharing. Thus, 
-\mintinline{Haskell}{share} takes a  computation and then returns a computation 
+\hinl{share} takes a  computation and then returns a computation 
 that returns the result, that is, the shared value. The reason for this nesting 
-of monad layers is that, in short, the \mintinline{Haskell}{share} combinator 
+of monad layers is that, in short, the \hinl{share} combinator 
 performs some actions that can be immediately executed by bind (the outer monad 
 layer), while the inner monad layer should only be evaluated when needed. This 
 is explained in more detail later.
-With the explicit sharing operator we can adapt \mintinline{Haskell}{perm'} to
+With the explicit sharing operator we can adapt \hinl{perm'} to
 share the generated permutations in order to achieve non-strictness in 
 combination with sharing.
 
@@ -370,15 +371,15 @@ sort' xs = do ys <- share (perm' xs)
               ys
 \end{minted}
 
-The \mintinline{Haskell}{share} operator must satisfy certain laws, which we 
+The \hinl{share} operator must satisfy certain laws, which we 
 discuss in \autoref{sec:lawsOfSharing}. The implementation of 
-\mintinline{Haskell}{share} is 
+\hinl{share} is 
 subject of the next chapter.
 
 \chapter{Call-Time Choice modelled in Haskell}
 Based on the ideas presented in the last chapter, we now want to model 
 call-time choice, that is, non-strictness, sharing and non-determinism, in 
-Haskell. We still use \mintinline{Haskell}{MonadPlus} to parameterize our 
+Haskell. We still use \hinl{MonadPlus} to parameterize our 
 programs. However, instead of, for example, using the list instance to make 
 non-determinism visible, we define an effect functor that can express many 
 different effects, including non-determinism and sharing. This approach, as 
@@ -395,7 +396,7 @@ could look as follows.
 data Void a = Return a
 \end{minted}
 
-Here, \mintinline{Haskell}{Void} means the absence of effects. 
+Here, \hinl{Void} means the absence of effects. 
 
 If we consider programs that contain effects, also called \textit{impure}, 
 like, non-determinism, a data type that represents such values could look like 
@@ -418,16 +419,16 @@ using one compact data type.
 Answering this question requires abstracting the concrete form of effect 
 functors into a general program data type. As we saw in the examples above, we 
 need a way to represent pure values in a program. Therefore, the first 
-constructor of our new program data type should be \mintinline{Haskell}{Return 
-a} for the type \mintinline{Haskell}{a}, that is, the result type of the 
+constructor of our new program data type should be \hinl{Return 
+a} for the type \hinl{a}, that is, the result type of the 
 program. To model effects like non-determinism, the program is parameterized 
-over effect functors of type \mintinline{Haskell}{* -> *} that represent, for 
-example, \mintinline{Haskell}{Fail} and \mintinline{Haskell}{Choice}. We call 
-this argument \mintinline{Haskell}{sig} because the signature of a program 
+over effect functors of type \hinl{* -> *} that represent, for 
+example, \hinl{Fail} and \hinl{Choice}. We call 
+this argument \hinl{sig} because the signature of a program 
 tells us which effects can occur. So far, programs are defined as 
-\mintinline{Haskell}{data Prog sig a = Return a}. In order do make use of the 
-\mintinline{Haskell}{sig} component, we need to add a constructor for impure 
-operations. The \mintinline{Haskell}{ND} data type shows us that effect 
+\hinl{data Prog sig a = Return a}. In order do make use of the 
+\hinl{sig} component, we need to add a constructor for impure 
+operations. The \hinl{ND} data type shows us that effect 
 functors can be defined recursively. Thus, the constructor for impure programs 
 should be recursive, too, to be able to represent this structure.
 
@@ -435,39 +436,39 @@ should be recursive, too, to be able to represent this structure.
 data Prog sig a = Return a | Op (sig (Prog sig a))
 \end{minted}
 
-With this definition of \mintinline{Haskell}{Prog}, we are able to represent 
-the original functors by instantiating \mintinline{Haskell}{sig} appropriately. 
-For \mintinline{Haskell}{Void}, we already have the 
-\mintinline{Haskell}{Return} constructor. Therefore, the data type we can use 
-with \mintinline{Haskell}{Prog} does not need a constructor anymore, that is, 
-\mintinline{Haskell}{data Void' a}. 
+With this definition of \hinl{Prog}, we are able to represent 
+the original functors by instantiating \hinl{sig} appropriately. 
+For \hinl{Void}, we already have the 
+\hinl{Return} constructor. Therefore, the data type we can use 
+with \hinl{Prog} does not need a constructor anymore, that is, 
+\hinl{data Void' a}. 
 
 \begin{minted}{Haskell}
 VoidProg a = Return a
            | Op (Void' (VoidProg a)) -- Void' has no constructors!
 \end{minted}
 
-The type \mintinline{Haskell}{Prog Void'} now resembles the original type 
-\mintinline{Haskell}{Void} since the the \mintinline{Haskell}{Op} constructor 
-would require a value of type \mintinline{Haskell}{Void'}, which we cannot 
-construct.\footnote{It is possible to use \mintinline{Haskell}{undefined} to 
-create an impure value of type \mintinline{Haskell}{Prog Void' a}. Since this 
+The type \hinl{Prog Void'} now resembles the original type 
+\hinl{Void} since the the \hinl{Op} constructor 
+would require a value of type \hinl{Void'}, which we cannot 
+construct.\footnote{It is possible to use \hinl{undefined} to 
+create an impure value of type \hinl{Prog Void' a}. Since this 
 is not possible in Coq, we do not consider this in the Haskell implementation.}
-Only \mintinline{Haskell}{Return} can be used to define values, similar to the 
+Only \hinl{Return} can be used to define values, similar to the 
 original data type.
 
-Similar to \mintinline{Haskell}{Void'}, we can define a data type 
-\mintinline{Haskell}{Choice'} that represents \mintinline{Haskell}{Choice} in 
-combination with \mintinline{Haskell}{Prog}. 
+Similar to \hinl{Void'}, we can define a data type 
+\hinl{Choice'} that represents \hinl{Choice} in 
+combination with \hinl{Prog}. 
 
 \begin{minted}{Haskell}
 data Choice' p = Fail' | Choice' p p
 \end{minted}
 
-Again, we can omit the \mintinline{Haskell}{Return} constructor because it is 
-already part of the \mintinline{Haskell}{Prog} data type. For the same reason, 
-the type variable \mintinline{Haskell}{a} has been replaced with the variable 
-\mintinline{Haskell}{p}, since \mintinline{Haskell}{Choice} does not have 
+Again, we can omit the \hinl{Return} constructor because it is 
+already part of the \hinl{Prog} data type. For the same reason, 
+the type variable \hinl{a} has been replaced with the variable 
+\hinl{p}, since \hinl{Choice} does not have 
 values as arguments but rather programs that return values.
 
 \begin{minted}{Haskell}
@@ -475,9 +476,9 @@ data ChoiceProg a = Return a
                   | Op (Choice' (ChoiceProg a))
 \end{minted}
 
-Since \mintinline{Haskell}{Op} applies \mintinline{Haskell}{sig} recursively, 
+Since \hinl{Op} applies \hinl{sig} recursively, 
 this yields the following type, which is equivalent to the original data type 
-\mintinline{Haskell}{Choice}.
+\hinl{Choice}.
 
 \begin{minted}{Haskell}
 data ChoiceProg a = Return a
@@ -486,9 +487,9 @@ data ChoiceProg a = Return a
 \end{minted}
 
 We have found a way to model effect functors as instances of the data type 
-\mintinline{Haskell}{Prog}, which essentially models a tree with leafs, 
-represented by the \mintinline{Haskell}{Return} constructor, and branches that 
-have the form defined by \mintinline{Haskell}{sig}. \todo{Tree structure 
+\hinl{Prog}, which essentially models a tree with leafs, 
+represented by the \hinl{Return} constructor, and branches that 
+have the form defined by \hinl{sig}. \todo{Tree structure 
 visualization?}
 
 \section{Free Monads}
@@ -496,10 +497,36 @@ visualization?}
 \item What are free monads?
 \item Why do we use free monads?
 \end{itemize}
+The data type \hinl{Prog} is better known as the \textit{free 
+monad}. We saw in the previous chapter that \hinl{Free} can be 
+used to model other data types. In addition, \hinl{Free} is a 
+monad that can turn any functor into a monad.
 
-The data type \mintinline{Haskell}{Prog} is better known as the \textit{free 
-monad}.
+We consider, for example, the type \hinl{Free One} where \hinl{data One a = 
+One}. Here \hinl{a} is a phantom type that we need because \hinl{Free} expects 
+a functor. The monad instance for \hinl{Free} is as follows.
 
+\begin{minted}{Haskell}
+data Free f a = Pure a | Impure (f (Free f a))
+
+instance (Functor f, Applicative (Free f)) => Monad (Free f) where
+  return = Pure
+  Pure x >>= g = g x
+  Impure fx >>= g = Impure (fmap (>>= g) fx)
+\end{minted}
+
+Since \hinl{One} has only a single, non-recursive constructor \hinl{One}, the 
+only possible impure value is \hinl{Impure One}, whereas the usual 
+\hinl{Return} constructor remains. If bind encounters the value \hinl{One}, the 
+function \hinl{g} is distributed deeper into the term structure using 
+\hinl{fmap}. Since \hinl{fmap One = One}, it becomes apparent that the monad 
+constructed by \hinl{Free One} is the \hinl{Maybe} monad.
+\todo{Visualization of fmap tree}
+
+Since we want to model different effects in our program, the free monad makes 
+writing programs easier by allowing monadic definitions without defining a 
+separate monad instance for each effect.
+\todo{Find more reasons for using free monads}
 \section{Modelling Effects}
 \begin{itemize}
 \item Explanation of the Prog/sig infrastructure
@@ -517,9 +544,9 @@ monad}.
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
 The goal of this chapter is to transfer the Haskell implementation of call-time 
-choice to Coq. We begin with the data structure \mintinline{Haskell}{Prog}, 
+choice to Coq. We begin with the data structure \hinl{Prog}, 
 that is, the free monad, which allowed us to model programs with effects of 
-type \mintinline{Haskell}{sig} and results of type \mintinline{Haskell}{a}.
+type \hinl{sig} and results of type \hinl{a}.
 
 \begin{minted}{Haskell}
 data Prog sig a = Return a | Op (sig (Prog sig a))
@@ -625,7 +652,7 @@ The first component of a container is the type \mintinline{Coq}{Shape}. A
 shape determines how the data type is structured, regardless of the stored 
 values. For example, the  shape of a list is the same as the shape of Peano 
 numbers: a number that  represents the length of the list, or rather the number 
-of \mintinline{Haskell}{Cons}/\mintinline{Haskell}{Succ} applications. A pair, 
+of \hinl{Cons}/\hinl{Succ} applications. A pair, 
 on the other hand, has only a single shape.
 
 The second component of a container is a function \mintinline{Coq}{Pos : Shape 
