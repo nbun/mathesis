@@ -1,5 +1,5 @@
 module PFLNDP where
-import Control.Monad
+import           Control.Monad
 
 ------------------------------------------
 -- Naive MonadPlus approach
@@ -29,7 +29,7 @@ isSorted (x:y:xs) | x <= y = isSorted (y:xs)
 isSorted _ = True
 
 hd :: MonadPlus m => [Int] -> m Int
-hd [] = mzero
+hd []     = mzero
 hd (x:xs) = return x
 
 ------------------------------------------
@@ -55,8 +55,8 @@ fromList m = do
       return (z:zs)
 
 toList :: Monad m => [a] -> m (List m a)
-toList []      = nil
-toList (x:xs)  = cons (return x) (toList xs)
+toList []     = nil
+toList (x:xs) = cons (return x) (toList xs)
 
 isSorted' :: (Ord a, MonadPlus m) => m (List m a) -> m Bool
 isSorted' ml = ml >>= \l ->
@@ -79,9 +79,14 @@ insert' mx mxs = cons mx mxs
 perm' :: MonadPlus m => m (List m a) -> m (List m a)
 perm' ml = ml >>= \l ->
   case l of
-    Nil -> nil
+    Nil         -> nil
     Cons mx mxs -> insert' mx (perm' mxs)
 
 sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
 sort' xs = let ys = perm' xs in
   isSorted' ys >>= \sorted -> guard sorted >> ys
+
+hd' :: MonadPlus m => m (List m a) -> m a
+hd' mxs = mxs >>= \xs -> case xs of
+                           Nil      -> mzero
+                           Cons x _ -> x

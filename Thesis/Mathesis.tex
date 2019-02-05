@@ -337,8 +337,21 @@ sort' xs = let ys = perm' xs in
 We are now able to take advantage of \hinl{isSorted}'s non-strict
 definition. The implementation generates permutations only if there is a chance 
 that the permutation is sorted, that is, only recursive calls of 
-\hinl{perm} that are demanded by \hinl{isSorted} 
-are executed.
+\hinl{perm} that are demanded by \hinl{isSorted} are executed.
+
+We reconsider the Curry example \hinl{head (1 : head [] : [])}. Since the 
+\hinl{List} data type now takes monad values as arguments, we can write the 
+example using as the smart constructors and a lifted \hinl{head} function as 
+follows.
+
+\begin{minted}{Haskell}
+> hd' (cons (return 1) (cons (hd' nil) nil))
+1
+\end{minted}
+
+Because we do not need to use bind to get the result of \hinl{hd' nil}, the 
+expression is not evaluated due to non-strictness and the result is equal to 
+Curry's output.
 
 Data types with non-deterministic components solve the problem of 
 non-strictness because each component can be evaluated individually, instead of 
