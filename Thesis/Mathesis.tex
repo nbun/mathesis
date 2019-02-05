@@ -112,7 +112,7 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 \chapter{Preliminaries}
 
 \section{Coq}
-\label{coq-intro}
+\label{sec:coqIntro}
 \begin{itemize}
 \item Introduce the necessary Coq concepts to understand the paper
 \end{itemize}
@@ -142,7 +142,7 @@ semantic?
 Modelling Curry programs in a language like Haskell requires a transformation 
 of non-deterministic code into a semantically equivalent, deterministic 
 program. First, we have a look at the direct representation of non-determinism 
-used in the KiCS2 implementation as described by \citet{KiCS2-NewCompiler}.
+used in the KiCS2 implementation as described by \citet{brassel2011kics2}.
 
 Non-determinism in Curry is not limited to \textit{flat} non-determinism but 
 can occur within components of data structures and anywhere in a computation. 
@@ -177,7 +177,7 @@ While this approach is useful when the host language supports laziness and
 sharing, another approach is necessary to model these effects when they are not 
 built into the language. 
 
-\citet{PurelyFunctional} introduce a monadic representation of non-determinism 
+\citet{fischer2009purely} introduce a monadic representation of non-determinism 
 that supports sharing and non-strict evaluation. Out of simplicity, the 
 implementation idea is presented in Haskell, similar to the approach of the 
 original authors, using the example of permutation sort.
@@ -371,7 +371,8 @@ sort' xs = do ys <- share (perm' xs)
 \end{minted}
 
 The \mintinline{Haskell}{share} operator must satisfy certain laws, which we 
-discuss in \autoref{LOS}. The implementation of \mintinline{Haskell}{share} is 
+discuss in \autoref{sec:lawsOfSharing}. The implementation of 
+\mintinline{Haskell}{share} is 
 subject of the next chapter.
 
 \chapter{Call-Time Choice modelled in Haskell}
@@ -381,8 +382,8 @@ Haskell. We still use \mintinline{Haskell}{MonadPlus} to parameterize our
 programs. However, instead of, for example, using the list instance to make 
 non-determinism visible, we define an effect functor that can express many 
 different effects, including non-determinism and sharing. This approach, as 
-introduced by \citep{effectHandlersScope}, will also be the base of the Coq 
-implementation shown in \autoref{CTCC}. \todo{Definition effect}
+introduced by \citep{wu2014effect}, will also be the base of the Coq 
+implementation shown in \autoref{ch:callTimeChoiceCoq}. \todo{Definition effect}
 
 For the implementation of call-time choice, we want to be able to express 
 different effects within our programs. However, not every program contains 
@@ -514,7 +515,7 @@ monad}.
 
 
 \chapter{Call-Time Choice modelled in Coq}
-\label{CTCC}
+\label{ch:callTimeChoiceCoq}
 The goal of this chapter is to transfer the Haskell implementation of call-time 
 choice to Coq. We begin with the data structure \mintinline{Haskell}{Prog}, 
 that is, the free monad, which allowed us to model programs with effects of 
@@ -548,7 +549,7 @@ The reason for this error is explained in the next section.
 \item Motivation for usage of containers
 \end{itemize}
 
-In \autoref{coq-intro}, we learned that Coq distinguishes between 
+In \autoref{sec:coqIntro}, we learned that Coq distinguishes between 
 non-recursive definitions and functions that use recursion. The reason for this 
 is that Coq checks functions for termination, which is an important part of 
 Coq's proof logic. To understand why functions must always terminate in Coq, we 
@@ -654,7 +655,7 @@ The extension of a container models the concrete data type.
 \end{itemize}
 
 \section{Sharing}
-\label{LOS}
+\label{sec:lawsOfSharing}
 \begin{itemize}
 \item Laws of sharing
 \end{itemize}
