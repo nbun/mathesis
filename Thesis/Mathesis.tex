@@ -333,7 +333,7 @@ sort' xs = let ys = perm' xs in
   isSorted' ys >>= \sorted -> guard sorted >> ys
 \end{minted}
 
-We are now able to take advantage of \mintinline{Haskell}{isSorted}'s lazy 
+We are now able to take advantage of \mintinline{Haskell}{isSorted}'s non-strict
 definition. The implementation generates permutations only if there is a chance 
 that the permutation is sorted, that is, only recursive calls of 
 \mintinline{Haskell}{perm} that are demanded by \mintinline{Haskell}{isSorted} 
