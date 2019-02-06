@@ -1,3 +1,4 @@
+% !TEX TS-program = lualatex
 \documentclass[a4paper, 11pt, fleqn, twoside]{scrreprt}
 % escapeinside
 %\usepackage[gray]{xcolor}
@@ -21,9 +22,14 @@
 %\pagestyle{scrheadings}
 
 % Minted
+\usepackage{fontspec}
+\setmonofont{Fira Code Regular}
+\setmainfont{XCharter Roman}
 \usepackage{minted}
-\usemintedstyle[Haskell]{trac, fontsize=\small}%,frame=lines, framesep=10pt}
-\setmintedinline{style = bw}
+\usemintedstyle[Haskell]{trac, fontsize=\footnotesize}
+\usemintedstyle[Coq]{default, fontsize=\footnotesize}
+%framesep=10pt}
+\setmintedinline{style = bw, fontsize=\small}
 
 % Für schönere Tabellen (optional)
 % \usepackage{booktabs}           % Netteres Tabellenlayout
@@ -42,7 +48,7 @@
 \addtolength\partopsep{-\parskip}
 \addtolength\partopsep{0.32cm}
 
-\DeclareUnicodeCharacter{03BB}{$\lambda$}
+%\DeclareUnicodeCharacter{03BB}{$\lambda$}
 
 \begin{document}
 
@@ -551,6 +557,10 @@ separate monad instance for each effect.
 \item Explanation of the Prog/sig infrastructure
 \item ND and state effect implementation 
 \end{itemize}
+
+\begin{minted}{Haskell}
+data (sig1 + sig2) a = Inl (sig1 a) | Inr (sig2 a)
+\end{minted}
 
 \section{Sharing}
 \begin{itemize}
