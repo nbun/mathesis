@@ -3,7 +3,6 @@
 % escapeinside
 %\usepackage[gray]{xcolor}
 \usepackage[T1]{fontenc}        % T1-Fonts
-\usepackage[utf8]{inputenc}     % Enkodierung
 \usepackage[english]{babel}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -26,8 +25,8 @@
 \setmonofont{Fira Code Regular}
 \setmainfont{XCharter Roman}
 \usepackage{minted}
-\usemintedstyle[Haskell]{trac, fontsize=\footnotesize}
-\usemintedstyle[Coq]{default, fontsize=\footnotesize}
+\usemintedstyle[Haskell]{trac, fontsize=\small}
+\usemintedstyle[Coq]{default, fontsize=\small}
 %framesep=10pt}
 \setmintedinline{style = bw, fontsize=\small}
 
@@ -408,7 +407,7 @@ Haskell. We still use \hinl{MonadPlus} to parameterize our
 programs. However, instead of, for example, using the list instance to make 
 non-determinism visible, we define an effect functor that can express many 
 different effects, including non-determinism and sharing. This approach, as 
-introduced by \citep{wu2014effect}, will also be the base of the Coq 
+introduced by \citet{wu2014effect}, will also be the base of the Coq 
 implementation shown in \autoref{ch:callTimeChoiceCoq}. \todo{Definition effect}
 
 For the implementation of call-time choice, we want to be able to express 
@@ -473,49 +472,43 @@ VoidProg a = Return a
            | Op (Void' (VoidProg a)) -- Void' has no constructors!
 \end{minted}
 
-The type \hinl{Prog Void'} now resembles the original type 
-\hinl{Void} since the the \hinl{Op} constructor 
-would require a value of type \hinl{Void'}, which we cannot 
-construct.\footnote{It is possible to use \hinl{undefined} to 
-create an impure value of type \hinl{Prog Void' a}. Since this 
-is not possible in Coq, we do not consider this in the Haskell implementation.}
-Only \hinl{Return} can be used to define values, similar to the 
-original data type.
+The type \hinl{Prog Void'} now resembles the original type  \hinl{Void} since 
+the the \hinl{Op} constructor  would require a value of type \hinl{Void'}, 
+which we cannot  construct.\footnote{It is possible to use \hinl{undefined} to 
+create an impure value of type \hinl{Prog Void' a}. Since this  is not possible 
+in Coq, we do not consider this in the Haskell implementation.} Only 
+\hinl{Return} can be used to define values, similar to the  original data type.
 
-Similar to \hinl{Void'}, we can define a data type 
-\hinl{Choice'} that represents \hinl{Choice} in 
-combination with \hinl{Prog}. 
+Similar to \hinl{Void'}, we can define a data type  \hinl{Choice} that 
+represents \hinl{Choice} in combination with \hinl{Prog}. 
 
 \begin{minted}{Haskell}
-data Choice' p = Fail' | Choice' p p
+data ND p = Fail | Choice p p
 \end{minted}
 
-Again, we can omit the \hinl{Return} constructor because it is 
-already part of the \hinl{Prog} data type. For the same reason, 
-the type variable \hinl{a} has been replaced with the variable 
-\hinl{p}, since \hinl{Choice} does not have 
+Again, we can omit the \hinl{Return} constructor because it is  already part of 
+the \hinl{Prog} data type. For the same reason,  the type variable \hinl{a} has 
+been replaced with the variable \hinl{p}, since \hinl{ND} does not have  
 values as arguments but rather programs that return values.
 
 \begin{minted}{Haskell}
-data ChoiceProg a = Return a
-                  | Op (Choice' (ChoiceProg a))
+data NDProg a = Return a
+              | Op (Choice (NDProg a))
 \end{minted}
 
-Since \hinl{Op} applies \hinl{sig} recursively, 
-this yields the following type, which is equivalent to the original data type 
-\hinl{Choice}.
+Since \hinl{Op} applies \hinl{sig} recursively,  this yields the following 
+type, which is equivalent to the original data type.
 
 \begin{minted}{Haskell}
-data ChoiceProg a = Return a
-                  | OpFail
-                  | OpChoice (ChoiceProg a) (ChoiceProg a)
+data NDProg a = Return a
+              | OpFail
+              | OpChoice (NDProg a) (NDProg a)
 \end{minted}
 
 We have found a way to model effect functors as instances of the data type 
-\hinl{Prog}, which essentially models a tree with leafs, 
-represented by the \hinl{Return} constructor, and branches that 
-have the form defined by \hinl{sig}. \todo{Tree structure 
-visualization?}
+\hinl{Prog}, which essentially models a tree with leafs,  represented by the 
+\hinl{Return} constructor, and branches that have the form defined by 
+\hinl{sig}. \todo{Tree structure visualization?}
 
 \section{Free Monads}
 \begin{itemize}
@@ -558,8 +551,95 @@ separate monad instance for each effect.
 \item ND and state effect implementation 
 \end{itemize}
 
+In the previous sections the free monad and its ability to represent effect 
+functors was discussed. The goal of this section is to explore the 
+infrastructure that allows us to combine multiple effects, write effectful 
+programs and compute the result of such programs. 
+
+\subsection{Combining Effects}
+
+Firstly, we would like to combine multiple effects. For this purpose, we use 
+the technique introduced by \citet{swierstra2008} to define a data type 
+that combines the effect functors \hinl{sig1} and \hinl{sig2}. The  infix 
+notation simplifies combining multiple effects via nested applications of 
+\hinl{:+:}.
+
 \begin{minted}{Haskell}
-data (sig1 + sig2) a = Inl (sig1 a) | Inr (sig2 a)
+data (sig1 :+: sig2) a = Inl (sig1 a) | Inr (sig2 a)
+\end{minted}
+
+For example, the type \hinl{ND :+: One} is a functor that we can use with 
+\hinl{Prog} to define programs that contain non-determinism and partiality as 
+follows.
+
+\begin{minted}{Haskell}
+progNDOne :: Prog (ND :+: One) Int
+progNDOne = Op (Inl (Choice (Op (Inr One)) (Return 42)))
+\end{minted}
+
+In the example \hinl{progNDOne} we define a program that represents the 
+non-deterministic choice between a program whose value is absent and a program 
+that returns \hinl{42}. The complexity of nesting constructors of \hinl{Prog} 
+and \hinl{:+:} correctly increases quickly for bigger terms. Therefore, we 
+define a type class that allows us to define such expressions more conveniently.
+The class is parameterized over two functors, one of which is a subtype -- 
+regarding \hinl{:+:} -- of the other.
+
+\begin{minted}{Haskell}
+class (Functor sub, Functor sup) => sub :<: sup where
+  inj :: sub a -> sup a
+\end{minted}
+
+We need a few instances of the class \hinl{:<:} to make it useful. The simplest 
+case is \hinl{sig :<: sig} where want to inject a value of type \hinl{sig a} 
+into the same type. Since we do not need to modify the value in any way, 
+\hinl{id} is used to define \hinl{inj}. 
+
+\begin{minted}{Haskell}
+instance Functor sig => sig :<: sig where
+  inj = id  
+\end{minted}
+
+The next instance covers the case \hinl{sig1 :<: (sig1 :+: sig2)}. Since we 
+already know that \hinl{sig1} is part of the sum type, we only need to apply 
+the correct constructor of \hinl{:+:}, that is, \hinl{Inl} because \hinl{sig1} 
+is the left argument.
+
+\begin{minted}{Haskell}
+instance (Functor sig1, Functor sig2) => sig1 :<: (sig1 :+: sig2) where
+  inj = Inl
+\end{minted}
+
+The last instance assumes that we can inject \hinl{sig} into \hinl{sig2} and 
+describes how we can inject \hinl{sig} into \hinl{sig1 :+: sig2}. In this case, 
+we can use \hinl{inj} to receive a value of type \hinl{sig2 a}. All that 
+remains is a situation similar to the previous instance, where we only need to 
+use the matching constructor to complete the injection.
+ 
+\begin{minted}{Haskell}
+instance (Functor sig1, sig :<: sig2) => sig :<: (sig1 :+: sig2) where
+  inj = Inr . inj
+\end{minted}
+
+Now we can define the function \hinl{inject}. \todo{Finish this}
+
+\begin{minted}{Haskell}
+inject :: sig1 :<: sig2 => sig1 (Prog sig2 a) -> Prog sig2 a
+inject = Op . inj
+\end{minted}
+
+The last two instances overlap in situations where \hinl{sig = sig1}.
+
+\begin{minted}{Haskell}
+nothing :: Prog (One :+: One) a
+nothing = inject One
+\end{minted}
+
+\begin{minted}{Haskell}
+λ> nothing
+Op (Inl One) -- second instance
+λ> nothing
+Op (Inr One) -- third instance
 \end{minted}
 
 \section{Sharing}
