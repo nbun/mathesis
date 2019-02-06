@@ -26,7 +26,6 @@ instance (Functor sig, Applicative (Prog sig)) => Monad (Prog sig) where
   Return v >>= prog = prog v
   Op op >>= prog = Op (fmap (>>= prog) op)
 
-
 -- combining signatures --
 --------------------------
 data (sig1 + sig2) cnt = Inl (sig1 cnt) | Inr (sig2 cnt)
