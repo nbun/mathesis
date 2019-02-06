@@ -84,12 +84,7 @@
 
 \chapter*{Erklärung der Urheberschaft}
 \vspace{2cm}
-Ich erkläre hiermit an Eides statt, dass ich die vorliegende Arbeit
-ohne Hilfe Dritter und ohne Benutzung anderer als der angegebenen
-Hilfsmittel angefertigt habe. Aus fremden Quellen direkt oder
-indirekt übernommene Gedanken sind als solche kenntlich gemacht. Die
-Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen
-Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
+Ich erkläre hiermit an Eides statt, dass ich die vorliegende Arbeit ohne Hilfe Dritter und ohne Benutzung anderer als der angegebenen Hilfsmittel angefertigt habe. Aus fremden Quellen direkt oder indirekt übernommene Gedanken sind als solche kenntlich gemacht. Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 
 \vspace{4cm}
 \hspace{1cm} $\overline{~~~~~~~~~~\mbox{Ort, Datum}~~~~~~~~~~}$ \hfill $\overline{~~~~~~~~~~~~~\mbox{Unterschrift}~~~~~~~~~~~~~}$ \hspace{1cm}
@@ -146,57 +141,41 @@ Prüfungsbehörde vorgelegt und auch noch nicht veröffentlicht.
 
 \section{Modelling Curry Programs using Monadic Code Transformation}
 \begin{itemize}
-\item Why is the naive MonadPlus approach not sufficient to model Curry 
-semantic?
+\item Why is the naive MonadPlus approach not sufficient to model Curry semantic?
 \item Motivate usage of monadic data types
 \item Introduce explicit sharing
 \end{itemize}
 
-Modelling Curry programs in a language like Haskell requires a transformation 
-of non-deterministic code into a semantically equivalent, deterministic 
-program. First, we have a look at the direct representation of non-determinism 
-used in the KiCS2 implementation as described by \citet{brassel2011kics2}.
+Modelling Curry programs in a language like Haskell requires a transformation of non-deterministic code into a semantically equivalent, deterministic program.
+First, we have a look at the direct representation of non-determinism used in the KiCS2 implementation as described by \citet{brassel2011kics2}.
 
-Non-determinism in Curry is not limited to \textit{flat} non-determinism but 
-can occur within components of data structures and anywhere in a computation. 
-This means that expressing non-determinism via Haskell's list monad is not 
-sufficient to model Curry's non-determinism. \todo{Example}
-Instead, existing data types receive additional constructors that represent 
-failure and the choice between two values. For example, the extended list data 
-type looks as follows.
+Non-determinism in Curry is not limited to \textit{flat} non-determinism but can occur within components of data structures and anywhere in a computation.
+This means that expressing non-determinism via Haskell's list monad is not sufficient to model Curry's non-determinism.
+\todo{Example}
+Instead, existing data types receive additional constructors that represent failure and the choice between two values.
+For example, the extended list data type looks as follows.
 
 \begin{minted}{Haskell}
 data List a = Nil | Cons a (List a) | Choice (List a) (List a) | Fail
 \end{minted}
 
-Since this transformation adds new constructors, all functions need to cover 
-these cases, too. The new rules return \hinl{Fail} if the 
-function's argument is a failed computation and distribute function calls to 
-both branches if the argument is a choice.
+Since this transformation adds new constructors, all functions need to cover these cases, too.
+The new rules return \hinl{Fail} if the function's argument is a failed computation and distribute function calls to both branches if the argument is a choice.
 
-One issue with this approach is that call-time choice is not implemented yet. 
-If a choice is duplicated during evaluation, this information cannot be 
-recovered later. Therefore, each \hinl{Choice} constructor has 
-an additional \hinl{ID} argument that identifies the same 
-choices. Since each choice needs a fresh ID, functions use an additional 
-\hinl{IDSupply} argument when choices are created.
+One issue with this approach is that call-time choice is not implemented yet.
+If a choice is duplicated during evaluation, this information cannot be recovered later.
+Therefore, each \hinl{Choice} constructor has an additional \hinl{ID} argument that identifies the same choices.
+Since each choice needs a fresh ID, functions use an additional \hinl{IDSupply} argument when choices are created.
 
-The evaluation of a non-deterministic value is implemented by transforming the 
-value into a search tree which can be traversed with different search 
-strategies. In the process, each choice ID's decision is stored and then 
-repeated if the same ID is encountered again.
+The evaluation of a non-deterministic value is implemented by transforming the value into a search tree which can be traversed with different search strategies.
+In the process, each choice ID's decision is stored and then repeated if the same ID is encountered again.
 
-While this approach is useful when the host language supports laziness and 
-sharing, another approach is necessary to model these effects when they are not 
-built into the language. 
+While this approach is useful when the host language supports laziness and sharing, another approach is necessary to model these effects when they are not built into the language.
 
-\citet{fischer2009purely} introduce a monadic representation of non-determinism 
-that supports sharing and non-strict evaluation. Out of simplicity, the 
-implementation idea is presented in Haskell, similar to the approach of the 
-original authors, using the example of permutation sort.
-The algorithm consists  of three components. Firstly, a function 
-\hinl{insert} that inserts an element non-deterministically at 
-every possible position within a list.
+\citet{fischer2009purely} introduce a monadic representation of non-determinism that supports sharing and non-strict evaluation.
+Out of simplicity, the implementation idea is presented in Haskell, similar to the approach of the original authors, using the example of permutation sort.
+The algorithm consists  of three components.
+Firstly, a function \hinl{insert} that inserts an element non-deterministically at every possible position within a list.
 
 \begin{minted}{Haskell}
 insert :: MonadPlus m => a -> [a] -> m [a]
@@ -207,8 +186,8 @@ insert x xs = return (x:xs)
                              return (y:zs)
 \end{minted}
 
-The second part is the function \hinl{perm} that inserts the 
-head of a given list into the permutations of the list's tail.
+The second part is the function \hinl{perm} that inserts the head of a given list into the permutations of the list's tail.
+
 \begin{minted}{Haskell}
 perm :: MonadPlus m => [a] -> m [a]
 perm [] = return []
@@ -217,8 +196,7 @@ perm (x:xs) = do ys <- perm xs
                  return zs
 \end{minted}
 
-Finally, the function \hinl{sort} generates permutations and 
-then tests whether they are sorted.
+Finally, the function \hinl{sort} generates permutations and then tests whether they are sorted.
 
 \begin{minted}{Haskell}
 sort :: MonadPlus m => [Int] -> m [Int]
@@ -227,10 +205,8 @@ sort xs = do ys <- perm xs
              return ys
 \end{minted}
 
-The function \hinl{isSorted} compares each element in a list to 
-the next one to determine whether the list is sorted. When we test this 
-implementation, we can see that the runtime increases significantly when adding 
-even a few elements.
+The function \hinl{isSorted} compares each element in a list to the next one to determine whether the list is sorted.
+When we test this implementation, we can see that the runtime increases significantly when adding even a few elements.
 
 \begin{minted}{Haskell}
 λ> sort [9, 8..1] :: [[Int]]
@@ -244,16 +220,11 @@ even a few elements.
 (77.54 secs)
 \end{minted}
 
-The reason for the factorial runtime is that the implementations is needlessly 
-strict. A list of length $n$  has $n!$ permutations, all of which are generated 
-when running \hinl{sort}. This matches our observation above, 
-since adding a tenth element increases the runtime by a factor of 10 and an 
-eleventh element multiplies the runtime of the ten-element list by eleven. 
+The reason for the factorial runtime is that the implementations is needlessly strict.
+A list of length $n$  has $n!$ permutations, all of which are generated when running \hinl{sort}.
+This matches our observation above, since adding a tenth element increases the runtime by a factor of 10 and an eleventh element multiplies the runtime of the ten-element list by eleven.
 
-If we consider the implementation of \hinl{isSorted}, we can see 
-that, as soon as the comparison of two elements yields 
-\hinl{False}, the function returns \hinl{False} 
-and does not evaluate the remainder of the list.
+If we consider the implementation of \hinl{isSorted}, we can see that, as soon as the comparison of two elements yields \hinl{False}, the function returns \hinl{False} and does not evaluate the remainder of the list.
 
 \begin{minted}{Haskell}
 isSorted :: [Int] -> Bool
@@ -261,47 +232,33 @@ isSorted (x:y:zs) = (x <= y) && isSorted (y:zs)
 isSorted _        = True
 \end{minted}
 
-However, since we use bind to pass permutations from \hinl{perm} 
-to \hinl{isSorted}, each permutation is fully evaluated before 
-it is determined whether the permutation is sorted. This leads to the complete 
-evaluation of every permutation, which results in an inefficient program.
+However, since we use bind to pass permutations from \hinl{perm} to \hinl{isSorted}, each permutation is fully evaluated before it is determined whether the permutation is sorted.
+This leads to the complete evaluation of every permutation, which results in an inefficient program.
 
-Similarly, when we consider the Curry example \hinl{head (1 : 
-head [] : [])}, the strictness of our \hinl{MonadPlus} approach 
-shows again. The corresponding Haskell expression is as follows.
+Similarly, when we consider the Curry example \hinl{head (1 : head [] : [])}, the strictness of our \hinl{MonadPlus} approach shows again.
+The corresponding Haskell expression is as follows.
 
 \mint{Haskell}{hd [] >>= \x -> hd (1 : x : [])}
 
-Here \hinl{hd :: MonadPlus a => [a] -> m a} is the lifted 
-\hinl{head} function. Evaluating the expression in Haskell 
-yields \hinl{mzero}, that is, no result, while Curry returns 
-\hinl{1}. The reason is the definition of the bind operator. For 
-example, the monad instance for lists defines bind as \hinl{xs 
->>= f = concatMap f xs}. In the expression above, this means that the pattern 
-matching within \hinl{concatMap} evaluates 
-\hinl{hd []} to \hinl{mzero} and thus returns 
-\hinl{mzero}.
+Here \hinl{hd :: MonadPlus a => [a] -> m a} is the lifted \hinl{head} function.
+Evaluating the expression in Haskell yields \hinl{mzero}, that is, no result, while Curry returns \hinl{1}.
+The reason is the definition of the bind operator.
+For example, the monad instance for lists defines bind as \hinl{xs >>= f = concatMap f xs}.
+In the expression above, this means that the pattern matching within \hinl{concatMap} evaluates \hinl{hd []} to \hinl{mzero} and thus returns \hinl{mzero}.
 
-The strictness observed in both examples is the motivation for an alternative 
-approach. The problem with the above implementations is that non-deterministic 
-arguments of constructors need to be evaluated completely before the 
-computation can continue. Therefore, we would like to be able to use 
-unevaluated, non-deterministic computations as arguments of constructors.
+The strictness observed in both examples is the motivation for an alternative approach.
+The problem with the above implementations is that non-deterministic arguments of constructors need to be evaluated completely before the computation can continue.
+Therefore, we would like to be able to use unevaluated, non-deterministic computations as arguments of constructors.
 
-As mentioned before, we can implement this idea by adapting all data types so 
-that they may contain non-deterministic components.
+As mentioned before, we can implement this idea by adapting all data types so that they may contain non-deterministic components.
 
 \begin{minted}{Haskell}
 data List m a = Nil | Cons (m a) (m (List m a))
 \end{minted}
 
-The list data type now has an additional argument \hinl{m} of 
-type \hinl{* -> *} that represents a non-determinism monad. 
-Instead of fixed constructors like \hinl{Choice}, the monad 
-\hinl{m} determines the structure and evaluation strategy 
-of the non-determinism effect. Two smart constructors 
-\hinl{cons} and \hinl{nil} make handling the new 
-list type more convenient.
+The list data type now has an additional argument \hinl{m} of type \hinl{* -> *} that represents a non-determinism monad.
+Instead of fixed constructors like \hinl{Choice}, the monad \hinl{m} determines the structure and evaluation strategy of the non-determinism effect.
+Two smart constructors \hinl{cons} and \hinl{nil} make handling the new list type more convenient.
 
 \begin{minted}{Haskell}
 nil :: Monad m => m (List m a)
@@ -311,11 +268,9 @@ cons :: Monad m => m a -> m (List m a) -> m (List m a)
 cons x y = return (Cons x y)
 \end{minted}
 
-Adapting the permutation sort functions to the lifted data type requires us to 
-replace \hinl{[]} with \hinl{List m}. However, 
-this is not sufficient because the list itself can be the result of a 
-non-deterministic computation. Therefore, an additional \hinl{m} 
-is wrapped around every occurrence of \hinl{List}.
+Adapting the permutation sort functions to the lifted data type requires us to replace \hinl{[]} with \hinl{List m} 
+However, this is not sufficient because the list itself can be the result of a non-deterministic computation.
+Therefore, an additional \hinl{m} is wrapped around every occurrence of \hinl{List}.
 
 \begin{minted}{Haskell}
 insert' :: MonadPlus m => m a -> m (List m a) -> m (List m a)
@@ -331,14 +286,11 @@ perm' ml = ml >>= \l ->
     Cons mx mxs -> insert' mx (perm' mxs)
 \end{minted}
 
-Whenever pattern matching occurred in the original definition, we now use bind 
-to extract a \hinl{List} value. Since this only evaluates flat 
-non-determinism and not non-determinism that occurs in the components, 
-non-strictness is upheld as much as possible. 
+Whenever pattern matching occurred in the original definition, we now use bind to extract a \hinl{List} value.
+Since this only evaluates flat non-determinism and not non-determinism that occurs in the components, non-strictness is upheld as much as possible.
 
-All functions now take arguments of the same type they return. Thus, the 
-definition of \hinl{sort} does not need bind in order to pass 
-permutations to \hinl{isSorted}.
+All functions now take arguments of the same type they return.
+Thus, the definition of \hinl{sort} does not need bind in order to pass permutations to \hinl{isSorted}.
 
 \begin{minted}{Haskell}
 sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
@@ -346,47 +298,30 @@ sort' xs = let ys = perm' xs in
   isSorted' ys >>= \sorted -> guard sorted >> ys
 \end{minted}
 
-We are now able to take advantage of \hinl{isSorted}'s non-strict
-definition. The implementation generates permutations only if there is a chance 
-that the permutation is sorted, that is, only recursive calls of 
-\hinl{perm} that are demanded by \hinl{isSorted} are executed.
+We are now able to take advantage of \hinl{isSorted}'s non-strict definition.
+The implementation generates permutations only if there is a chance that the permutation is sorted, that is, only recursive calls of \hinl{perm} that are demanded by \hinl{isSorted} are executed.
 
-We reconsider the Curry example \hinl{head (1 : head [] : [])}. Since the 
-\hinl{List} data type now takes monad values as arguments, we can write the 
-example using the smart constructors and a lifted \hinl{head} function as 
-follows.
+We reconsider the Curry example \hinl{head (1 : head [] : [])}.
+Since the \hinl{List} data type now takes monad values as arguments, we can write the example using the smart constructors and a lifted \hinl{head} function as follows.
 
 \begin{minted}{Haskell}
 λ> hd' (cons (return 1) (cons (hd' nil) nil))
 1
 \end{minted}
 
-Because we do not need to use bind to get the result of \hinl{hd' nil}, the 
-expression is not evaluated due to non-strictness and the result is equal to 
-Curry's output.
+Because we do not need to use bind to get the result of \hinl{hd' nil}, the expression is not evaluated due to non-strictness and the result is equal to Curry's output.
 
-Data types with non-deterministic components solve the problem of 
-non-strictness because each component can be evaluated individually, instead of 
-forcing the evaluation of the whole term. Unfortunately, this leads to a 
-problem. When unevaluated components are shared via Haskell's built-in sharing, 
-computations, rather than results, are being shared. This means that the 
-results can be different each time the computation is evaluated, which 
-contradicts the intuition of sharing.
+Data types with non-deterministic components solve the problem of non-strictness because each component can be evaluated individually, instead of forcing the evaluation of the whole term.
+Unfortunately, this leads to a problem.
+When unevaluated components are shared via Haskell's built-in sharing, computations, rather than results, are being shared.
+This means that the results can be different each time the computation is evaluated, which contradicts the intuition of sharing.
 
-The solution to this problem is an explicit sharing combinator 
-\hinl{share :: m a -> m (m a)} that allows sharing the results 
-of a computation in a non-strict way. Here, \hinl{m} is a 
-\hinl{MonadPlus} instance, similar to the monad used in the 
-definition of the data type, that supports sharing. Thus, 
-\hinl{share} takes a  computation and then returns a computation 
-that returns the result, that is, the shared value. The reason for this nesting 
-of monad layers is that, in short, the \hinl{share} combinator 
-performs some actions that can be immediately executed by bind (the outer monad 
-layer), while the inner monad layer should only be evaluated when needed. This 
-is explained in more detail later.
-With the explicit sharing operator we can adapt \hinl{perm'} to
-share the generated permutations in order to achieve non-strictness in 
-combination with sharing.
+The solution to this problem is an explicit sharing combinator \hinl{share :: m a -> m (m a)} that allows sharing the results of a computation in a non-strict way.
+Here, \hinl{m} is a \hinl{MonadPlus} instance, similar to the monad used in the definition of the data type, that supports sharing.
+Thus, \hinl{share} takes a  computation and then returns a computation that returns the result, that is, the shared value.
+The reason for this nesting of monad layers is that, in short, the \hinl{share} combinator performs some actions that can be immediately executed by bind (the outer monad layer), while the inner monad layer should only be evaluated when needed.
+This is explained in more detail later.
+With the explicit sharing operator we can adapt \hinl{perm'} to share the generated permutations in order to achieve non-strictness in combination with sharing.
 
 \begin{minted}{Haskell}
 sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
@@ -396,36 +331,28 @@ sort' xs = do ys <- share (perm' xs)
               ys
 \end{minted}
 
-The \hinl{share} operator must satisfy certain laws, which we 
-discuss in \autoref{sec:lawsOfSharing}. The implementation of 
-\hinl{share} is 
-subject of the next chapter.
+The \hinl{share} operator must satisfy certain laws, which we discuss in \autoref{sec:lawsOfSharing}.
+The implementation of \hinl{share} is subject of the next chapter.
 
 \chapter{Call-Time Choice modelled in Haskell}
-Based on the ideas presented in the last chapter, we now want to model 
-call-time choice, that is, non-strictness, sharing and non-determinism, in 
-Haskell. We still use \hinl{MonadPlus} to parameterize our 
-programs. However, instead of, for example, using the list instance to make 
-non-determinism visible, we define an effect functor that can express many 
-different effects, including non-determinism and sharing. This approach, as 
-introduced by \citet{wu2014effect}, will also be the base of the Coq 
-implementation shown in \autoref{ch:callTimeChoiceCoq}. \todo{Definition effect}
+Based on the ideas presented in the last chapter, we now want to model call-time choice, that is, non-strictness, sharing and non-determinism, in Haskell.
+We still use \hinl{MonadPlus} to parameterize our programs.
+However, instead of, for example, using the list instance to make non-determinism visible, we define an effect functor that can express many different effects, including non-determinism and sharing.
+This approach, as introduced by \citet{wu2014effect}, will also be the base of the Coq implementation shown in \autoref{ch:callTimeChoiceCoq}.
+\todo{Definition effect}
 
-For the implementation of call-time choice, we want to be able to express 
-different effects within our programs. However, not every program contains 
-effects. There are also \textit{pure} programs that have no side-effects 
-besides the computation of a value. A data type that represents such programs 
-could look as follows.
+For the implementation of call-time choice, we want to be able to express different effects within our programs.
+However, not every program contains effects.
+There are also \textit{pure} programs that have no side-effects besides the computation of a value.
+A data type that represents such programs could look as follows.
 
 \begin{minted}{Haskell}
 data Void a = Return a
 \end{minted}
 
-Here, \hinl{Void} means the absence of effects. 
+Here, \hinl{Void} means the absence of effects.
 
-If we consider programs that contain effects, also called \textit{impure}, 
-like, non-determinism, a data type that represents such values could look like 
-the following.
+If we consider programs that contain effects, also called \textit{impure}, like, non-determinism, a data type that represents such values could look like the following.
 
 \begin{minted}{Haskell}
 data ND a = Return a
@@ -433,72 +360,53 @@ data ND a = Return a
           | Choice (ND a) (ND a)
 \end{minted}
 
-This data type also has a constructor to model pure values but in addition, 
-there are constructors that represent failed computations and the 
-non-deterministic choice between two values. We could go on and list data types 
-that model many more effects but the question is: Is it possible to create a 
-data type that, if appropriately instantiated, behaves like the original effect 
-functor? This would allow us to represent programs with many different effects 
-using one compact data type.
+This data type also has a constructor to model pure values but in addition, there are constructors that represent failed computations and the non-deterministic choice between two values.
+We could go on and list data types that model many more effects but the question is: Is it possible to create a data type that, if appropriately instantiated, behaves like the original effect functor?
+This would allow us to represent programs with many different effects using one compact data type.
 
-Answering this question requires abstracting the concrete form of effect 
-functors into a general program data type. As we saw in the examples above, we 
-need a way to represent pure values in a program. Therefore, the first 
-constructor of our new program data type should be \hinl{Return 
-a} for the type \hinl{a}, that is, the result type of the 
-program. To model effects like non-determinism, the program is parameterized 
-over effect functors of type \hinl{* -> *} that represent, for 
-example, \hinl{Fail} and \hinl{Choice}. We call 
-this argument \hinl{sig} because the signature of a program 
-tells us which effects can occur. So far, programs are defined as 
-\hinl{data Prog sig a = Return a}. In order do make use of the 
-\hinl{sig} component, we need to add a constructor for impure 
-operations. The \hinl{ND} data type shows us that effect 
-functors can be defined recursively. Thus, the constructor for impure programs 
-should be recursive, too, to be able to represent this structure.
+Answering this question requires abstracting the concrete form of effect functors into a general program data type.
+As we saw in the examples above, we need a way to represent pure values in a program.
+Therefore, the first constructor of our new program data type should be \hinl{Return a} for the type \hinl{a}, that is, the result type of the program.
+To model effects like non-determinism, the program is parameterized over effect functors of type \hinl{* -> *} that represent, for example, \hinl{Fail} and \hinl{Choice}.
+We call this argument \hinl{sig} because the signature of a program tells us which effects can occur.
+So far, programs are defined as \hinl{data Prog sig a = Return a}.
+In order do make use of the \hinl{sig} component, we need to add a constructor for impure operations.
+The \hinl{ND} data type shows us that effect functors can be defined recursively.
+Thus, the constructor for impure programs should be recursive, too, to be able to represent this structure.
 
 \begin{minted}{Haskell}
 data Prog sig a = Return a | Op (sig (Prog sig a))
 \end{minted}
 
-With this definition of \hinl{Prog}, we are able to represent 
-the original functors by instantiating \hinl{sig} appropriately. 
-For \hinl{Void}, we already have the 
-\hinl{Return} constructor. Therefore, the data type we can use 
-with \hinl{Prog} does not need a constructor anymore, that is, 
-\hinl{data Void' a}. 
+With this definition of \hinl{Prog}, we are able to represent the original functors by instantiating \hinl{sig} appropriately.
+For \hinl{Void}, we already have the \hinl{Return} constructor.
+Therefore, the data type we can use with \hinl{Prog} does not need a constructor anymore, that is, \hinl{data Void' a}.
 
 \begin{minted}{Haskell}
 VoidProg a = Return a
            | Op (Void' (VoidProg a)) -- Void' has no constructors!
 \end{minted}
 
-The type \hinl{Prog Void'} now resembles the original type  \hinl{Void} since 
-the the \hinl{Op} constructor  would require a value of type \hinl{Void'}, 
-which we cannot  construct.\footnote{It is possible to use \hinl{undefined} to 
-create an impure value of type \hinl{Prog Void' a}. Since this  is not possible 
-in Coq, we do not consider this in the Haskell implementation.} Only 
-\hinl{Return} can be used to define values, similar to the  original data type.
+The type \hinl{Prog Void'} now resembles the original type  \hinl{Void} since the \hinl{Op} constructor  would require a value of type \hinl{Void'}, which we cannot  construct.
+\footnote{It is possible to use \hinl{undefined} to create an impure value of type \hinl{Prog Void' a}.
+Since this  is not possible in Coq, we do not consider this in the Haskell implementation.}
+Only \hinl{Return} can be used to define values, similar to the  original data type.
 
-Similar to \hinl{Void'}, we can define a data type  \hinl{Choice} that 
-represents \hinl{Choice} in combination with \hinl{Prog}. 
+Similar to \hinl{Void'}, we can define a data type  \hinl{Choice} that represents \hinl{Choice} in combination with \hinl{Prog}.
 
 \begin{minted}{Haskell}
 data ND p = Fail | Choice p p
 \end{minted}
 
-Again, we can omit the \hinl{Return} constructor because it is  already part of 
-the \hinl{Prog} data type. For the same reason,  the type variable \hinl{a} has 
-been replaced with the variable \hinl{p}, since \hinl{ND} does not have  
-values as arguments but rather programs that return values.
+Again, we can omit the \hinl{Return} constructor because it is  already part of the \hinl{Prog} data type.
+For the same reason,  the type variable \hinl{a} has been replaced with the variable \hinl{p}, since \hinl{ND} does not have values as arguments but rather programs that return values.
 
 \begin{minted}{Haskell}
 data NDProg a = Return a
               | Op (Choice (NDProg a))
 \end{minted}
 
-Since \hinl{Op} applies \hinl{sig} recursively,  this yields the following 
-type, which is equivalent to the original data type.
+Since \hinl{Op} applies \hinl{sig} recursively,  this yields the following type, which is equivalent to the original data type.
 
 \begin{minted}{Haskell}
 data NDProg a = Return a
@@ -506,24 +414,22 @@ data NDProg a = Return a
               | OpChoice (NDProg a) (NDProg a)
 \end{minted}
 
-We have found a way to model effect functors as instances of the data type 
-\hinl{Prog}, which essentially models a tree with leafs,  represented by the 
-\hinl{Return} constructor, and branches that have the form defined by 
-\hinl{sig}. \todo{Tree structure visualization?}
+We have found a way to model effect functors as instances of the data type \hinl{Prog}, which essentially models a tree with leafs, represented by the \hinl{Return} constructor, and branches that have the form defined by \hinl{sig}.
+\todo{Tree structure visualization?}
 
 \section{Free Monads}
 \begin{itemize}
 \item What are free monads?
 \item Why do we use free monads?
 \end{itemize}
-The data type \hinl{Prog} is better known as the \textit{free 
-monad}. We saw in the previous chapter that \hinl{Free} can be 
-used to model other data types. In addition, \hinl{Free} is a 
-monad that can turn any functor into a monad.
 
-We consider, for example, the type \hinl{Free One} where \hinl{data One a = 
-One}. Here \hinl{a} is a phantom type that we need because \hinl{Free} expects 
-a functor. The monad instance for \hinl{Free} is as follows.
+The data type \hinl{Prog} is better known as the \textit{free monad}.
+We saw in the previous chapter that \hinl{Free} can be used to model other data types.
+In addition, \hinl{Free} is a monad that can turn any functor into a monad.
+
+We consider, for example, the type \hinl{Free One} where \hinl{data One a = One}.
+Here \hinl{a} is a phantom type that we need because \hinl{Free} expects a functor.
+The monad instance for \hinl{Free} is as follows.
 
 \begin{minted}{Haskell}
 data Free f a = Pure a | Impure (f (Free f a))
@@ -534,95 +440,77 @@ instance (Functor f, Applicative (Free f)) => Monad (Free f) where
   Impure fx >>= g = Impure (fmap (>>= g) fx)
 \end{minted}
 
-Since \hinl{One} has only a single, non-recursive constructor \hinl{One}, the 
-only possible impure value is \hinl{Impure One}, whereas the usual 
-\hinl{Return} constructor remains. If bind encounters the value \hinl{One}, the 
-function \hinl{g} is distributed deeper into the term structure using 
-\hinl{fmap}. Since \hinl{fmap One = One}, it becomes apparent that the monad 
-constructed by \hinl{Free One} is the \hinl{Maybe} monad.
+Since \hinl{One} has only a single, non-recursive constructor \hinl{One}, the only possible impure value is \hinl{Impure One}, whereas the usual \hinl{Return} constructor remains.
+If bind encounters the value \hinl{One}, the function \hinl{g} is distributed deeper into the term structure using \hinl{fmap}.
+Since \hinl{fmap One = One}, it becomes apparent that the monad constructed by \hinl{Free One} is the \hinl{Maybe} monad.
 \todo{Visualization of fmap tree}
 
-Since we want to model different effects in our program, the free monad makes 
-writing programs easier by allowing monadic definitions without defining a 
-separate monad instance for each effect.
+Since we want to model different effects in our program, the free monad makes writing programs easier by allowing monadic definitions without defining a separate monad instance for each effect.
 \todo{Find more reasons for using free monads}
+
 \section{Modelling Effects}
 \begin{itemize}
 \item Explanation of the Prog/sig infrastructure
 \item ND and state effect implementation 
 \end{itemize}
 
-In the previous sections the free monad and its ability to represent effect 
-functors was discussed. The goal of this section is to explore the 
-infrastructure that allows us to combine multiple effects, write effectful 
-programs and compute the result of such programs. 
+In the previous sections the free monad and its ability to represent effect functors was discussed.
+The goal of this section is to explore the infrastructure that allows us to combine multiple effects, write effectful programs and compute the result of such programs.
 
 \subsection{Combining Effects}
-
-Firstly, we would like to combine multiple effects. For this purpose, we use 
-the technique introduced by \citet{swierstra2008} to define a data type 
-that combines the effect functors \hinl{sig1} and \hinl{sig2}. The  infix 
-notation simplifies combining multiple effects via nested applications of 
-\hinl{:+:}.
+Firstly, we would like to combine multiple effects.
+For this purpose, we use the technique introduced by \citet{swierstra2008} to define a data type that combines the effect functors \hinl{sig1} and \hinl{sig2}.
+The infix notation simplifies combining multiple effects via nested applications of \hinl{:+:}.
 
 \begin{minted}{Haskell}
 data (sig1 :+: sig2) a = Inl (sig1 a) | Inr (sig2 a)
 \end{minted}
 
-For example, the type \hinl{ND :+: One} is a functor that we can use with 
-\hinl{Prog} to define programs that contain non-determinism and partiality as 
-follows.
+For example, the type \hinl{ND :+: One} is a functor that we can use with \hinl{Prog} to define programs that contain non-determinism and partiality as follows.
 
 \begin{minted}{Haskell}
 progNDOne :: Prog (ND :+: One) Int
 progNDOne = Op (Inl (Choice (Op (Inr One)) (Return 42)))
 \end{minted}
 
-In the example \hinl{progNDOne} we define a program that represents the 
-non-deterministic choice between a program whose value is absent and a program 
-that returns \hinl{42}. The complexity of nesting constructors of \hinl{Prog} 
-and \hinl{:+:} correctly increases quickly for bigger terms. Therefore, we 
-define a type class that allows us to define such expressions more conveniently.
-The class is parameterized over two functors, one of which is a subtype -- 
-regarding \hinl{:+:} -- of the other.
+In the example \hinl{progNDOne} we define a program that represents the non-deterministic choice between a program whose value is absent and a program that returns \hinl{42}.
+The complexity of nesting constructors of \hinl{Prog} and \hinl{:+:} correctly increases quickly for bigger terms.
+Therefore, we define a type class that allows us to define such expressions more conveniently.
+The class is parameterized over two functors, one of which is a subtype -- regarding \hinl{:+:} -- of the other.
 
 \begin{minted}{Haskell}
 class (Functor sub, Functor sup) => sub :<: sup where
   inj :: sub a -> sup a
 \end{minted}
 
-We need a few instances of the class \hinl{:<:} to make it useful. The simplest 
-case is \hinl{sig :<: sig} where want to inject a value of type \hinl{sig a} 
-into the same type. Since we do not need to modify the value in any way, 
-\hinl{id} is used to define \hinl{inj}. 
+We need a few instances of the class \hinl{:<:} to make it useful.
+The simplest case is \hinl{sig :<: sig} where want to inject a value of type \hinl{sig a} into the same type.
+Since we do not need to modify the value in any way, \hinl{id} is used to define \hinl{inj}.
 
 \begin{minted}{Haskell}
 instance Functor sig => sig :<: sig where
   inj = id  
 \end{minted}
 
-The next instance covers the case \hinl{sig1 :<: (sig1 :+: sig2)}. Since we 
-already know that \hinl{sig1} is part of the sum type, we only need to apply 
-the correct constructor of \hinl{:+:}, that is, \hinl{Inl} because \hinl{sig1} 
-is the left argument.
+The next instance covers the case \hinl{sig1 :<: (sig1 :+: sig2)}.
+Since we already know that \hinl{sig1} is part of the sum type, we only need to apply the correct constructor of \hinl{:+:}, that is, \hinl{Inl} because \hinl{sig1} is the left argument.
 
 \begin{minted}{Haskell}
 instance (Functor sig1, Functor sig2) => sig1 :<: (sig1 :+: sig2) where
   inj = Inl
 \end{minted}
 
-The last instance assumes that we can inject \hinl{sig} into \hinl{sig2} and 
-describes how we can inject \hinl{sig} into \hinl{sig1 :+: sig2}. In this case, 
-we can use \hinl{inj} to receive a value of type \hinl{sig2 a}. All that 
-remains is a situation similar to the previous instance, where we only need to 
-use the matching constructor to complete the injection.
+The last instance assumes that we can inject \hinl{sig} into \hinl{sig2} and describes how we can inject \hinl{sig} into \hinl{sig1 :+: sig2}.
+In this case, we can use \hinl{inj} to receive a value of type \hinl{sig2 a}.
+All that remains is a situation similar to the previous instance, where we only need to use the matching constructor to complete the injection.
  
 \begin{minted}{Haskell}
 instance (Functor sig1, sig :<: sig2) => sig :<: (sig1 :+: sig2) where
   inj = Inr . inj
 \end{minted}
 
-Now we can define the function \hinl{inject}. \todo{Finish this}
+Now we can define the function \hinl{inject}.
+\todo{Finish this}
 
 \begin{minted}{Haskell}
 inject :: sig1 :<: sig2 => sig1 (Prog sig2 a) -> Prog sig2 a
@@ -653,17 +541,14 @@ Op (Inr One) -- third instance
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
-The goal of this chapter is to transfer the Haskell implementation of call-time 
-choice to Coq. We begin with the data structure \hinl{Prog}, 
-that is, the free monad, which allowed us to model programs with effects of 
-type \hinl{sig} and results of type \hinl{a}.
+The goal of this chapter is to transfer the Haskell implementation of call-time choice to Coq.
+We begin with the data structure \hinl{Prog}, that is, the free monad, which allowed us to model programs with effects of type \hinl{sig} and results of type \hinl{a}.
 
 \begin{minted}{Haskell}
 data Prog sig a = Return a | Op (sig (Prog sig a))
 \end{minted}
 
-The definition in Coq looks very similar to the Haskell version, aside from 
-renaming and the explicit constructor types.
+The definition in Coq looks very similar to the Haskell version, aside from renaming and the explicit constructor types.
 
 \begin{minted}{Coq}
 Inductive Free F A :=
@@ -671,8 +556,7 @@ Inductive Free F A :=
 | impure : F (Free F A) -> Free F A.
 \end{minted}
 
-However, the definition is rejected by Coq upon loading the file with the 
-following error message.
+However, the definition is rejected by Coq upon loading the file with the following error message.
 
 \begin{minted}{Text}
 Non-strictly positive occurrence of "Free" in "F (Free F A) -> Free F A".
@@ -686,48 +570,35 @@ The reason for this error is explained in the next section.
 \item Motivation for usage of containers
 \end{itemize}
 
-In \autoref{sec:coqIntro}, we learned that Coq distinguishes between 
-non-recursive definitions and functions that use recursion. The reason for this 
-is that Coq checks functions for termination, which is an important part of 
-Coq's proof logic. To understand why functions must always terminate in Coq, we 
-consider the following function.
+In \autoref{sec:coqIntro}, we learned that Coq distinguishes between non-recursive definitions and functions that use recursion.
+The reason for this is that Coq checks functions for termination, which is an important part of Coq's proof logic.
+To understand why functions must always terminate in Coq, we consider the following function.
 
 % https://www.di.ens.fr/~zappa/teaching/coq/ecole11/summer/lectures/lec9.pdf
 \begin{minted}{Coq}
 Fail Fixpoint loop (x : unit) : A := loop x.
 \end{minted}
 
-The function receives an argument \mintinline{Coq}{x} and calls itself with the 
-same argument. Since this function obviously never terminates, the result type 
-\mintinline{Coq}{A} is arbitrary. In particular, we could instantiate 
-\mintinline{Coq}{A} with \mintinline{Coq}{False}, the false proposition. The 
-value \mintinline{Coq}{loop tt : False} could be used to prove anything,
-according to the principle of explosion. For this reason, Coq requires all 
-recursive functions to terminate provably.
+The function receives an argument \mintinline{Coq}{x} and calls itself with the same argument.
+Since this function obviously never terminates, the result type \mintinline{Coq}{A} is arbitrary.
+In particular, we could instantiate \mintinline{Coq}{A} with \mintinline{Coq}{False}, the false proposition.
+The value \mintinline{Coq}{loop tt : False} could be used to prove anything, according to the principle of explosion.
+For this reason, Coq requires all recursive functions to terminate provably.
 
-Returning to the original data type, what is link between 
-\mintinline{Coq}{Free} and termination? It is well known that recursion can be 
-implemented in languages without explicit recursion syntax by means of 
-constructs like the Y combinator or the data type \mintinline{Coq}{Mu} for 
-type-level recursion.
+Returning to the original data type, what is link between \mintinline{Coq}{Free} and termination?
+It is well known that recursion can be implemented in languages without explicit recursion syntax by means of constructs like the Y combinator or the data type \mintinline{Coq}{Mu} for type-level recursion.
 
 \begin{minted}{Coq}
 Fail Inductive Mu A := mu : (Mu A -> A) -> Mu A.
 \end{minted}
 
-\mintinline{Coq}{Mu} is not accepted by Coq for the same reason as 
-\mintinline{Coq}{Free}: non-strictly positive occurrence of the respective data 
-type. The problematic property of non-strictly positive data types is that the 
-type occurs on the left-hand side of a constructor argument's function type. 
-This would allow general recursion and thus, as described above, make Coq's 
-logic inconsistent.
+\mintinline{Coq}{Mu} is not accepted by Coq for the same reason as \mintinline{Coq}{Free}: non-strictly positive occurrence of the respective data type.
+The problematic property of non-strictly positive data types is that the type occurs on the left-hand side of a constructor argument's function type.
+This would allow general recursion and thus, as described above, make Coq's logic inconsistent.
 
-In case of \mintinline{Coq}{Free}, the non-strictly positive occurrence is not 
-as apparent as before because the constructors do not have functional 
-arguments. However, \mintinline{Coq}{F} is being applied to 
-\mintinline{Coq}{Free F A}. If \mintinline{Coq}{F} has a functional argument 
-with appropriate types, the resulting type becomes non-strictly positive, as 
-shown below.
+In case of \mintinline{Coq}{Free}, the non-strictly positive occurrence is not as apparent as before because the constructors do not have functional arguments.
+However, \mintinline{Coq}{F} is being applied to \mintinline{Coq}{Free F A}.
+If \mintinline{Coq}{F} has a functional argument with appropriate types, the resulting type becomes non-strictly positive, as shown below.
 
 \begin{minted}{Coq}
 Definition Cont R A := (A -> R) -> R.
@@ -738,12 +609,10 @@ Fail Inductive ContF R A :=
 | impureC : ((ContF R A -> R) -> R) -> ContF R A.
 \end{minted}
 
-In the type of \mintinline{Coq}{impureC} contains a non-strictly positive 
-occurrence of \mintinline{Coq}{ContF R A}. Consequently, Coq rejects 
-\mintinline{Coq}{Free} because it is not guaranteed that no instance violates 
-the strict positivity requirement. Representing the \mintinline{Coq}{Free} data 
-type therefore requires a way to restrict the definition to strictly positive 
-data types. One approach to achieve this goal is described in the next section.
+In the type of \mintinline{Coq}{impureC} contains a non-strictly positive occurrence of \mintinline{Coq}{ContF R A}.
+Consequently, Coq rejects \mintinline{Coq}{Free} because it is not guaranteed that no instance violates the strict positivity requirement.
+Representing the \mintinline{Coq}{Free} data type therefore requires a way to restrict the definition to strictly positive data types.
+One approach to achieve this goal is described in the next section.
 
 \section{Containers}
 
@@ -752,30 +621,23 @@ data types. One approach to achieve this goal is described in the next section.
 \item How do we translate effect functors into containers?
 \end{itemize}
 
-Containers are an abstraction of data types that store values, with the 
-property that only strictly positive data types can be modelled as a container. 
-This will allow us to define a version of \mintinline{Coq}{Free} that works 
-with containers of type constructors instead of the type constructors itself. 
+Containers are an abstraction of data types that store values, with the property that only strictly positive data types can be modelled as a container.
+This will allow us to define a version of \mintinline{Coq}{Free} that works with containers of type constructors instead of the type constructors itself.
 First, however, we will have a more detailed look at containers.
 
-The first component of a container is the type \mintinline{Coq}{Shape}. A 
-shape determines how the data type is structured, regardless of the stored 
-values. For example, the  shape of a list is the same as the shape of Peano 
-numbers: a number that  represents the length of the list, or rather the number 
-of \hinl{Cons}/\hinl{Succ} applications. A pair, 
-on the other hand, has only a single shape.
+The first component of a container is the type \mintinline{Coq}{Shape}.
+A shape determines how the data type is structured, regardless of the stored values.
+For example, the  shape of a list is the same as the shape of Peano numbers: a number that  represents the length of the list, or rather the number of \hinl{Cons}/\hinl{Succ} applications.
+A pair, on the other hand, has only a single shape.
 
-The second component of a container is a function \mintinline{Coq}{Pos : Shape 
--> Type} that gives each shape a type that represents the positions within the 
-shape. In the example of pairs, the shape has two positions, the first and 
-second component. Each element of a list is a position within the shape. 
-Therefore, the position type for lists with length $n$ is natural numbers 
-smaller than $n$. Peano numbers do not have elements and therefore, the 
-position type for each shape is empty.
+The second component of a container is a function \mintinline{Coq}{Pos : Shape -> Type} that gives each shape a type that represents the positions within the shape.
+In the example of pairs, the shape has two positions, the first and second component.
+Each element of a list is a position within the shape.
+Therefore, the position type for lists with length $n$ is natural numbers smaller than $n$.
+Peano numbers do not have elements and therefore, the position type for each shape is empty.
 
-Containers can be extended by a function that maps all valid positions to 
-values. Since the position type depends on a concrete shape, the definition in 
-Coq is quantified universally over values of type \mintinline{Coq}{Shape}.
+Containers can be extended by a function that maps all valid positions to values.
+Since the position type depends on a concrete shape, the definition in Coq is quantified universally over values of type \mintinline{Coq}{Shape}.
 
 \begin{minted}{Coq}
 Inductive Ext Shape (Pos : Shape -> Type) A := 
@@ -799,8 +661,7 @@ The extension of a container models the concrete data type.
 
 \chapter{Curry Programs modelled in Coq}
 \begin{itemize}
-\item Can we use the Coq model of call-time choice to prove properties about 
-actual Curry programs?
+\item Can we use the Coq model of call-time choice to prove properties about actual Curry programs?
 \end{itemize}
 
 \chapter{Conclusion}
