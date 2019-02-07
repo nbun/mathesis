@@ -552,7 +552,17 @@ In practice, the different term structure due to \hinl{Inl} and \hinl{Inr} does 
 This is ensured by an additional function \hinl{prj} of the type class \hinl{:<:}, which is discussed in the next section.
 
 \subsection{Simplified Pattern Matching}
+While the function \hinl{inject} allows us to write programs in a more convenient way, we also need to consider how we can evaluate programs.
+The same issue of nested applications of \hinl{Op}, \hinl{Inl} and \hinl{Inr} applies when we want to distinguish different effects via pattern matching. Thus, we add a second function \hinl{prj} to the type class \hinl{:<:}.
 
+\begin{minted}{Haskell}
+class (Functor sub, Functor sup) => sub <: sup where
+  inj :: sub a -> sup a
+  prj :: sup a -> Maybe (sub a)
+\end{minted}
+
+The function \hinl{prj} is a partial inverse to \hinl{inj}. 
+This means that we can project values of a type \hinl{sup a} into a subtype \hinl{sub a}. More precisely, the function projects into a \hinl{Maybe} type. 
 
 \section{Sharing}
 \begin{itemize}

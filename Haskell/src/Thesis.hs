@@ -21,6 +21,7 @@ data (sig1 :+: sig2) a = Inl (sig1 a) | Inr (sig2 a)
   deriving (Functor, Show)
 
 data ND p = Fail | Choice p p
+  deriving (Show, Functor)
 
 data One p = One
   deriving (Show, Functor)
@@ -53,7 +54,10 @@ instance {-# OVERLAPPABLE #-}
 inject :: sig1 :<: sig2 => sig1 (Prog sig2 a) -> Prog sig2 a
 inject = Op . inj
 
-deriving instance Show a => Show (Prog (One :+: One) a)
+deriving instance Show a => Show (Prog (ND :+: One) a)
 
-nothing :: Prog (One :+: One) a
+nothing :: Prog (ND :+: One) a
 nothing = inject One
+
+progNDOne' :: Prog (ND :+: One) Int
+progNDOne' = inject (Choice (inject One) (Return 42))
