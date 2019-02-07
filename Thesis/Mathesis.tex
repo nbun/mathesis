@@ -509,20 +509,35 @@ instance (Functor sig1, sig :<: sig2) => sig :<: (sig1 :+: sig2) where
   inj = Inr . inj
 \end{minted}
 
-Now we can define the function \hinl{inject}.
-\todo{Finish this}
+These instances allow us to write a polymorphic definition of the function \hinl{inject} which injects constructors depending on the given type of the program.
 
 \begin{minted}{Haskell}
 inject :: sig1 :<: sig2 => sig1 (Prog sig2 a) -> Prog sig2 a
 inject = Op . inj
 \end{minted}
 
-The last two instances overlap in situations where \hinl{sig = sig1}.
+\hinl{inject} can then be used as demonstrated in the following example.
 
 \begin{minted}{Haskell}
-nothing :: Prog (One :+: One) a
-nothing = inject One
+λ> inject One :: Prog (One :+: ND) a
+Op (Inl One)
+λ> inject One :: Prog (ND :+: One) a
+Op (Inr One)
 \end{minted}
+
+The implementation of the function \hinl{inject} assumes that we can inject \hinl{sig1} into \hinl{sig2}.
+This is because \hinl{sig2} is the signature of the returned program and \hinl{sig1} is the type of the effect constructor that we want to inject.
+This restriction is justified because, for example, non-deterministic syntax should only appear in a program where \hinl{ND} is part of the signature.
+With this part of the infrastructure in place, we can redefine the example \hinl{progNDOne} without using \hinl{Inl} and \hinl{Inr} explicitly.
+
+\begin{minted}{Haskell}
+progNDOne' :: Prog (ND :+: One) Int
+progNDOne' = inject (Choice (inject One) (Return 42))
+\end{minted}
+
+Deriving the appropriate instance of \hinl{:<:} when using \hinl{inject} is, however, not always unambiguous.
+The last two instances overlap in situations where \hinl{sig = sig1}.
+For example, the example \hinl{inject One :: Prog (One :+: One) a} yields different values with respect to the chosen constructor of \hinl{:<:}, depending on the instance.
 
 \begin{minted}{Haskell}
 λ> nothing
@@ -530,6 +545,14 @@ Op (Inl One) -- second instance
 λ> nothing
 Op (Inr One) -- third instance
 \end{minted}
+
+This is because the type constraint of \hinl{inject}, in this case \hinl{One :<: (One :+: One)}, matches both the second and third instance.
+Haskell does not accept overlapping instances by default, which is why we prioritize one instance via pragmas.
+In practice, the different term structure due to \hinl{Inl} and \hinl{Inr} does not influence the evaluation as long as we do not explicitly match for the constructors.
+This is ensured by an additional function \hinl{prj} of the type class \hinl{:<:}, which is discussed in the next section.
+
+\subsection{Simplified Pattern Matching}
+
 
 \section{Sharing}
 \begin{itemize}
