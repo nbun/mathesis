@@ -61,3 +61,32 @@ nothing = inject One
 
 progNDOne' :: Prog (ND :+: One) Int
 progNDOne' = inject (Choice (inject One) (Return 42))
+
+project :: (sub :<: sup) => Prog sup a -> Maybe (sub (Prog sup a))
+project (Op s) = prj s
+project _      = Nothing
+
+evalND :: Prog (ND :+: One) a -> [a]
+evalND (Return x) = [x]
+evalND p = case project p of
+               Just (Choice p1 p2) -> evalND p1 ++ evalND p2
+               Just Fail           -> []
+               Nothing             -> case project p of
+                                        Just One -> []
+                                        Nothing  -> []
+
+evalNDOne' :: Prog (ND :+: One) a -> [a]
+evalNDOne' (Return x) = [x]
+evalNDOne' (project -> Just (Choice p1 p2)) = evalNDOne' p1 ++ evalNDOne' p2
+evalNDOne' (project -> Just Fail          ) = []
+evalNDOne' (project -> Just One           ) = []
+
+pattern PChoice p q <- (project -> Just (Choice p q))
+pattern PFail       <- (project -> Just Fail)
+pattern POne        <- (project -> Just One)
+
+evalNDOne'' :: Prog (ND :+: One) a -> [a]
+evalNDOne'' (Return    x) = [x]
+evalNDOne'' (PChoice p q) = evalNDOne'' p ++ evalNDOne'' q
+evalNDOne'' (PFail      ) = []
+evalNDOne'' (POne       ) = []

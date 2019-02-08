@@ -22,11 +22,19 @@
 
 % Minted
 \usepackage{fontspec}
+
 \setmonofont{Fira Code Regular}
 \setmainfont{XCharter Roman}
+\newfontfamily{\fallbackfont}{Source Code Pro}[Scale=MatchLowercase]
+\DeclareTextFontCommand{\textfallback}{\fallbackfont}
+
+\usepackage{newunicodechar}
+\newunicodechar{∀}{\textfallback{∀}}
+\newunicodechar{≔}{:=}
+
 \usepackage{minted}
 \usemintedstyle[Haskell]{trac, fontsize=\small}
-\usemintedstyle[Coq]{default, fontsize=\small}
+\usemintedstyle[Coq]{default, encoding=utf8, fontsize=\small}
 \usemintedstyle[Text]{default, fontsize=\small}
 %framesep=10pt}
 \setmintedinline{style = bw, fontsize=\small}
@@ -48,10 +56,7 @@
 \addtolength\partopsep{-\parskip}
 \addtolength\partopsep{0.32cm}
 
-%\DeclareUnicodeCharacter{03BB}{$\lambda$}
-
 \begin{document}
-
 \pagenumbering{roman} % römische Seitenzahlen
 
 \begin{titlepage}
@@ -100,6 +105,15 @@ Ich erkläre hiermit an Eides statt, dass ich die vorliegende Arbeit ohne Hilfe 
 
 \newpage
 \strut
+% This is necessary to apply the command that disables lexer errors for Unicode
+\begin{minted}{Coq} 
+\end{minted}
+
+% Disable highlighting of lexer errors for Unicode
+\makeatletter
+\expandafter\def\csname PYGdefault@tok@err\endcsname{\def\PYGdefault@bc##1{##1}}
+\makeatother
+
 \thispagestyle{empty}
 \newpage
 
@@ -562,7 +576,96 @@ class (Functor sub, Functor sup) => sub <: sup where
 \end{minted}
 
 The function \hinl{prj} is a partial inverse to \hinl{inj}. 
-This means that we can project values of a type \hinl{sup a} into a subtype \hinl{sub a}. More precisely, the function projects into a \hinl{Maybe} type. 
+This means that we can project values of a type \hinl{sup a} into a subtype \hinl{sub a}.
+For this reason, the return type of the function is a \hinl{Maybe} type. Similar to \hinl{inj}, we have to define instances for the same cases as before. 
+
+\begin{itemize}
+\item For \hinl{sig :<: sig}, we can define \hinl{prj} as \hinl{Just} because we know that every element of the supertype is also an element the subtype.
+
+\item \hinl{sig1 :<: (sig1 :+: sig2)} means that we can return \hinl{Just x} for \hinl{Inl x}. 
+However, for \hinl{Inr} we need to return \hinl{Nothing} because we cannot, in general, project from \hinl{sig2} to \hinl{sig1}.
+
+\item In the last case \hinl{sig :<: sig2 => sig :<: (sig1 :+: sig2)} we know that we can project from \hinl{sig2} to \hinl{sig}.
+Thus, in case of \hinl{Inr x}, where \hinl{x} has the type \hinl{sig2}, we can apply \hinl{prj} to construct a value of appropriate type.
+The other case \hinl{prj (Inl _)} is handled by returning \hinl{Nothing}.
+\end{itemize}
+
+With the definition of \hinl{prj} and the instances of \hinl{:<:}, we can now define the function \hinl{project} which we can use to make pattern matching more convenient.
+
+\begin{minted}{Haskell}
+project :: (sub :<: sup) => Prog sup a -> Maybe (sub (Prog sup a))
+project (Op s) = prj s
+project _      = Nothing
+\end{minted}
+
+Due to the recursive definition of the \hinl{Prog} data type, constructors like \hinl{Choice} have \hinl{Prog} arguments themselves.
+Thus, \hinl{sub} is applied to \hinl{Prog sup a} in the return type of the projection.
+We can only project effectful values because generally it is not clear which functor we should choose for \hinl{sub} when projecting a \hinl{Return} value.
+
+Finally, we can now inject and project effectful values. Since \hinl{project} is a partial inverse of \hinl{inject}, the equation \hinl{project (inject x) = Just x} holds for values \hinl{x} of appropriate type, excluding failing computations.
+\todo{Does it hold?}
+This is demonstrated in the following example.
+
+\begin{minted}{Haskell}
+λ> type T = Maybe (ND (Prog (ND :+: One) Int))
+λ> project (inject (Choice (Return 42) (Return 43))) :: T
+Just (Choice (Return 42) (Return 43))
+\end{minted}
+
+Now that we can use \hinl{project} as an abstraction of the concrete term structure regarding \hinl{:<:}, we can write a first function that evaluates a non-deterministic, partial program.
+
+\begin{minted}{Haskell}
+evalNDOne :: Prog (ND :+: One) a -> [a]
+evalNDOne (Return x) = [x]
+evalNDOne p = case project p of
+               Just (Choice p1 p2) -> evalNDOne p1 ++ evalNDOne p2
+               Just Fail           -> []
+               Nothing             -> case project p of
+                                        Just One -> []
+                                        Nothing  -> []
+\end{minted}
+
+When \hinl{evalNDOne} encounters a value \hinl{Return x}, \hinl{x} is returned as a singleton list. 
+For effectful programs, we can use \hinl{project} to distinguish between the constructors of \textit{one effect at a time}.
+The case patterns hold the necessary type information for \hinl{project}.
+When the projection returns \hinl{Nothing}, another effect can be handled.
+Since we never need to explicitly match for \hinl{Inl} or \hinl{Inr}, overlapping patterns in the instances of \hinl{:<:} do not affect the evaluation of programs in our model.
+
+Although we have already eliminated \hinl{Inl}, \hinl{Inr} and \hinl{Op} from functions that create or evaluate programs, there can be done even more to simplify programming with effects.
+Two language extensions, \hinl{PatternSynonyms} and \hinl{ViewPatterns}, allow us to write definitions like the following.
+
+\begin{minted}{Haskell}
+pattern PChoice p q <- (project -> Just (Choice p q))
+\end{minted}
+
+View patterns -- the right-hand side of the \hinl{<-}, make pattern-matching for certain cases more compact.
+A view pattern consists of a function on the left-hand side of \hinl{->}, that is applied to the value that the pattern is matched against, and a pattern on the right-hand side.
+The result of the function call is matched against this pattern and the variables inside the pattern can be used in the definition. 
+The function \hinl{evalNDOne} can be defined using view patterns in the following way.
+
+\begin{minted}{Haskell}
+evalNDOne' :: Prog (ND :+: One) a -> [a]
+evalNDOne' (Return x) = [x]
+evalNDOne' (project -> Just (Choice p1 p2)) = evalNDOne' p1 ++ evalNDOne' p2
+evalNDOne' (project -> Just Fail          ) = []
+evalNDOne' (project -> Just One           ) = []
+\end{minted}
+
+We cannot use \hinl{(project -> Nothing)} without type annotations as a pattern because this would result in overlapping instances. 
+However, no effects other than those specified in the signature can occur within the program. Therefore, the \hinl{Nothing} pattern is not necessary.
+
+The second component of the pattern definition above is the option to define a synonym for more complex patterns. 
+In this case, we name the view patterns similar to the original constructors of the effects. While this is necessary for every effect constructor, it allows us to rewrite the definition in the following way.
+
+\begin{minted}{Haskell}
+evalNDOne'' :: Prog (ND :+: One) a -> [a]
+evalNDOne'' (Return    x) = [x]
+evalNDOne'' (PChoice p q) = evalNDOne'' p ++ evalNDOne'' q
+evalNDOne'' (PFail      ) = []
+evalNDOne'' (POne       ) = []
+\end{minted}
+
+Writing programs that evaluate effectful programs is almost as convenient as simple pattern matching now.
 
 \section{Sharing}
 \begin{itemize}
@@ -698,6 +801,32 @@ The extension of a container models the concrete data type.
 \end{itemize}
 
 \chapter{Conclusion}
+
+\begin{minted}{Coq}
+
+  Class Monad (M: Type → Type) ≔
+    {
+      ret : ∀ A, A → M A;
+      bind : ∀ A B, M A → (A → M B) → M B;
+      left_unit : ∀ A B (x0: A) (f: A → M B),
+                    bind (ret x0) f = f x0;
+      right_unit : ∀ A (ma: M A), bind ma (@ret A) = ma;
+      bind_assoc: ∀ A B C (ma : M A) (f: A → M B) (g: B → M C),
+                    bind ma (fun y ⇒ bind (f y) g) = bind (bind ma f) g
+    }.
+
+  Definition join (M: Type → Type) `(Monad M) A (mmx : M (M A)) : M A ≔ bind _ mmx (fun x ⇒ x).
+
+End MonadClass.
+Arguments join {_} {_} {_}.
+
+Section MonadInstance.
+
+  Variable F : Type → Type.
+  Variable C__F : Container F.
+
+
+\end{minted}
 
 
 % Literatur
