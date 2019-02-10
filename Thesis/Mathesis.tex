@@ -652,10 +652,12 @@ evalNDOne' (project -> Just One           ) = []
 \end{minted}
 
 We cannot use \hinl{(project -> Nothing)} without type annotations as a pattern because this would result in overlapping instances. 
-However, no effects other than those specified in the signature can occur within the program. Therefore, the \hinl{Nothing} pattern is not necessary.
+However, no effects other than those specified in the signature can occur within the program. 
+Therefore, the \hinl{Nothing} pattern is not necessary.
 
 The second component of the pattern definition above is the option to define a synonym for more complex patterns. 
-In this case, we name the view patterns similar to the original constructors of the effects. While this is necessary for every effect constructor, it allows us to rewrite the definition in the following way.
+In this case, we name the view patterns similar to the original constructors of the effects. 
+While this is necessary for every effect constructor, it allows us to rewrite the definition in the following way.
 
 \begin{minted}{Haskell}
 evalNDOne'' :: Prog (ND :+: One) a -> [a]
@@ -665,7 +667,7 @@ evalNDOne'' (PFail      ) = []
 evalNDOne'' (POne       ) = []
 \end{minted}
 
-Writing programs that evaluate effectful programs is almost as convenient as simple pattern matching now.
+Writing programs that evaluate effectful programs is now almost as convenient as simple pattern matching .
 
 \section{Sharing}
 \begin{itemize}
