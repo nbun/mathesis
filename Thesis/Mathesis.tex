@@ -451,7 +451,7 @@ The monad instance for \hinl{Free} is as follows.
 \begin{minted}{Haskell}
 data Free f a = Pure a | Impure (f (Free f a))
 
-instance (Functor f, Applicative (Free f)) => Monad (Free f) where
+instance (Functor f) => Monad (Free f) where
   return = Pure
   Pure x >>= g = g x
   Impure fx >>= g = Impure (fmap (>>= g) fx)
@@ -464,13 +464,14 @@ Since \hinl{fmap One = One}, it becomes apparent that the monad constructed by \
 
 Since we want to model different effects in our program, the free monad makes writing programs easier by allowing monadic definitions without defining a separate monad instance for each effect.
 \todo{Find more reasons for using free monads}
+\todo{Stacking monads does not necessarily yield monads again}
 
 \section{Modelling Effects}
 \begin{itemize}
 \item Explanation of the Prog/sig infrastructure
 \item ND and state effect implementation 
 \end{itemize}
-
+\todo{Split ND into choice and fail instead of one}
 In the previous sections the free monad and its ability to represent effect functors was discussed.
 The goal of this section is to explore the infrastructure that allows us to combine multiple effects, write effectful programs and compute the result of such programs.
 
@@ -690,6 +691,17 @@ However, the syntax is not just removed, but the effect's semantics is applied.
 The semantics of an effect is therefore given by its handler.
 In the following we discuss handlers for the effects non-determinism and state.
 
+\paragraph{Void Effect}
+We begin with the data type for absence of effects, \hinl{Void}.
+Due to its definition without constructors, there is no \hinl{Void} syntax that needs to be handled.
+The only constructor for programs with the signature \hinl{Void} is \hinl{Return}, which we can handle by returning the argument.
+Thus, the handler for \hinl{Void} removes the program layer and is usually applied last, when all other effects have been handled.
+
+\begin{minted}{Haskell}
+run :: Prog Void a -> a
+run (Return x) = x
+\end{minted}
+
 \paragraph{Non-determinism Effect}
 We already defined a data type for non-deterministic programs in \autoref{min:ND}. 
 The \hinl{Choice} constructor did not contain any IDs, which we need for the implementation of call-time choice.
@@ -748,6 +760,123 @@ dfs mem (Choice (Just n) t1 t2) =
 \end{minted}
 
 The function \hinl{dfs} is called with an empty map and yields the list of results that the choice tree represents.
+\todo{Examples}
+
+\paragraph{State Effect}
+Stateful computations are an important part of the sharing effect that is presented in \autoref{sec:sharing}.
+We begin by defining the syntax of the state effect.
+Usually, stateful computations can read the current state with \hinl{get} and set a new state with \hinl{put}.
+Thus, the data type needs those two constructors, too.
+We add an additional type variable that abstracts the type of values that the state can hold. The variable \hinl{p} represents the program type as before.
+
+\begin{minted}{Haskell}
+data State s p = Get' -- ?
+               | Put' -- ?
+\end{minted}
+
+Both constructors have an effect on a program, that is, a scope in which the effects are visible.
+Thus, both constructors need a program argument \hinl{p}.
+For \hinl{Put'}, we can simply add the arguments \hinl{s} for the new state and \hinl{p} for the program in which the new state is set.
+The constructor \hinl{Get'}, however, contains the program in a different form, namely a function \hinl{s -> p}.
+The reason for this is that, if we were using a simple \hinl{p} argument, the handler would have to somehow replace all \hinl{get}-occurrences of the state with appropriate values.
+This would require evaluating the whole program, which would defeat the purpose of preserving non-strictness.
+Hence, the program is added to \hinl{get} in the form of a functional expression where the function argument replaces the occurrences of the state that are being read in the program. The data type for the state effect now looks as follows.
+
+\begin{minted}{Haskell}
+data State s p = Get' (s -> p)
+               | Put' s p
+\end{minted}
+
+The smart constructors for stateful programs are defined by instantiating the program and function arguments appropriately.
+For \hinl{get}, this means that we need to supply a function of type \hinl{s -> Prog sig s} since \hinl{p} is \hinl{Prog sig s} in this context.
+Conveniently, the \hinl{return} function matches this type and thus, is the initial argument of \hinl{Get'}.
+For \hinl{put}, the new state and a program that returns \hinl{()} are supplied to \hinl{Put'} because \hinl{put} does not return any information.
+
+\begin{minted}{Haskell}
+get :: (State s :<: sig) => Prog sig s
+get = inject (Get' return)
+
+put :: (State s :<: sig) => s -> Prog sig ()
+put s = inject (Put' s (return ())
+\end{minted}
+
+The choice of initial function arguments might not seem intuitive at first because it is not clear how the remaining program finds its way into the argument of, for example, \hinl{Get'}.
+Therefore, we consider an example of the state effect and how the free monad is used to write programs.
+
+\begin{minted}{Haskell}
+p :: Prog (State Int :+: Void) Int
+p = do put 42
+       i <- get
+       return (i * 2)
+\end{minted}
+
+The program sets a state \hinl{42}, gets the value of the current state and then returns double of that.
+The normal form of \hinl{p} can be computed by evaluating the occurrences of bind.
+We recall the monad instance for the free monad: bind uses \hinl{fmap} to distribute a function deeper into a term.
+Thus, we first define a \hinl{Functor} instance.
+
+\begin{minted}{Haskell}
+instance (Functor sig) => Monad (Prog sig) where
+  return x = Return x
+  Return x >>= f = f x
+  Op op >>= f = Op (fmap (>>= f) op)
+
+instance Functor (State s) where
+  fmap f (Get' g)   = Get' (f . g)
+  fmap f (Put' s p) = Put' s (f p)
+\end{minted}
+
+In the case of \hinl{Get'}, we need to apply \hinl{g} to a state in order to obtain a program that we can apply \hinl{f} to.
+Thus, we pass the result from \hinl{f} to \hinl{g} via function composition.
+For \hinl{Put'}, the state \hinl{s} remains unmodified and the function \hinl{f} is applied to the program argument \hinl{p} of the constructor.
+
+Now we can transform the program \hinl{p} into normal form as follows.
+
+\begin{minted}[fontsize=\footnotesize]{Haskell}
+put 42 >>= \_ -> get >>= \i -> return (i * 2)
+= inject $ fmap (>>= \_ -> get >>= \i -> return (i * 2)) (Put' 42 (return ()))
+= inject $ Put' 42 (get >>= \i -> return (i * 2))
+= inject $ Put' 42 (inject $ fmap (>>= \i -> return (i * 2)) (Get' return))
+= inject $ Put' 42 (inject $ (Get' (\i -> return (i * 2))))
+\end{minted}
+
+\hinl{Op} as well as \hinl{Inl} and \hinl{Inr} constructors are replaced by \hinl{inject} in this example. 
+The expression is transformed by applying the definitions of bind and \hinl{fmap}.
+In the last step, we simplify the expression by applying the left identity monad law, that is, \hinl{(>>= f) . return = f}.
+
+We can now see that the remaining program after \hinl{get}, that is, the \hinl{return} call, has been moved into the argument function of \hinl{Get'}.
+The function expects a state and replaces the variables, that were bound to the return value of \hinl{get} in the original program, with the state.
+
+Now that we have seen the definition of stateful program syntax and how the state flows through the program via functions, we can define the handler for the state effect.
+Naturally, the handler needs to keep track of the current state, which is the first argument of the function.
+Then, the function expects a program that contains state syntax.
+Finally, the return type is a program that returns a pair of the current state and a return value.
+
+\begin{minted}{Haskell}
+runState :: Functor sig => s -> Prog (State s :+: sig) a -> Prog sig (s, a)
+runState s (Return a) = return (s, a)
+runState s (Get    k) = runState s (k s)
+runState s (Put s' k) = runState s' k
+runState s (Other op) = Op (fmap (runState s) op)
+\end{minted}
+
+For pure values, the current state and the value inside the \hinl{Return} constructor is returned.
+When a \hinl{Get} is encountered, we apply the function argument, which expects a state, to the current state and do a recursive call with the resulting program.
+\hinl{Put} is handled by a recursive call where the old state is replaced by the new state while the program stays the same.
+Finally, other syntax is handled by using \hinl{fmap} to distribute the handler deeper into the term structure, similar to the other handlers we have seen.
+
+The example program \hinl{p} can now be handled by first calling the handler \hinl{runState} to handle the state effect, followed by \hinl{run} to extract the result from the program structure.
+
+\begin{minted}{Haskell}
+λ> run . runState 1 $ p
+(42,84)
+\end{minted}
+
+As expected, the first component represents the current state, which was set by \hinl{put} to \hinl{42}, while the second component is the result that was returned after multiplying the current state by two.
+
+\paragraph{Handling Order}
+When multiple effects are part of the signature, the question arises whether running handlers in a different order has an effect on the result.
+
 
 \section{Sharing}
 \label{sec:sharing}
