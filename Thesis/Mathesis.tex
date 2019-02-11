@@ -703,7 +703,7 @@ run (Return x) = x
 \end{minted}
 
 \paragraph{Non-determinism Effect}
-We already defined a data type for non-deterministic programs in \autoref{min:ND}. 
+We already defined a data type for non-deterministic programs in \autoref{min:ND}.
 The \hinl{Choice} constructor did not contain any IDs, which we need for the implementation of call-time choice.
 Thus, the revised data type is as follows.
 
@@ -711,7 +711,8 @@ Thus, the revised data type is as follows.
 data ND p = Fail | Choice (Maybe ID) p p
 \end{minted}
 
-Not every non-deterministic choice in a program needs an ID, since IDs slow down the evaluation of choices considerably. Thus, IDs are optional and only assigned when necessary, that is, when choices are shared.
+Not every non-deterministic choice in a program needs an ID, since IDs slow down the evaluation of choices considerably.
+Thus, IDs are optional and only assigned when necessary, that is, when choices are shared.
 
 In the last section, we already defined a function \hinl{evalNDOne} that handles the simple \hinl{ND} type without IDs by returning a list of results, where, for each choice, the result lists are concatenated.
 For choices with IDs, however, this is not sufficient.
@@ -767,7 +768,8 @@ Stateful computations are an important part of the sharing effect that is presen
 We begin by defining the syntax of the state effect.
 Usually, stateful computations can read the current state with \hinl{get} and set a new state with \hinl{put}.
 Thus, the data type needs those two constructors, too.
-We add an additional type variable that abstracts the type of values that the state can hold. The variable \hinl{p} represents the program type as before.
+We add an additional type variable that abstracts the type of values that the state can hold.
+The variable \hinl{p} represents the program type as before.
 
 \begin{minted}{Haskell}
 data State s p = Get' -- ?
@@ -780,7 +782,8 @@ For \hinl{Put'}, we can simply add the arguments \hinl{s} for the new state and 
 The constructor \hinl{Get'}, however, contains the program in a different form, namely a function \hinl{s -> p}.
 The reason for this is that, if we were using a simple \hinl{p} argument, the handler would have to somehow replace all \hinl{get}-occurrences of the state with appropriate values.
 This would require evaluating the whole program, which would defeat the purpose of preserving non-strictness.
-Hence, the program is added to \hinl{get} in the form of a functional expression where the function argument replaces the occurrences of the state that are being read in the program. The data type for the state effect now looks as follows.
+Hence, the program is added to \hinl{get} in the form of a functional expression where the function argument replaces the occurrences of the state that are being read in the program.
+The data type for the state effect now looks as follows.
 
 \begin{minted}{Haskell}
 data State s p = Get' (s -> p)
@@ -840,7 +843,7 @@ put 42 >>= \_ -> get >>= \i -> return (i * 2)
 = inject $ Put' 42 (inject $ (Get' (\i -> return (i * 2))))
 \end{minted}
 
-\hinl{Op} as well as \hinl{Inl} and \hinl{Inr} constructors are replaced by \hinl{inject} in this example. 
+\hinl{Op} as well as \hinl{Inl} and \hinl{Inr} constructors are replaced by \hinl{inject} in this example.
 The expression is transformed by applying the definitions of bind and \hinl{fmap}.
 In the last step, we simplify the expression by applying the left identity monad law, that is, \hinl{(>>= f) . return = f}.
 
