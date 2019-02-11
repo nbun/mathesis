@@ -111,9 +111,16 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 \begin{minted}{Coq} 
 \end{minted}
 
+\begin{minted}{Haskell}
+\end{minted}
+
 % Disable highlighting of lexer errors for Unicode
 \makeatletter
 \expandafter\def\csname PYGdefault@tok@err\endcsname{\def\PYGdefault@bc##1{##1}}
+\makeatother
+
+\makeatletter
+\expandafter\def\csname PYGtrac@tok@err\endcsname{\def\PYGtrac@bc##1{##1}}
 \makeatother
 
 \thispagestyle{empty}
@@ -879,7 +886,81 @@ As expected, the first component represents the current state, which was set by 
 
 \paragraph{Handling Order}
 When multiple effects are part of the signature, the question arises whether running handlers in a different order has an effect on the result.
+As an example, we define a handler that does not remove syntax but actually adds state syntax to a non-deterministic program.
+The function \hinl{results} keeps the structure of a program intact but adds state syntax that increments the current state by one for each result.
 
+\begin{minted}{Haskell}
+results :: (ND <: sig, State Int <: sig) => Prog sig a -> Prog sig a
+results (Return x)      = get >>= put . (+ 1) >> return x
+results Fail            = fail
+results (Choice m p q ) = choiceID m (results p) (results q)
+results (Op op)         = Op (fmap results op)
+\end{minted}
+
+Now we define a program \hinl{tree} that builds the complete, binary choice tree of height \hinl{x}.
+For each call of \hinl{tree}, a choice is made where the current height is either incremented or decremented by one.
+
+\begin{minted}{Haskell}
+tree :: (ND <: sig) => Int -> Prog sig Int
+tree 0 = return 0
+tree x = tree (x - 1) >>= \i -> 
+  choice (return $ i + 1) (return $ i - 1)
+\end{minted}
+
+Each time choice is called, two new branches are created.
+Thus, we expect \hinl{tree x} to have $2^\text{\hinl{x}}$ results.
+To see the program in action, we define two handlers.
+The difference between \hinl{treeGlobal} and \hinl{treeLocal} is the order of the handlers.
+In both cases \hinl{results} is run first, but whereas \hinl{treeGlobal} runs the non-determinism handler before the state handler, the opposite is true for \hinl{treeLocal}.
+
+\begin{minted}{Haskell}
+
+treeGlobal :: (Int, Tree.Tree Int)
+treeGlobal = run . runState 0 . runND . results $ tree 2
+
+treeLocal :: Tree.Tree (Int, Int)
+treeLocal = run . runND . runState 0 . results $ tree 2
+\end{minted}
+
+The types of the definitions already indicate a difference.
+While \hinl{treeGlobal} returns a state paired with a tree of results, \hinl{treeLocal} returns a tree of state and result pairs.
+In the following, the result of evaluating each handler chain is presented as a visualization of the resulting choice tree.
+
+\vspace{0.32cm}
+
+\begin{minipage}{.465 \linewidth}
+\begin{minted}{Haskell}
+λ> putStrLn . pretty $ treeGlobal
+(4,?
+├─── ?
+│    ├─── 2
+│    └─── 0
+└─── ?
+     ├─── 0
+     └─── -2)
+\end{minted}
+\end{minipage}
+\hfill
+\vline
+\hfill
+\begin{minipage}{.475 \linewidth}
+\begin{minted}{Haskell}
+λ> putStrLn . pretty $ treeLocal
+?
+├─── ?
+│    ├─── (1,2)
+│    └─── (1,0)
+└─── ?
+     ├─── (1,0)
+     └─── (1,-2)
+\end{minted}
+\end{minipage}
+
+\vspace{0.32cm}
+
+As the name suggests, \hinl{treeGlobal}, that is, handling non-determinism first and state second, evaluates the program with a global state, where each non-deterministic branch shares the same state.
+Contrary to that, \hinl{treeLocal} creates an individual state for every non-deterministic branch by handling state syntax first.
+While the results are not influenced by the order of handlers in this case, this is not generally the case.
 
 \section{Sharing}
 \label{sec:sharing}
