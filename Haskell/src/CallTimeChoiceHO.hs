@@ -165,10 +165,10 @@ instance (Syntax sig, HND <: sig) => MonadPlus (Prog sig) where
 instance (HState Int <: sig, HShare <: sig, HND <: sig) => Sharing (Prog sig) where
   share p = do
     i <- get
-    put (i + 1)
+    put (i * 2)
     let p' = do
+          put (i * 2 + 1)
           x <- p
-          put (i + 1)
           x' <- shareArgs share x
           return x'
     return $ shares i p'
