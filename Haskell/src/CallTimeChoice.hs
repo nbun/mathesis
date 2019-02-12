@@ -25,7 +25,9 @@ import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
 -- Non-determinism effect --
 ----------------------------
-data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
+type ID = (Int, Int, Int)
+
+data ND cnt = Fail' | Choice' (Maybe ID) cnt cnt
   deriving (Functor, Show)
 
 pattern Fail <- (project -> Just Fail')
@@ -37,7 +39,7 @@ fail = inject Fail'
 choice :: (ND <: sig) => Prog sig a -> Prog sig a -> Prog sig a
 choice p q = inject (Choice' Nothing p q)
 
-choiceID :: (ND <: sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
+choiceID :: (ND <: sig) => Maybe ID -> Prog sig a -> Prog sig a -> Prog sig a
 choiceID m p q = inject (Choice' m p q)
 
 runND :: (Functor sig) => Prog (ND + sig) a -> Prog sig (Tree.Tree a)
@@ -51,7 +53,7 @@ runND (Other op) = Op (fmap runND op)
 
 -- Sharing effect --
 --------------------
-data Share cnt = BShare' Int cnt | EShare' Int cnt
+data Share cnt = BShare' (Int, Int) cnt | EShare' (Int, Int) cnt
   deriving (Functor, Show)
 
 pattern BShare i p <- (project -> Just (BShare' i p))
@@ -67,7 +69,7 @@ bshare (EShare _ p) = error "bshare: mismatched Eshare"
 bshare (Other op)   = Op (fmap bshare op)
 
 eshare :: (ND <: sig)
-       => Int -> [Int] -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
+       => Int -> [(Int, Int)] -> Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
 eshare next scopes prog = --trace (show scopes) $
   case prog of
     Return a   -> return (Return a)
@@ -82,17 +84,19 @@ eshare next scopes prog = --trace (show scopes) $
                               else error "eshare: crossing scopes"
     Fail       -> fail
     Choice _ p q ->
-      let p' = eshare (2 * next)     scopes p
-          q' = eshare (2 * next + 1) scopes q
-      in choiceID (Just (head scopes, next)) p' q'
+      let next' = next + 1
+          p' = eshare next' scopes p
+          q' = eshare next' scopes q
+          (l,r) = head scopes
+      in choiceID (Just (l, r, next)) p' q'
     Other op -> Op (fmap (eshare next scopes) op)
 
 -- interface implementation --
 ------------------------------
-type NDShare = Prog (State Int + Share + ND + Void)
+type NDShare = Prog (State (Int, Int) + Share + ND + Void)
 
 runCurry :: NDShare a -> Tree.Tree a
-runCurry = run . runND . runShare . fmap snd . runState 1
+runCurry = run . runND . runShare . fmap snd . runState (0,0)
 
 instance (Functor sig, ND <: sig) => Alternative (Prog sig) where
   empty = fail
@@ -102,16 +106,16 @@ instance (Functor sig, ND <: sig) => MonadPlus (Prog sig) where
   mplus = choice
   mzero = fail
 
-instance (Share <: sig, State Int <: sig, ND <: sig) => Sharing (Prog sig) where
+instance (Share <: sig, State (Int, Int) <: sig, ND <: sig) => Sharing (Prog sig) where
   share p = do
-    i <- get
-    put (i * 2)
+    (i, j) <- get
+    put (i + 1, j)
     return $ do
-      inject (BShare' i (return ()))
-      put (i * 2 + 1)
+      inject (BShare' (i,j) (return ()))
+      put (i, j + 1)
       x <- p
       x' <- shareArgs share x
-      inject (EShare' i (return ()))
+      inject (EShare' (i,j) (return ()))
       return x'
 
 instance AllValues NDShare where

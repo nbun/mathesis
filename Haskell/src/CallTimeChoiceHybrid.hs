@@ -22,10 +22,11 @@ import           Control.Applicative      (Alternative (..))
 import           Control.Monad            (MonadPlus (..), liftM2)
 import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
-
 -- Non-determinism effect --
 ----------------------------
-data ND cnt = Fail' | Choice' (Maybe (Int, Int)) cnt cnt
+type ID = (Int, Int, Int)
+
+data ND cnt = Fail' | Choice' (Maybe ID) cnt cnt
   deriving (Functor, Show)
 
 pattern Fail <- (project -> Just Fail')
@@ -36,7 +37,7 @@ fail = inject Fail'
 
 choice p q = inject (Choice' Nothing p q)
 
-choiceID :: (ND <: sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
+choiceID :: (ND <: sig) => Maybe ID -> Prog sig a -> Prog sig a -> Prog sig a
 choiceID m p q = inject (Choice' m p q)
 
 runND :: (Functor sig) => Prog (ND + sig) a -> Prog sig (Tree.Tree a)
@@ -50,36 +51,37 @@ runND (Other op) = Op (fmap runND op)
 
 -- Sharing effect --
 --------------------
-data Share cnt = Share' Int cnt
+data Share cnt = Share' (Int, Int) cnt
   deriving (Functor, Show)
 
 pattern Share i p <- (project -> Just (Share' i p))
 
-share' :: (Share <: sig) => Int -> Prog sig a -> Prog sig a
+share' :: (Share <: sig) => (Int, Int) -> Prog sig a -> Prog sig a
 share' i p = inject (Share' i p)
 
 runShare :: (Functor sig, ND <: sig) => Prog (Share + sig) a -> (Prog sig a)
 runShare (Return a)  = return a
 runShare (Share i p) = nameChoices i 1 p
   where
-    nameChoices :: (ND <: sig) => Int -> Int -> Prog (Share + sig) a -> Prog sig a
-    nameChoices scope next prog = case prog of
+    nameChoices :: (ND <: sig) => (Int, Int) -> Int -> Prog (Share + sig) a -> Prog sig a
+    nameChoices scope@(l,r) next prog = case prog of
       Return a  -> Return a
       Share i p -> nameChoices i 1 p
       Fail      -> fail
       Choice _ p q ->
-        let p' = nameChoices scope (2 * next)      p
-            q' = nameChoices scope (2 * next + 1)  q
-        in choiceID (Just (scope, next)) p' q'
+        let next' = next + 1
+            p' = nameChoices scope next' p
+            q' = nameChoices scope next' q
+        in choiceID (Just (l, r, next)) p' q'
       Other op -> Op (fmap (nameChoices scope next) op)
 runShare (Other op)  = Op (fmap runShare op)
 
 -- interface implementation --
 ------------------------------
-type NDShare = Prog (State Int + Share + ND + Void)
+type NDShare = Prog (State (Int, Int) + Share + ND + Void)
 
 runCurry :: NDShare a -> Tree.Tree a
-runCurry = run . runND . runShare . fmap snd . runState 1
+runCurry = run . runND . runShare . fmap snd . runState (0, 0)
 
 instance (Functor sig, ND <: sig) => Alternative (Prog sig) where
   empty = fail
@@ -89,12 +91,12 @@ instance (Functor sig, ND <: sig) => MonadPlus (Prog sig) where
   mplus = choice
   mzero = fail
 
-instance (Share <: sig, State Int <: sig, ND <: sig) => Sharing (Prog sig) where
+instance (Share <: sig, State (Int, Int) <: sig, ND <: sig) => Sharing (Prog sig) where
   share p = do
-    i <- get
-    put (i * 2)
-    return . share' i $ do
-      put (i * 2 + 1)
+    (i,j) <- get
+    put (i + 1, j)
+    return . share' (i, j) $ do
+      put (i, j + 1)
       x <- p
       shareArgs share x
 
@@ -109,7 +111,7 @@ instance (Pretty a, Show a) => Pretty (Prog (Share + ND + Void) a) where
   pretty = flip pretty' 0
 
 prettyProg :: (Pretty a, Show a)
-           => Int -> [Int] -> [Int] -> Prog (Share + ND + Void) a -> String
+           => Int -> [Int] -> [(Int, Int)] -> Prog (Share + ND + Void) a -> String
 prettyProg _ _ scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
 prettyProg wsp ls scps (Share i p) =
   "<" ++ si ++ " " ++ prettyProg (wsp + l) ls (i:scps) p
@@ -154,8 +156,8 @@ instance (Pretty a, Show a) => Pretty (Prog (ND + Void) a) where
 -- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))) :: NDShare (Pair Identity (List Identity Bool)))
 
 coinID :: (ND <: sig) => Prog sig Bool
-coinID = choiceID (Just (42,42)) (return True) (return False)
+coinID = choiceID (Just (42,42,42)) (return True) (return False)
 
 
 coiniID :: (ND <: sig) => Prog sig Int
-coiniID = choiceID (Just (42,42)) (return 0) (return 1)
+coiniID = choiceID (Just (42,42,42)) (return 0) (return 1)

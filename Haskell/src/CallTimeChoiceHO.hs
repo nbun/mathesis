@@ -23,7 +23,9 @@ import qualified Tree
 
 -- HND
 ----------
-data HND m a = Fail' | Choice' (Maybe (Int, Int)) (m a) (m a)
+type ID = (Int, Int, Int)
+
+data HND m a = Fail' | Choice' (Maybe ID) (m a) (m a)
   deriving (Show, Functor)
 
 instance HFunctor HND where
@@ -49,7 +51,7 @@ pattern Choice m p q <- (project -> Just (Choice' m p q))
 (||) :: (HND <: sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject (Choice' Nothing p  q)
 
-choice :: (HND <: sig) => Maybe (Int, Int) -> Prog sig a -> Prog sig a -> Prog sig a
+choice :: (HND <: sig) => Maybe ID -> Prog sig a -> Prog sig a -> Prog sig a
 choice m p q = inject (Choice' m p q)
 
 runND :: (Syntax sig) => Prog (HND + sig) a -> Prog sig (Tree.Tree a)
@@ -72,7 +74,7 @@ runND (Other op) = Op (handle (Tree.Leaf ()) hdl op)
 
 -- HShare
 -------
-data HShare m a = Share' Int (m a)
+data HShare m a = Share' (Int, Int) (m a)
   deriving (Show, Functor)
 
 instance HFunctor HShare where
@@ -88,7 +90,7 @@ pattern Share i p <- (project -> Just (Share' i p))
 runShare :: (Syntax sig, HND <: sig) => Prog (HShare + sig) a -> Prog sig a
 runShare p = fmap runIdentity $ rShare p
 
-shares :: (HShare <: sig) => Int -> Prog sig a -> Prog sig a
+shares :: (HShare <: sig) => (Int, Int) -> Prog sig a -> Prog sig a
 shares i p = inject (Share' i p)
 
 rShare :: (Syntax sig, HND <: sig) => Prog (HShare + sig) a
@@ -98,13 +100,14 @@ rShare Fail        = fail
 rShare (Share i p) = go i 1 p
   where
     go :: (Syntax sig, HND <: sig)
-       => Int -> Int -> Prog (HShare + sig) a -> Prog sig (Identity a)
+       => (Int, Int) -> Int -> Prog (HShare + sig) a -> Prog sig (Identity a)
     go _ _ (Return a )    = fmap Identity $ return a
     go _ _ (Fail     )    = fail
     go _ n (Share i p)    = go i 1 p
-    go i n (Choice _ p q) = let p' = go i (2 * n) p
-                                q' = go i (2 * n + 1) q
-                            in choice (Just (i, n)) p' q'
+    go i@(l,r) n (Choice _ p q) = let n' = n + 1
+                                      p' = go i n' p
+                                      q' = go i n' q
+                                  in choice (Just (l, r, n)) p' q'
     go i n (Other op )    = Op (handle (Identity ()) hdl op)
       where
         hdl :: (Syntax sig, HND <: sig)
@@ -149,10 +152,10 @@ runState s (Other op) = Op (handle (s, ()) (uncurry runState) op)
 
 -- interface implementation --
 ------------------------------
-type NDShare = Prog (HState Int + HShare + HND + HVoid)
+type NDShare = Prog (HState (Int, Int) + HShare + HND + HVoid)
 
 runCurry :: NDShare a -> Tree.Tree a
-runCurry = run . runND . runShare . fmap snd . runState 1
+runCurry = run . runND . runShare . fmap snd . runState (0,0)
 
 instance (Syntax sig, HND <: sig) => Alternative (Prog sig) where
   empty = fail
@@ -162,16 +165,16 @@ instance (Syntax sig, HND <: sig) => MonadPlus (Prog sig) where
   mplus = (||)
   mzero = fail
 
-instance (HState Int <: sig, HShare <: sig, HND <: sig) => Sharing (Prog sig) where
+instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog sig) where
   share p = do
-    i <- get
-    put (i * 2)
+    (i, j) <- get
+    put (i + 1, j)
     let p' = do
-          put (i * 2 + 1)
+          put (i, j + 1)
           x <- p
           x' <- shareArgs share x
           return x'
-    return $ shares i p'
+    return $ shares (i, j) p'
 
 instance AllValues NDShare where
   allValues = runCurry . nf

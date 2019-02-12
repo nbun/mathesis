@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Tree where
 
-type ID = (Int, Int)
+type ID = (Int, Int, Int)
 
 data Tree a = Failed
             | Leaf a
