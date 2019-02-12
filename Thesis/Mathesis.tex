@@ -172,6 +172,7 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 Modelling Curry programs in a language like Haskell requires a transformation of non-deterministic code into a semantically equivalent, deterministic program.
 First, we have a look at the direct representation of non-determinism used in the KiCS2 implementation as described by \citet{brassel2011kics2}.
 
+\subsection{KiCS2 Approach}
 Non-determinism in Curry is not limited to \textit{flat} non-determinism but can occur within components of data structures and anywhere in a computation.
 This means that expressing non-determinism via Haskell's list monad is not sufficient to model Curry's non-determinism.
 \todo{Example}
@@ -195,6 +196,7 @@ In the process, each choice ID's decision is stored and then repeated if the sam
 
 While this approach is useful when the host language supports laziness and sharing, another approach is necessary to model these effects when they are not built into the language.
 
+\subsection{Modelling Laziness and Sharing}
 \citet{fischer2009purely} introduce a monadic representation of non-determinism that supports sharing and non-strict evaluation.
 Out of simplicity, the implementation idea is presented in Haskell, similar to the approach of the original authors, using the example of permutation sort.
 The algorithm consists  of three components.
@@ -336,6 +338,7 @@ Because we do not need to use bind to get the result of \hinl{hd' nil}, the expr
 
 Data types with non-deterministic components solve the problem of non-strictness because each component can be evaluated individually, instead of forcing the evaluation of the whole term.
 Unfortunately, this leads to a problem.
+\label{sec:sharingComputations}
 When unevaluated components are shared via Haskell's built-in sharing, computations, rather than results, are being shared.
 This means that the results can be different each time the computation is evaluated, which contradicts the intuition of sharing.
 
@@ -472,6 +475,7 @@ Since \hinl{fmap One = One}, it becomes apparent that the monad constructed by \
 Since we want to model different effects in our program, the free monad makes writing programs easier by allowing monadic definitions without defining a separate monad instance for each effect.
 \todo{Find more reasons for using free monads}
 \todo{Stacking monads does not necessarily yield monads again}
+% https://homepages.inf.ed.ac.uk/slindley/papers/handlers.pdf
 
 \section{Modelling Effects}
 \begin{itemize}
@@ -691,7 +695,7 @@ pattern Other s = Op (Inr s)
 Since \hinl{:+:} is right-associative in nested applications, we can match for the left argument effect and conveniently match all remaining effects with \hinl{Other}.
 
 
-\subsection{Handling Effects}
+\subsection{Effect Handlers}
 For each effect in a program's signature, a \textit{handler} is required.
 Handling an effect means transforming a program that contains a certain effect into a program where the effect's syntax does not occur anymore.
 However, the syntax is not just removed, but the effect's semantics is applied.
@@ -884,7 +888,7 @@ The example program \hinl{p} can now be handled by first calling the handler \hi
 
 As expected, the first component represents the current state, which was set by \hinl{put} to \hinl{42}, while the second component is the result that was returned after multiplying the current state by two.
 
-\paragraph{Handling Order}
+\subsection{Handling Order}
 When multiple effects are part of the signature, the question arises whether running handlers in a different order has an effect on the result.
 As an example, we define a handler that does not remove syntax but actually adds state syntax to a non-deterministic program.
 The function \hinl{results} keeps the structure of a program intact but adds state syntax that increments the current state by one for each result.
@@ -962,13 +966,150 @@ As the name suggests, \hinl{treeGlobal}, that is, handling non-determinism first
 Contrary to that, \hinl{treeLocal} creates an individual state for every non-deterministic branch by handling state syntax first.
 While the results are not influenced by the order of handlers in this case, this is not generally the case.
 
-\section{Sharing}
+\section{Sharing Effect}
 \label{sec:sharing}
 \begin{itemize}
 \item How can we implement simple sharing as an effect?
 \item What about deep/nested sharing?
 \item Examples (exRecList, ...)
 \end{itemize}
+
+Although Haskell offers sharing as part of the language, we have seen in \autoref{sec:sharingComputations} that the built-in sharing mechanism does not always work as intended when combined with lifted data types.
+Thus, we need to model sharing as an effect using the tools that were presented in the previous section.
+There is, however, a difference between sharing and the other effects we have seen so far.
+Sharing is not an independent effect since it affects non-deterministic choices.
+This means that, depending on the presence of sharing, some choice branches may not be explored.
+Therefore, sharing is a \textit{scoped} effect, that is, only a delimited part of the program is affected by the effect.
+
+\subsection{Implementing Scoped Effects}
+\citet{wu2014effect} present two ways to define scoped effects.
+Firstly, syntax for explicitly marking the begin and end of a scope can be defined.
+This leads to a more complicated handler because the begin and end tags can be mismatched in the program and one needs to keep track of the current scope environment.
+The second approach uses higher-order syntax, that is, the signature of a program is not just a functor but a function that takes a functor as an argument.
+This approach makes it possible to have the scoped program as an argument of the syntax constructor.
+
+In the following, an overview of both options is given.
+The implementation of the sharing effect presented in \autoref{subsec:sharingImplementaiton} then combines the ideas and advantages of both approaches.
+
+\paragraph{Explicit Scope Syntax}
+When defining a new effect, we need to think about the syntax first.
+We already know that sharing is a scoped effect and thus, two constructors are required.
+One constructor marks the beginning of the scope, while the other marks the ending of the scope.
+
+\begin{minted}{Haskell}
+data Share p = BShare' p | EShare' p
+\end{minted}
+
+Both constructor have program arguments.
+\hinl{BShare'}s argument program contains the scoped program block followed by an \hinl{Eshare'} with the remaining program as an argument.
+Similar to the state effect, our smart constructors use \hinl{return ()} as an initial program that is replaced by the actual program when the bind structure is evaluated.
+
+\begin{minted}{Haskell}
+begin :: (Share :<: sig) => Prog sig ()
+begin = inject (BShare' (return ()))
+
+end :: (Share :<: sig) => Prog sig ()
+end = inject (EShare' (return ()))
+\end{minted}
+
+For example, the following expression shows a scope that includes the \hinl{Choice'} constructor but not the \hinl{Return} values.
+
+\begin{minted}{Haskell}
+inject $ BShare' (inject $ Choice' Nothing 
+                                   (inject $ EShare' (Return 0))
+                                   (inject $ EShare' (Return 1)))
+\end{minted}
+
+Now that we can delimit the scope of the sharing effect, it is time to define the actual sharing operator.
+The return type of \hinl{share} is not just a program but a program that returns a program.
+The reason for this is explained later in \autoref{subsec:sharingImplementation}.
+For the first implementation of \hinl{share}, this outer program layer is empty and thus created by \hinl{return}.
+
+\begin{minted}{Haskell}
+share :: (Share :<: sig) => Prog sig a -> Prog sig (Prog sig a)
+share p = return $ do begin ; x <- p ; end ; return x
+\end{minted}
+
+\hinl{share} wraps \hinl{begin} and \hinl{end} tags around a call of bind that executes the program \hinl{p}.
+Then, the result is returned.
+To demonstrate the effect and usage of \hinl{share}, we define a non-deterministic coin that returns either \hinl{0} or \hinl{1} and an addition function for programs that return integer results.
+Since \hinl{(+)} is a strict function in Haskell and Curry, we can mirror this behavior by binding both program arguments and then adding the results.
+
+\begin{minted}{Haskell}
+coin :: (ND :<: sig) => Prog sig Int
+coin = choice (return 0) (return 1)
+
+addM :: (Functor sig) => Prog sig Int -> Prog sig Int -> Prog sig Int
+addM p q = p >>= \i -> q >>= \j -> return (i + j)
+\end{minted}
+
+With these functions defined, we can now use the \hinl{share} operator to add a shared coin, as shown in the following example.
+
+\begin{minted}{Haskell}
+exAddSharedCoin :: Prog (Share + ND + Void) Int
+exAddSharedCoin = share coin >>= \fx -> addM fx fx
+\end{minted}
+
+\hinl{exAddSharedCoin} corresponds to the Curry expression \hinl{let x = coin in x + x}.
+Hence, whichever choice is made when the first occurrence of \hinl{x} is evaluated must be repeated in the second one.
+The results of the expression should therefore be \hinl{0 + 0} or \hinl{1 + 1}.
+In the following visualization of programs that contain non-determinism and sharing, \hinl{?} represents non-determinism while angled brackets mark the \hinl{begin} and \hinl{end} tags of the sharing scope.
+
+\begin{minted}{Haskell}
+< ? 
+  ├── > < ? 
+  │       ├── > 0
+  │       └── > 1
+  └── > < ? 
+          ├── > 1
+          └── > 2
+\end{minted}
+
+The expression tree shows that the root choice, that is, the \hinl{coin} in the first \hinl{x}, is delimited by a scope.
+The choices that occur in both branches of the root choice originate from the second occurrence of \hinl{x}.
+
+Now that we have defined the syntax of the sharing effect with explicit scope constructors, we need to consider how the handler should work.
+From the structure of the syntax follows that the handler needs to extract the scoped program between the \hinl{begin} and \hinl{end} tags and then modify the choices that occur inside the scope.
+Following this idea, we divide the sharing handler into two parts.
+The first part is \hinl{bshare}, a function that waits for a \hinl{begin} tag and then hands over the remaining program to \hinl{eshare}, which handles the scope and, again, returns the remaining program.
+Since this program is now outside of the scope, \hinl{bshare} waits for the next \hinl{begin} tag without modifying any choices.
+
+\begin{minted}{Haskell}
+bshare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
+bshare (Return a) = return a
+bshare (BShare p) = eshare p >>= bshare
+bshare (EShare p) = error "mismatched Eshare"
+bshare (Other op) = Op (fmap bshare op)
+\end{minted}
+
+The second part, however, handles the scoped program and thus should modify choices in such a way that the program behaves as expected regarding call-time choice.
+
+\begin{minted}{Haskell}
+eshare :: (ND <: sig)
+       => Prog (Share + sig) a -> Prog sig (Prog (Share + sig) a)
+eshare (Return a)     = return (Return a)
+eshare (BShare p)     = eshare p
+eshare (EShare p)     = return p
+eshare Fail           = fail
+eshare (Choice _ p q) = choiceID (* ? *) (eshare p) (eshare q)
+eshare (Other op)     = Op (fmap eshare op)
+\end{minted}
+
+Pure values are handled by returning them unmodified.
+When another \hinl{begin} tag is found, \hinl{eshare} keeps modifying choices because the original scope has not been closed yet.
+Contrary to that, closing tags result in switching back to \hinl{bshare} for the remaining program.
+Finally, when a choice is encountered, an ID needs to be created for  \hinl{choiceID}, a function which creates a choice with an explicitly passed ID.
+However, this is a problem.
+
+The ID that the choice came with is always \hinl{Nothing} because choices are created without IDs.
+It comes to mind that \hinl{eshare} could have a state that is incremented for each encountered choice.
+Unfortunately, this would entail that the same IDs are assigned across different scopes, although this might not be intended.
+
+Consequently, the main finding from this definition is that we need to assign IDs to sharing scopes, too, so that we can differentiate between scopes that were created explicitly and scopes that were duplicated by choices in the program structure.
+
+\subsection{Implementation}
+\label{subsec:sharingImplementation}
+
 
 
 \chapter{Call-Time Choice modelled in Coq}
