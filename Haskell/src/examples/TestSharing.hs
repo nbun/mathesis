@@ -87,13 +87,8 @@ recList fxs = fxs >>= \xfps -> case xfps of
                                     Nil -> nil
                                     Cons fy fys -> share fys >>= \fys' -> cons (notM fy) (fys' `mplus` recList fys')
 
-exRecList :: (Sharing m, MonadPlus m) => m (Pair m (List m Bool))
-exRecList = share (recList (cons (return True) (cons (return False) nil))) >>= \fx -> pairM fx fx
-
-exRecListNested :: (Sharing m, MonadPlus m) => m (List m (List m Bool))
-exRecListNested = share (recList (cons (return True) (cons (return False) nil)))
-  >>= \fx -> cons fx (share (recList (cons (return True) (cons (return False) nil)))
-                      >>= \fz -> cons fz (cons fx (cons fz nil)))
+exRecList :: (Sharing m, MonadPlus m) => m (List m Bool)
+exRecList = recList (cons (return True) (cons (return False) nil))
 
 exFailed :: (Sharing m, MonadPlus m) => m Bool
 exFailed = share (mzero :: MonadPlus m => m Bool) >>= \fx -> const (return True) fx
@@ -233,6 +228,9 @@ tests = do
                                , Pair (Identity True) (Identity True)
                                , Pair (Identity False) (Identity False)
                                ])
+              , (exShareInShare, "exShareInShare",
+                 [Pair (Identity True) (Identity True)
+                 , Pair (Identity False) (Identity False)])
               ]
       exLBs = [ (exDupl,"exDupl", [ Cons (Identity True) (cons (Identity True) nil)
                                     , Cons (Identity True) (cons (Identity False) nil)
@@ -261,19 +259,40 @@ tests = do
                  , Cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil)))
                  , Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
                  ])
+              , (exRecList, "exRecList", [ (Cons (Identity False) (cons (Identity False) nil))
+                                         , (Cons (Identity False) (cons (Identity True) nil))
+                                         , (Cons (Identity False) (cons (Identity True) nil))
+                                          ])
+              , (exSharePutPos, "exSharePutPos",
+                 [Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
+                 , Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
+                 ])
+              , (exShareListInRepeatedShare, "exShareListInRepeatedShare",
+                  [Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
+                  , Cons (Identity True) (cons (Identity True) (cons (Identity False) (cons (Identity False) nil)))
+                  ,  Cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity True) nil)))
+                  ,  Cons (Identity True) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
+                  ,  Cons (Identity False) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
+                  ,  Cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity False) nil)))
+                  ,  Cons (Identity False) (cons (Identity False) (cons (Identity True) (cons (Identity True) nil)))
+                  ,  Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))])
               ]
       exLPBs = [ (exShareSingleton, "exShareSingleton", [ Pair (Identity (Cons (Identity True) nil))
                                                                (Identity (Cons (Identity True) nil))
                                                         , Pair (Identity (Cons (Identity False) nil))
                                                                (Identity (Cons (Identity False) nil))
                                                         ])
-               , (exRecList, "exRecList", [ Pair (cons (Identity False) (cons (Identity False) nil))
-                                                 (cons (Identity False) (cons (Identity False) nil))
-                                          , Pair (cons (Identity False) (cons (Identity True) nil))
-                                                 (cons (Identity False) (cons (Identity True) nil))
-                                          , Pair (cons (Identity False) (cons (Identity True) nil))
-                                                 (cons (Identity False) (cons (Identity True) nil))
-                                          ])
+               , (exShareListInShare, "exShareListInShare",
+                  [ Pair (cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil))))
+                    (cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil))))
+                  , Pair (cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil))))
+                    (cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil))))
+                  , Pair (cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil))))
+                    (cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil))))
+                  , Pair (cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil))))
+                    (cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil))))
+                  ])
+
                ]
       maxName = maximum (map (\(_,name,_) -> length name) exBs ++
                          map (\(_,name,_) -> length name) exPBs ++
