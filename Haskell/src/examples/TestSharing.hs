@@ -168,6 +168,12 @@ exShareListInRepeatedShare =
   share (share (cons coin nil) >>= \fx -> appM fx fx) >>=
   \fy -> share coin >>= \fz -> share coin >>= \fa -> cons fz (cons fa fy)
 
+t :: Identity Bool
+t = Identity True
+
+f :: Identity Bool
+f = Identity False
+
 tests = do
   let exBs  = [ (example1,"ex1",[True,False])
               , (example2,"ex2",[True,False,True,False])
@@ -199,98 +205,97 @@ tests = do
               , (exShareIgnoreShare, "exShareIgnoreShare", [True])
               , (exRepeatedShare, "exRepeatedShare", [True,False])
               ]
-      exPBs = [ (exDup,"exDup",[ Pair (Identity True) (Identity True)
-                               , Pair (Identity True) (Identity False)
-                               , Pair (Identity False) (Identity True)
-                               , Pair (Identity False) (Identity False)
+      exPBs = [ (exDup,"exDup",[ Pair t t
+                               , Pair t f
+                               , Pair f t
+                               , Pair f f
                                ])
-              , (exDupShare,"exDupShare",[ Pair (Identity True) (Identity True)
-                                         , Pair (Identity False) (Identity False)
+              , (exDupShare,"exDupShare",[ Pair t t
+                                         , Pair f f
                                          ])
-              , (exDupShare2,"exDupShare2",[ Pair (Identity True) (Identity True)
-                                           , Pair (Identity False) (Identity False)
+              , (exDupShare2,"exDupShare2",[ Pair t t
+                                           , Pair f f
                                            ])
-              , (exDupFailed,"exDupFailed",[ Pair (Identity True) (Identity True) ])
-              , (exDupFirst,"exDupFirst",[ Pair (Identity True) (Identity True)
-                                         , Pair (Identity True) (Identity False)
-                                         , Pair (Identity False) (Identity True)
-                                         , Pair (Identity False) (Identity False)
+              , (exDupFailed,"exDupFailed",[ Pair t t ])
+              , (exDupFirst,"exDupFirst",[ Pair t t
+                                         , Pair t f
+                                         , Pair f t
+                                         , Pair f f
                                          ])
-              , (exDupShareFirst,"exShareDupFirst", [ Pair (Identity True) (Identity True)
-                                                    , Pair (Identity False) (Identity False)
+              , (exDupShareFirst,"exShareDupFirst", [ Pair t t
+                                                    , Pair f f
                                                     ])
-              , (exDupShare2,"exDupShare2",[ Pair (Identity True) (Identity True)
-                                           , Pair (Identity False) (Identity False)
+              , (exDupShare2,"exDupShare2",[ Pair t t
+                                           , Pair f f
                                            ])
-              , (exShareNestedChoice, "exShareNestedChoice",
-                               [ Pair (Identity True) (Identity True)
-                               , Pair (Identity False) (Identity False)
-                               , Pair (Identity True) (Identity True)
-                               , Pair (Identity False) (Identity False)
-                               ])
-              , (exShareInShare, "exShareInShare",
-                 [Pair (Identity True) (Identity True)
-                 , Pair (Identity False) (Identity False)])
+              , (exShareNestedChoice, "exShareNestedChoice", [ Pair t t
+                                                             , Pair f f
+                                                             , Pair t t
+                                                             , Pair f f
+                                                             ])
+              , (exShareInShare, "exShareInShare", [ Pair t t
+                                                   , Pair f f ])
               ]
-      exLBs = [ (exDupl,"exDupl", [ Cons (Identity True) (cons (Identity True) nil)
-                                    , Cons (Identity True) (cons (Identity False) nil)
-                                    , Cons (Identity False) (cons (Identity True) nil)
-                                    , Cons (Identity False) (cons (Identity False) nil)
-                                    ])
-              , (exDuplShare,"exDuplShare", [ Cons (Identity True) (cons (Identity True) nil)
-                                            , Cons (Identity False) (cons (Identity False) nil)
+      exLBs = [ (exDupl,"exDupl", [ Cons t (cons t nil)
+                                  , Cons t (cons f nil)
+                                  , Cons f (cons t nil)
+                                  , Cons f (cons f nil)
+                                  ])
+              , (exDuplShare,"exDuplShare", [ Cons t (cons t nil)
+                                            , Cons f (cons f nil)
                                             ])
-              , (exDupl2,"exDupl2", [ Cons (Identity True) (cons (Identity True) nil)
-                                    , Cons (Identity True) (cons (Identity False) nil)
-                                    , Cons (Identity False) (cons (Identity True) nil)
-                                    , Cons (Identity False) (cons (Identity False) nil)
+              , (exDupl2,"exDupl2", [ Cons t (cons t nil)
+                                    , Cons t (cons f nil)
+                                    , Cons f (cons t nil)
+                                    , Cons f (cons f nil)
                                     ])
               , (exShareNestedChoice2, "exShareNestedChoice2",
-                  [ Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
-                  , Cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil)))
-                  , Cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil)))
-                  , Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
-                  , Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
-                  , Cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil)))
+                  [ Cons t (cons t (cons t (cons t nil)))
+                  , Cons t (cons f (cons t (cons f nil)))
+                  , Cons f (cons t (cons f (cons t nil)))
+                  , Cons f (cons f (cons f (cons f nil)))
+                  , Cons t (cons t (cons t (cons t nil)))
+                  , Cons t (cons f (cons t (cons f nil)))
                   ])
               , (exOrShareNestedList, "exOrShareNestedList",
-                 [ Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
-                 , Cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil)))
-                 , Cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil)))
-                 , Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
+                 [ Cons t (cons t (cons t (cons t nil)))
+                 , Cons t (cons f (cons t (cons f nil)))
+                 , Cons f (cons t (cons f (cons t nil)))
+                 , Cons f (cons f (cons f (cons f nil)))
                  ])
-              , (exRecList, "exRecList", [ (Cons (Identity False) (cons (Identity False) nil))
-                                         , (Cons (Identity False) (cons (Identity True) nil))
-                                         , (Cons (Identity False) (cons (Identity True) nil))
+              , (exRecList, "exRecList", [ Cons f (cons f nil)
+                                         , Cons f (cons t nil)
+                                         , Cons f (cons t nil)
                                           ])
               , (exSharePutPos, "exSharePutPos",
-                 [Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
-                 , Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
+                 [ Cons t (cons t (cons t (cons t nil)))
+                 , Cons f (cons f (cons f (cons f nil)))
                  ])
               , (exShareListInRepeatedShare, "exShareListInRepeatedShare",
-                  [Cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
-                  , Cons (Identity True) (cons (Identity True) (cons (Identity False) (cons (Identity False) nil)))
-                  ,  Cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity True) nil)))
-                  ,  Cons (Identity True) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))
-                  ,  Cons (Identity False) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil)))
-                  ,  Cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity False) nil)))
-                  ,  Cons (Identity False) (cons (Identity False) (cons (Identity True) (cons (Identity True) nil)))
-                  ,  Cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil)))])
+                  [ Cons t (cons t (cons t (cons t nil)))
+                  , Cons t (cons t (cons f (cons f nil)))
+                  , Cons t (cons f (cons t (cons t nil)))
+                  , Cons t (cons f (cons f (cons f nil)))
+                  , Cons f (cons t (cons t (cons t nil)))
+                  , Cons f (cons t (cons f (cons f nil)))
+                  , Cons f (cons f (cons t (cons t nil)))
+                  , Cons f (cons f (cons f (cons f nil)))])
               ]
-      exLPBs = [ (exShareSingleton, "exShareSingleton", [ Pair (Identity (Cons (Identity True) nil))
-                                                               (Identity (Cons (Identity True) nil))
-                                                        , Pair (Identity (Cons (Identity False) nil))
-                                                               (Identity (Cons (Identity False) nil))
-                                                        ])
+      exLPBs = [ (exShareSingleton, "exShareSingleton",
+                   [ Pair (Identity (Cons t nil))
+                     (Identity (Cons t nil))
+                   , Pair (Identity (Cons f nil))
+                     (Identity (Cons f nil))
+                   ])
                , (exShareListInShare, "exShareListInShare",
-                  [ Pair (cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil))))
-                    (cons (Identity True) (cons (Identity True) (cons (Identity True) (cons (Identity True) nil))))
-                  , Pair (cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil))))
-                    (cons (Identity True) (cons (Identity False) (cons (Identity True) (cons (Identity False) nil))))
-                  , Pair (cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil))))
-                    (cons (Identity False) (cons (Identity True) (cons (Identity False) (cons (Identity True) nil))))
-                  , Pair (cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil))))
-                    (cons (Identity False) (cons (Identity False) (cons (Identity False) (cons (Identity False) nil))))
+                  [ Pair (cons t (cons t (cons t (cons t nil))))
+                         (cons t (cons t (cons t (cons t nil))))
+                  , Pair (cons t (cons f (cons t (cons f nil))))
+                         (cons t (cons f (cons t (cons f nil))))
+                  , Pair (cons f (cons t (cons f (cons t nil))))
+                         (cons f (cons t (cons f (cons t nil))))
+                  , Pair (cons f (cons f (cons f (cons f nil))))
+                         (cons f (cons f (cons f (cons f nil))))
                   ])
 
                ]
@@ -300,11 +305,14 @@ tests = do
       prettyName name = name ++ ": " ++ replicate (maxName - length name) ' '
 
   -- Based on the imported implementation, the annotations for `e` might have to be adapted!
-  mapM_ (\(e,name,v) -> putStr (prettyName name) >> pprint (collectVals (e :: NDShare Bool) == v)) exBs
-  mapM_ (\(e,name,v) -> putStr (prettyName name) >> pprint (collectVals (e :: NDShare (Pair NDShare Bool)) == v)) exPBs
-  mapM_ (\(e,name,v) -> putStr (prettyName name) >> pprint (collectVals (e :: NDShare (List NDShare Bool)) == v)) exLBs
-  mapM_ (\(e,name,v) -> putStr (prettyName name) >>
-    pprint (collectVals (e :: NDShare (Pair NDShare (List NDShare Bool))) == v)) exLPBs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare Bool) == v)) exBs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare (Pair NDShare Bool)) == v)) exPBs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare (List NDShare Bool)) == v)) exLBs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare (Pair NDShare (List NDShare Bool))) == v)) exLPBs
 
 deriving instance Show a => Show (Pair Identity a)
 deriving instance Show a => Show (List Identity a)
@@ -333,12 +341,16 @@ lazy_share :: (Sharing m, MonadPlus m) => m (Int, Int)
 lazy_share = do x <- share (undefined :: m Int)
                 duplicate (const (return 2) x)
 
--- [Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))
+-- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+-- , Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil)))
+-- , Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil)))
+-- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 heads_bind :: (Sharing m, MonadPlus m) => m (List m Int)
 heads_bind = do x <- cons coini undefined
                 dupl (firstM (return x))
 
--- [Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+-- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+-- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 heads_share :: (Sharing m, MonadPlus m) => m (List m Int)
 heads_share = do x <- share (cons coini undefined)
                  dupl (firstM x)
@@ -346,31 +358,17 @@ heads_share = do x <- share (cons coini undefined)
 coinis :: MonadPlus m => m (List m Int)
 coinis = nil `mplus` cons coini coinis
 
---[Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+-- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+-- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 dup_first_coin :: (Sharing m, MonadPlus m) => m (List m Int)
 dup_first_coin = do cs <- share coinis
                     dupl (firstM cs)
--- [Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil))),Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil))),Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+-- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+-- , Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil)))
+-- , Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil)))
+-- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 distrib_bind_mplus :: (Sharing m, MonadPlus m) => m (List m Int)
 distrib_bind_mplus = do c <- share coini
                         y <- coini
                         x <- c
                         cons (return x) (cons (return y) nil)
-
-e1 = run . runND $ (coini :: (Prog (ND + Void) Int))
-
-e2 :: Prog (ND + Void) Int
-e2 = addM coini coini
-
-e3 :: NDShare Int
-e3 = share coini >>= \fx -> addM fx fx
-
-e4 :: NDShare Int
-e4 = share (share coini >>= \fx -> addM fx fx)
-     >>= \fy -> addM fy fy
-
-e5 :: Prog Void Bool
-e5 = orM (return True) undefined
-
-e6 :: Prog Void Int
-e6 = addM (return 42) undefined
