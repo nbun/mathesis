@@ -5,6 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE StandaloneDeriving        #-}
+
 import           Control.Monad         (MonadPlus (..), guard, liftM)
 import           Data.Functor.Identity (Identity (..))
 import           System.Environment    (getArgs)
@@ -13,6 +14,7 @@ import           Pretty
 import           SharingInterface
 
 import           Data.ListM
+import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
@@ -45,49 +47,45 @@ testList1 = [5,42,3,1]
 testList2 = [5,42,3,1,1337,51,123,125]
 testList3 = [5,42,3,1,1337,51,123,125,347,174,1000]
 
-testSort :: [Int] -> IO ()
-testSort xs = do
-  let result = sort (convert xs :: NDShare (List NDShare Int))
+partitionM :: MonadPlus m => (m Int -> m Bool) -> m (List m Int) -> m (Pair m (List m Int))
+partitionM mp = foldrM (selectM mp) (pairM nil nil)
+
+-- partitionM :: MonadPlus m => (m Int -> m Bool) -> m (List m Int) -> m (Pair m (List m Int))
+-- partitionM mp =  mxs >>=
+--   \xs -> case xs of
+--            Nil         -> pairM nil nil
+--            Cons my mys ->
+--              do (Pair ts fs) <- partitionM mp mys
+--                 b <- mp my
+--                 if b
+--                   then pairM (cons my ts) fs
+--                   else pairM ts (cons my fs)
+
+selectM :: MonadPlus m => (m a -> m Bool) -> m a -> m (Pair m (List m a)) -> m (Pair m (List m a))
+selectM mp mx mpa = do
+  Pair mxs mys <- mpa
+  b <- mp mx
+  if b
+    then pairM (cons mx mxs) mys
+    else pairM mxs (cons mx mys)
+
+quicksortM :: (Sharing m, MonadPlus m) => (m Int -> m Int -> m Bool) -> m (List m Int) -> m (List m Int)
+quicksortM mp mxs = mxs >>=
+  \xs -> case xs of
+           Nil -> nil
+           Cons my mys ->
+             do p <- share (partitionM (mp my) mys)
+                appM (appM (quicksortM mp (first p)) (cons my nil)) (quicksortM mp (second p))
+
+geqM :: (Ord a,MonadPlus m) => m a -> m a -> m Bool
+geqM mx my = mx >>= \x -> my >>= \y -> return (x >= y)
+
+testPerm :: [Int] -> IO ()
+testPerm xs = do
+  let result = quicksortM (\_ _ -> coin) (convert xs :: NDShare (List NDShare Int))
   mapM_ pprint (collectVals result :: [List Identity Int])
 
-testSortHead :: [Int] -> IO ()
-testSortHead xs = do
-  let result = headM (sort (convert xs :: NDShare (List NDShare Int)))
-  mapM_ pprint (collectVals result :: [Int])
-
-perm :: (Sharing m, MonadPlus m) => m (List m Int) -> m (List m Int)
-perm mxs = mxs >>= \xs -> case xs of
-                              Nil         -> nil
-                              Cons mx mxs -> insert mx (perm mxs)
-
-insert :: (Sharing m, MonadPlus m) => m Int -> m (List m Int) -> m (List m Int)
-insert e l = share e >>= \e' ->
-     cons e' l
-     `mplus` do
-        ys <- l
-        case ys of
-          Cons x xs -> cons x (insert e' xs)
-          _         -> mzero
-
-sort :: (MonadPlus m, Sharing m) => m (List m Int) -> m (List m Int)
-sort l = do
-  xs <- share (perm l)
-  b <- isSorted xs
-  case b of
-    True  -> xs
-    False -> mzero
-
-isSorted :: Monad m => m (List m Int) -> m Bool
-isSorted mxs = mxs >>= \xs -> case xs of
-                                   Nil         -> return True
-                                   Cons my mys -> isSorted' my mys
-
-isSorted' :: Monad m => m Int -> m (List m Int) -> m Bool
-isSorted' mx mxs = mxs >>= \xs -> case xs of
-                                       Nil -> return True
-                                       Cons my mys -> do
-                                         x <- mx
-                                         y <- my
-                                         if x <= y
-                                           then isSorted' (return y) mys
-                                           else return False
+testSort :: [Int] -> IO ()
+testSort xs = do
+  let result = quicksortM geqM (convert xs :: NDShare (List NDShare Int))
+  mapM_ pprint (collectVals result :: [List Identity Int])

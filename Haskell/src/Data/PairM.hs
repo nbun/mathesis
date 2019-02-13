@@ -40,6 +40,10 @@ instance (Sharing m, Shareable m a) => Shareable m (Pair m a) where
 first :: Monad m => m (Pair m a) -> m a
 first st = st >>= \ (Pair x _) -> x
 
+second :: Monad m => m (Pair m a) -> m a
+second st = st >>= \ (Pair _ x) -> x
+
+
 dup' :: Monad m => m (Pair m Bool) -> m (Pair m Bool)
 dup' st = pairM (first st) (first st)
 

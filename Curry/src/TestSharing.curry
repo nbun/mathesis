@@ -69,8 +69,8 @@ recList xs = case xs of
                []     -> []
                y : ys -> not y : (ys ? recList ys)
 
-exRecList :: ([Bool], [Bool])
-exRecList = let xs = recList [True, False] in (xs, xs)
+exRecList :: [Bool]
+exRecList = recList [True, False]
 
 exRecListNested :: [[Bool]]
 exRecListNested = let xs = recList [True, False]
