@@ -989,6 +989,7 @@ This approach makes it possible to have the scoped program as an argument of the
 In the following, an overview of both options is given.
 
 \subsection{Explicit Scope Syntax}
+\label{subsec:explicit}
 When defining a new effect, we need to think about the syntax first.
 We already know that sharing is a scoped effect and thus, two constructors are required.
 One constructor marks the beginning of the scope, while the other marks the ending of the scope.
@@ -1156,7 +1157,67 @@ With the simpler definition of the sharing effect in the higher-order approach a
 \section{Implementation of Sharing as Effect}
 \label{subsec:sharingImplementation}
 
+A hybrid implementation that combines the explicit scoping approach and higher-order syntax definition has the benefit of simple handlers and scoping via program arguments instead of explicit tags.
+Therefore, it seems worthwhile to explore this new approach instead of following one of the options presented in the previous section.
+Nevertheless, the sharing effect and, consequently, call-time choice has been implemented in Haskell for all three options as part of the thesis.
 
+We begin the implementation of the sharing effect where we left off in \autoref{subsec:explicit}.
+Keeping in mind that the constructors of the sharing effect need an ID, we follow the idea of the higher-order approach and define a single constructor \hinl{Share'} with an ID argument and a program argument.
+The latter represents only the program that is to be shared.
+
+\begin{minted}{Haskell}
+data Share p = Share' ID p
+\end{minted}
+
+Reconsidering the example \hinl{exAddSharedCoin}, the following visualization compares the term structure of explicit scoping tags and the higher-order sharing scope without IDs.
+
+\vspace{0.32cm}
+
+\begin{minipage}{.4 \linewidth}
+\begin{minted}{Haskell}
+< ? 
+  ├── > < ? 
+  │       ├── > 0
+  │       └── > 1
+  └── > < ? 
+          ├── > 1
+          └── > 2
+\end{minted}
+\begin{center}
+Explicit scoping tags
+\end{center}
+\end{minipage}
+\hspace{.1 \linewidth}
+\vline
+\hspace{.1 \linewidth}
+\begin{minipage}{.475 \linewidth}
+\begin{minted}{Haskell}
+< ? 
+  ├── < ? 
+  │     ├── 0 > >
+  │     └── 1 > >
+  └── < ? 
+        ├── 1 > >
+        └── 2 > >
+\end{minted}
+\begin{center}
+Hybrid sharing scope
+\end{center}
+\end{minipage}
+
+\vspace{0.32cm}
+
+Explicit scoping tags allow ending a scope in a program.
+For example, the scope around the root choice ends first and then the next scope is opened.
+The visualization of the hybrid term shows that all opened sharing scopes are only closed at the end of each branch.
+This difference in term structure means that the handler for the hybrid approach never needs to close a scope because whenever a new scope is opened, it becomes the current scope.
+However, we need to consider one important point:
+If scopes cannot be closed, would one sharing scope at the beginning of the program not capture all following scopes, resulting in an incorrect program or at least a lot of overhead?
+
+\begin{minted}{Haskell}
+exAddSharedCoin :: Prog (Share + ND + Void) Int
+exAddSharedCoin = share coin >>= \fx -> addM (addM fx fx) coin
+\end{minted}
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
