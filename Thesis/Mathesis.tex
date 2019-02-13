@@ -966,7 +966,7 @@ As the name suggests, \hinl{treeGlobal}, that is, handling non-determinism first
 Contrary to that, \hinl{treeLocal} creates an individual state for every non-deterministic branch by handling state syntax first.
 While the results are not influenced by the order of handlers in this case, this is not generally the case.
 
-\section{Sharing Effect}
+\section{Implementing Scoped Effects}
 \label{sec:sharing}
 \begin{itemize}
 \item How can we implement simple sharing as an effect?
@@ -981,17 +981,14 @@ Sharing is not an independent effect since it affects non-deterministic choices.
 This means that, depending on the presence of sharing, some choice branches may not be explored.
 Therefore, sharing is a \textit{scoped} effect, that is, only a delimited part of the program is affected by the effect.
 
-\subsection{Implementing Scoped Effects}
 \citet{wu2014effect} present two ways to define scoped effects.
 Firstly, syntax for explicitly marking the begin and end of a scope can be defined.
 This leads to a more complicated handler because the begin and end tags can be mismatched in the program and one needs to keep track of the current scope environment.
 The second approach uses higher-order syntax, that is, the signature of a program is not just a functor but a function that takes a functor as an argument.
 This approach makes it possible to have the scoped program as an argument of the syntax constructor.
-
 In the following, an overview of both options is given.
-The implementation of the sharing effect presented in \autoref{subsec:sharingImplementaiton} then combines the ideas and advantages of both approaches.
 
-\paragraph{Explicit Scope Syntax}
+\subsection{Explicit Scope Syntax}
 When defining a new effect, we need to think about the syntax first.
 We already know that sharing is a scoped effect and thus, two constructors are required.
 One constructor marks the beginning of the scope, while the other marks the ending of the scope.
@@ -1105,9 +1102,58 @@ The ID that the choice came with is always \hinl{Nothing} because choices are cr
 It comes to mind that \hinl{eshare} could have a state that is incremented for each encountered choice.
 Unfortunately, this would entail that the same IDs are assigned across different scopes, although this might not be intended.
 
-Consequently, the main finding from this definition is that we need to assign IDs to sharing scopes, too, so that we can differentiate between scopes that were created explicitly and scopes that were duplicated by choices in the program structure.
+Consequently, the main finding from this definition is that we need to assign IDs to sharing scopes, too, so that we can differentiate scopes that were created explicitly and scopes that were duplicated by choices in the program structure.
 
-\subsection{Implementation}
+Before this issue is addressed, we first have a look at the higher-order approach for scoped effects.
+
+\subsection{Higher-Order Scope Syntax}
+The higher-order approach described by \citet{wu2014effect} builds on a slightly different program data type to represent scoped syntax.
+So far, the type variable \hinl{sig} has been a functor that is applied to the program type again.
+In the higher-order data type, however, \hinl{sig} is applied to a program functor and a type.
+
+\begin{minted}{Haskell}
+data Prog   sig a = Return a | Op (sig (Prog sig a))
+data ProgHO sig a = Return a | Op (sig (Prog sig) a)
+\end{minted}
+
+Due to the functor argument of \hinl{sig}, it is now called a higher-order functor.
+This property is generalized into a type class \hinl{HFunctor} that is defined as follows.
+
+\begin{minted}{Haskell}
+type f --> g = forall x . f x -> g x
+
+class HFunctor h where
+  hmap :: (Functor f , Functor g) => (f --> g) -> (h f --> h g)
+\end{minted}
+
+Instead of the \hinl{Functor} function \hinl{fmap}, the type class defines a function \hinl{hmap}.
+The type of \hinl{hmap} is similar to \hinl{fmap}, with the difference that variables that normally represent simple types are now functors.
+A mapping from one functor to another is then defined as a function from \hinl{f x} to \hinl{g x} for any type \hinl{x}.
+
+Based on the new program type and higher-order functors, the existing infrastructure for combining signatures, injecting values and pattern matching can be adapted.
+This is not discussed here since we are mostly interested in the the definition of effect data types. 
+For example, the higher-order version of the sharing effect is defined as follows.
+
+\begin{minted}{Haskell}
+data HShare f a = Share' (f a)
+\end{minted}
+
+Due to the new type of \hinl{sig} in the definition of programs, effect data types have an additional argument now, too.
+The single argument \hinl{p} has been replaced by a functor argument \hinl{f} and a type \hinl{a}.
+Applying \hinl{f} to \hinl{a} corresponds to the argument \hinl{p} we have seen in the previous effect types.
+One advantage of splitting \hinl{p} it is now possible to apply \hinl{f} to different types, whereas we were limited to \hinl{p} before.
+\citet{wu2014effect} demonstrate that this can be useful, for example, when defining exceptions with \hinl{throw} and \hinl{catch} syntax.
+In the context of call-time choice, however, we do not need this feature.
+
+The higher-order approach complicates writing effect handlers. In short, \hinl{Other} cases are harder to handle because the simple \hinl{fmap}-approach does not work anymore.
+Thus, the higher-order approach is not more favorable in general.
+However, if we have a second look at the definition of the sharing data type, we see that the explicit scope constructors are replaced with a single program argument that contains the scoped program.
+This definition of the sharing effect simplifies the handler because it is no longer necessary to extract the scoped program from within the \hinl{begin} and \hinl{end} tags.
+In addition, mismatched scope tags are no longer possible.
+
+With the simpler definition of the sharing effect in the higher-order approach and the more favorable program infrastructure for explicitly scoped syntax, a question arises: Is it possible to combine both ideas and their respective advantages into one implementation?
+
+\section{Implementation of Sharing as Effect}
 \label{subsec:sharingImplementation}
 
 
