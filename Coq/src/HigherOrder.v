@@ -1,6 +1,7 @@
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Program.Equality.
 Require Import Thesis.Base.
+Require Import Thesis.Search.
 
 Inductive Ext Shape (Pos : Shape -> Type) A := ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
 
@@ -192,62 +193,92 @@ Section State.
 
 End State.
 
-Section Sharing.
-  Variable (X : Type).
+(* Section Sharing. *)
+(*   Variable (X : Type). *)
 
-  Inductive Sharing M (A : Type) :=
-  | csharing : nat -> M X -> (X -> M A) -> Sharing M A.
+(*   Inductive Sharing M (A : Type) := *)
+(*   | csharing : nat -> M X -> (X -> M A) -> Sharing M A. *)
 
-  Inductive Shape__Sharing :=
-  | ssharing : forall M, nat -> M X -> Shape__Sharing.
+(*   Inductive Shape__Sharing M := *)
+(*   | ssharing : nat -> M X -> Shape__Sharing M. *)
 
-  Inductive Pos__Sharing : Shape__Sharing -> Type :=
-  | psharing : forall M (n : nat) (mx : M X), Pos__Sharing (ssharing M n mx).
+(*   Inductive Pos__Sharing M : Shape__Sharing M -> Type := *)
+(*   | psharing : forall (n : nat) (mx : M X), Pos__Sharing (ssharing M n mx). *)
 
-  Definition Ext__Sharing A := Ext Shape__Sharing Pos__Sharing A.
+(*   Definition Ext__Sharing A := forall (M : Type -> Type), Ext (Shape__Sharing M) (@Pos__Sharing M) A. *)
 
-  Fail Definition to__Sharing M N A (e: Ext__Sharing (M A)) : Sharing M A :=
-    match e with
-    | ext (ssharing M n mx) fp => csharing M A n mx (fun x => fp (psharing M n mx))
-    end.
+(*   Definition to__Sharing M A (e: Ext (Shape__Sharing M) (@Pos__Sharing M) (M A)) : Sharing M A := *)
+(*     match e with *)
+(*     | ext (ssharing _ n mx) fp => csharing M A n mx (fun x => fp (psharing M n mx)) *)
+(*     end. *)
 
-  Fail Fixpoint from__Sharing M A `(Monad M) (z : Sharing M A) : Ext__Sharing (M A) :=
-    match z with
-    | csharing _ _ n mx xma => ext (ssharing n) (fun p : Pos__Sharing (ssharing n) => match p with psharing _ =>
-                                                                            (bind A mx (fun x => xma x)) end)
-    end.
+(*   Fixpoint from__Sharing M A `(Monad M) (z : Sharing M A) : Ext (Shape__Sharing M) (@Pos__Sharing M) (M A) := *)
+(*     match z with *)
+(*     | csharing _ _ n mx xma => ext (ssharing M n mx) (fun p : Pos__Sharing (ssharing M n mx) => match p with psharing _ _ _ => *)
+(*                                                                             (bind A mx (fun x => xma x)) end) *)
+(*     end. *)
 
-  Lemma to_from__Sharing : forall A (ox : Sharing A), to__Sharing (from__Sharing ox) = ox.
-  Proof.
-    intros A ox.
-    destruct ox; reflexivity.
-  Qed.
+(*   Lemma to_from__Sharing : forall M (Mon : Monad M) A (ox : Sharing M A), to__Sharing A (from__Sharing Mon ox) = ox. *)
+(*   Proof. *)
+(*     intros M Mon A ox. *)
+(*     destruct ox; reflexivity. *)
+(*   Qed. *)
 
-  Lemma from_to__Sharing : forall A (e : Ext__Sharing A), from__Sharing (to__Sharing e) = e.
-  Proof.
-    intros A [s pf].
-    destruct s;
-      (simpl;
-       f_equal;
-       apply functional_extensionality;
-       intros p;
-       dependent destruction p;
-       reflexivity).
-  Qed.
+(*   Lemma from_to__Sharing : forall A (e : Ext__Sharing A), from__Sharing (to__Sharing e) = e. *)
+(*   Proof. *)
+(*     intros A [s pf]. *)
+(*     destruct s; *)
+(*       (simpl; *)
+(*        f_equal; *)
+(*        apply functional_extensionality; *)
+(*        intros p; *)
+(*        dependent destruction p; *)
+(*        reflexivity). *)
+(*   Qed. *)
      
-  Instance C__Sharing : Container Sharing :=
-    {
-      Shape := Shape__Sharing;
-      Pos   := Pos__Sharing;
-      to    := to__Sharing;
-      from  := from__Sharing;
-      to_from := to_from__Sharing;
-      from_to := from_to__Sharing
-    }.
+(*   Instance C__Sharing : Container Sharing := *)
+(*     { *)
+(*       Shape := Shape__Sharing; *)
+(*       Pos   := Pos__Sharing; *)
+(*       to    := to__Sharing; *)
+(*       from  := from__Sharing; *)
+(*       to_from := to_from__Sharing; *)
+(*       from_to := from_to__Sharing *)
+(*     }. *)
 
-End Sharing.
+(* End Sharing. *)
 
+Definition Prog := Free C__Choice.
+Definition NDShare := C__Choice.
+Definition Fail A : Prog A :=
+  let s : @Shape _ NDShare := sfail
+    in impure (ext s (fun p : @Pos _ NDShare s => match p with end)).
 
+Arguments Fail {_}.
 
+Definition Choice' A mid l r : Prog A :=
+  let s : @Shape _ NDShare := schoice mid
+  in impure (ext s (fun p : @Pos _ NDShare s => if p then l else r)).
 
+Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
+  match fc with
+  | pure x => Leaf x
+  | impure (ext sfail   _)  => Empty A
+  | impure (ext (schoice mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
+  end.
 
+Require Import Lists.List.
+Import ListNotations.
+
+Definition handle A (p : Prog A) := collectVals (runChoice p).
+Definition coin := Choice' None (pure true) (pure false).
+Example example1 : Prog bool := coin.
+Example res_example1 := [true; false].
+
+Example example2 : Prog bool := Choice' None coin  coin.
+Example res_example2 := [true; false; true; false].
+
+Definition exBs := [(example1, res_example1); (example2, res_example2)].
+  
+Lemma tests__exBs : Forall (fun '(p,r) => handle p = r) exBs.
+Proof. repeat econstructor. Qed.
