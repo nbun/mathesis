@@ -1,15 +1,16 @@
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternSynonyms       #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE UndecidableInstances  #-}
-{-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE DeriveFunctor             #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE KindSignatures            #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE PatternSynonyms           #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 module CallTimeChoiceHO where
 
@@ -74,36 +75,38 @@ runND (Other op) = Op (handle (Tree.Leaf ()) hdl op)
 
 -- HShare
 -------
-data HShare m a = Share' (Int, Int) (m a)
-  deriving (Show, Functor)
+data HShare m a = forall x. Share' (Int, Int) (m x) (x -> m a)
+
+instance Functor m => Functor (HShare m) where
+  fmap f (Share' i p k) = Share' i p (fmap f . k)
 
 instance HFunctor HShare where
-  hmap t (Share' i p) = Share' i (t p)
+  hmap t (Share' i p k) = Share' i (t p) (t . k)
 
 instance Syntax HShare where
-  emap f (Share' i p) = Share' i (f p)
+  emap f (Share' i p k) = Share' i p (f . k)
 
-  handle c hdl (Share' i p) = Share' i (hdl (fmap (const p) c))
+  handle c hdl (Share' i p k) = Share' i (hdl (fmap (const p) c)) (hdl . fmap k)
 
-pattern Share i p <- (project -> Just (Share' i p))
+pattern Share i p x <- (project -> Just (Share' i p x))
 
 runShare :: (Syntax sig, HND <: sig) => Prog (HShare + sig) a -> Prog sig a
 runShare p = fmap runIdentity $ rShare p
 
 shares :: (HShare <: sig) => (Int, Int) -> Prog sig a -> Prog sig a
-shares i p = inject (Share' i p)
+shares i p = inject (Share' i p return)
 
 rShare :: (Syntax sig, HND <: sig) => Prog (HShare + sig) a
          -> Prog sig (Identity a)
 rShare (Return a)  = fmap Identity (return a)
 rShare Fail        = fail
-rShare (Share i p) = go i 1 p
+rShare (Share i p k) = go i 1 p >>= \r -> rShare (k $ runIdentity r)
   where
     go :: (Syntax sig, HND <: sig)
        => (Int, Int) -> Int -> Prog (HShare + sig) a -> Prog sig (Identity a)
     go _ _ (Return a )    = fmap Identity $ return a
     go _ _ (Fail     )    = fail
-    go _ n (Share i p)    = go i 1 p
+    go _ n (Share i p k)    = go i 1 p >>= \r -> rShare (k $ runIdentity r)
     go i@(l,r) n (Choice _ p q) = let n' = n + 1
                                       p' = go i n' p
                                       q' = go i n' q
@@ -179,31 +182,58 @@ instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog 
 instance AllValues NDShare where
   allValues = runCurry . nf
 
-deriving instance Show a => Show (Prog (HShare + HND + HVoid) a)
+-- deriving instance Show a => Show (Prog (HShare + HND + HVoid) a)
 
-instance (Pretty a, Show a) => Pretty (Prog (HShare + HND + HVoid) a) where
-  pretty' (Return x)     _ = pretty x
-  pretty' (Share i p)   w = "<" ++ si ++ " " ++ pretty' p (w + 2 + 2 * length si) ++ si ++ ">"
-    where si = show i
-  pretty' Fail           _ = "!"
-  pretty' (Choice m p q) wsp =
-    "? " ++  showID m
-    ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
-    ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
-    where showID Nothing  = ""
-          showID (Just x) = show x
+-- instance (Pretty a, Show a) => Pretty (Prog (HShare + HND + HVoid) a) where
+--   pretty' (Return x)     _ = pretty x
+--   pretty' (Share i p)   w = "<" ++ si ++ " " ++ pretty' p (w + 2 + 2 * length si) ++ si ++ ">"
+--     where si = show i
+--   pretty' Fail           _ = "!"
+--   pretty' (Choice m p q) wsp =
+--     "? " ++  showID m
+--     ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
+--     ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
+--     where showID Nothing  = ""
+--           showID (Just x) = show x
+
+--   pretty = flip pretty' 0
+
+-- instance (Pretty a, Show a) => Pretty (Prog (HND + HVoid) a) where
+--  pretty' (Return x)     _ = pretty x
+--  pretty' Fail           _ = "!"
+--  pretty' (Choice m p q) wsp =
+--    "? " ++  showID m
+--    ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
+--    ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
+--    where showID Nothing  = ""
+--          showID (Just x) = show x
+
+--  pretty = flip pretty' 0
+
+
+prettyProgNoShare :: (Pretty a, Show a)
+                  => Int -> [Int] -> [Int] -> Prog (HND + HVoid) a -> String
+prettyProgNoShare _ _    scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
+prettyProgNoShare _ _    _    Fail        = "!"
+prettyProgNoShare wsp ls scps (Choice m p q) =
+  "? " ++  showID m
+  ++ "\n" ++ lines ++ "├── " ++ prettyProgNoShare (wsp + 4) (wsp:ls) scps p
+  ++ "\n" ++ lines ++ "└── " ++ prettyProgNoShare (wsp + 4) ls       scps q
+  where showID Nothing  = ""
+        showID (Just x) = show x
+        lines = printLines (wsp:ls)
+
+printLines :: [Int] -> String
+printLines = printLines' 0 . reverse
+  where
+    printLines' p  [x] = replicate (x - p) ' '
+    printLines' p (x:xs)  | p == x    = '│' : printLines' (p + 1) xs
+                          | otherwise = ' ' : printLines' (p + 1) (x:xs)
+
+instance (Pretty a, Show a) => Pretty (Prog (HND + HVoid) a) where
+  pretty' p _ = prettyProgNoShare 0 [] [] p
 
   pretty = flip pretty' 0
 
-instance (Pretty a, Show a) => Pretty (Prog (HND + HVoid) a) where
- pretty' (Return x)     _ = pretty x
- pretty' Fail           _ = "!"
- pretty' (Choice m p q) wsp =
-   "? " ++  showID m
-   ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
-   ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
-   where showID Nothing  = ""
-         showID (Just x) = show x
 
- pretty = flip pretty' 0
 
