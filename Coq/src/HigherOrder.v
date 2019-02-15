@@ -3,29 +3,29 @@ Require Import Coq.Program.Equality.
 Require Import Thesis.Base.
 Require Import Thesis.Search.
 
-Inductive Ext Shape (Pos : Shape -> Type) A := ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
+Inductive Ext Shape (Pos : Shape -> Type) (M : Type -> Type) A := ext : forall s, (Pos s -> A) -> Ext Shape Pos M A.
 
-Arguments ext {_} {_} {_} s pf.
+Arguments ext {_} {_} {_} {_} s pf.
 Set Implicit Arguments.
 
 Class HContainer (H : (Type -> Type) -> Type -> Type) :=
   {
-    Shape   : Type;
-    Pos     : Shape -> Type;
-    to      : forall M A, Ext Shape Pos (M A) -> H M A;
-    from    : forall M A, H M A -> Ext Shape Pos (M A);
-    to_from : forall M A (fx : H M A), @to M A (@from M A fx) = fx;
-    from_to : forall M A (e : Ext Shape Pos (M A)), @from M A (@to M A e) = e
+    Shape   : forall M, Type;
+    Pos     : forall M, Shape M -> Type;
+    to      : forall M A, Ext (Shape M) (@Pos M) M (M A) -> H M A;
+    from    : forall M A, H M A -> Ext (Shape M) (@ Pos M) M (M A);
+    to_from : forall M A (fx : H M A), to A (from  fx) = fx;
+    from_to : forall M A (e : Ext (Shape M) (@Pos M) M (M A)), from (to A e) = e
   }.
-
 Arguments from {_} {_} {_} _.
 
 Section Free.
+  Variable M : Type -> Type.
   Variable H : (Type -> Type) -> Type -> Type.
 
   Inductive Free (HC__F : HContainer H) A :=
   | pure : A -> Free HC__F A
-  | impure : Ext Shape Pos (Free HC__F A) -> Free HC__F A.
+  | impure : Ext (Shape M) (Pos M) M (Free HC__F A) -> Free HC__F A.
 
 End Free.
 Arguments pure {_} {_} {_} _.
@@ -36,27 +36,27 @@ Section Zero.
 
   Definition Zero (M : Type -> Type) (A : Type) := Void.
 
-  Definition Shape__Zero := Void.
+  Definition Shape__Zero (M : Type -> Type) := Void.
 
-  Definition Pos__Zero (s: Shape__Zero) := Void.
+  Definition Pos__Zero (M : Type -> Type) (s: Shape__Zero M) := Void.
 
-  Definition Ext__Zero A := Ext Shape__Zero Pos__Zero A.
+  Definition Ext__Zero M A := Ext (Shape__Zero M) (@Pos__Zero M) M A.
 
-  Definition to__Zero M A (e: Ext__Zero (M A)) : Zero M A :=
+  Definition to__Zero (M : Type -> Type) A (e: Ext__Zero M (M A)) : Zero M A :=
     match e with
       ext s _ => match s with end
     end.
 
-  Definition from__Zero M A (z: Zero M A) : Ext__Zero (M A) :=
+  Definition from__Zero M A (z: Zero M A) : Ext__Zero M (M A) :=
     match z with end.
 
-  Lemma to_from__Zero : forall M A (ox : Zero M A), to__Zero M A (from__Zero ox) = ox.
+  Lemma to_from__Zero : forall M A (ox : Zero M A), to__Zero A (from__Zero ox) = ox.
   Proof.
     intros M A ox.
     destruct ox.
   Qed.
 
-  Lemma from_to__Zero : forall M A (e : Ext__Zero (M A)), from__Zero (to__Zero M A e) = e.
+  Lemma from_to__Zero : forall M A (e : Ext__Zero M (M A)), from__Zero (to__Zero A e) = e.
   Proof.
     intros M A [s pf].
     destruct s.
@@ -66,10 +66,10 @@ Section Zero.
     {
       Shape := Shape__Zero;
       Pos   := Pos__Zero;
-      to    := to__Zero;
-      from  := from__Zero;
-      to_from := to_from__Zero;
-      from_to := from_to__Zero
+      to    := @to__Zero;
+      from  := @from__Zero;
+      to_from := @to_from__Zero;
+      from_to := @from_to__Zero
     }.
 
 End Zero.
@@ -80,44 +80,44 @@ Section Choice.
   | cfail   : Choice M A
   | cchoice : option (nat * nat) -> M A -> M A -> Choice M A.
 
-  Inductive Shape__Choice :=
-  | sfail : Shape__Choice
-  | schoice : option (nat * nat) -> Shape__Choice.
+  Inductive Shape__Choice (M : Type -> Type) :=
+  | sfail : Shape__Choice M
+  | schoice : option (nat * nat) -> Shape__Choice M.
 
-  Definition Pos__Choice (s: Shape__Choice) : Type :=
+  Definition Pos__Choice M (s: Shape__Choice M) : Type :=
     match s with
-    | sfail  => Void
-    | schoice _ => bool
+    | sfail _  => Void
+    | schoice _ _ => bool
     end.
 
-  Definition Ext__Choice A := Ext Shape__Choice Pos__Choice A.
+  Definition Ext__Choice M A := Ext (Shape__Choice M) (@Pos__Choice M) M A.
 
-  Definition to__Choice M A (e: Ext__Choice (M A)) : Choice M A :=
+  Definition to__Choice M A (e: Ext__Choice M (M A)) : Choice M A :=
     match e with
-    | ext sfail f   => cfail M A
-    | ext (schoice mid) f => cchoice M A mid (f true) (f false)
+    | ext (sfail _) f   => cfail M A
+    | ext (schoice _ mid) f => cchoice M A mid (f true) (f false)
     end.
 
-  Fixpoint from__Choice M A (z : Choice M A) : Ext__Choice (M A) :=
+  Fixpoint from__Choice M A (z : Choice M A) : Ext__Choice M (M A) :=
     match z with
-    | cfail _ _     => ext sfail   (fun p : Pos__Choice sfail => match p with end)
-    | cchoice _ _ mid l r => ext (schoice mid) (fun p : Pos__Choice (schoice mid) => if p then l else r)
+    | cfail _ _     => ext (sfail M) (fun p : Pos__Choice (sfail _) => match p with end)
+    | cchoice _ _ mid l r => ext (schoice M mid) (fun p : Pos__Choice (schoice M mid) => if p then l else r)
     end.
 
-  Lemma to_from__Choice : forall M A (ox : Choice M A), to__Choice M A (from__Choice ox) = ox.
+  Lemma to_from__Choice : forall M A (ox : Choice M A), to__Choice A (from__Choice ox) = ox.
   Proof.
     intros M A ox.
     destruct ox; reflexivity.
   Qed.
 
-  Lemma from_to__Choice : forall M A (e : Ext__Choice (M A)), from__Choice (to__Choice M A e) = e.
+  Lemma from_to__Choice : forall M A (e : Ext__Choice M (M A)), from__Choice (to__Choice A e) = e.
   Proof.
     intros M A [s pf].
     destruct s; simpl; f_equal; apply functional_extensionality; intros x.
     - contradiction.
     - destruct x; reflexivity.
   Qed.
-      
+
   Instance C__Choice : HContainer Choice :=
     {
       Shape := Shape__Choice;
@@ -139,29 +139,29 @@ Section State.
   | get : (S -> M A) -> State M A
   | put : S -> M A -> State M A.
 
-  Inductive Shape__State :=
-  | sget : Shape__State
-  | sput : S -> Shape__State.
+  Inductive Shape__State (M : Type -> Type) :=
+  | sget : Shape__State M
+  | sput : S -> Shape__State M.
   
-  Inductive Pos__State : Shape__State -> Type :=
-  | pget : forall (st : S), Pos__State sget
-  | pput : forall (st : S), Pos__State (sput st).
+  Inductive Pos__State M : Shape__State M -> Type :=
+  | pget : forall (st : S), Pos__State (sget M)
+  | pput : forall (st : S), Pos__State (sput M st).
 
-  Definition Ext__State A := Ext Shape__State Pos__State A.
+  Definition Ext__State M A := Ext (Shape__State M) (@Pos__State M) M A.
 
-  Definition to__State M A (e: Ext__State (M A)) : State M A :=
+  Definition to__State M A (e: Ext__State M (M A)) : State M A :=
     match e with
-    | ext sget     fp => get M A (fun s => fp (pget s))
-    | ext (sput s) fp => put M A s (fp (pput s))
+    | ext (sget _)     fp => get M A (fun s => fp (pget M s))
+    | ext (sput _ s) fp => put M A s (fp (pput M s))
     end.
 
-  Fixpoint from__State M A (z : State M A) : Ext__State (M A) :=
+  Fixpoint from__State M A (z : State M A) : Ext__State M (M A) :=
     match z with
-    | get _ _ f   => ext sget     (fun p : Pos__State sget => match p with pget s => f s end)
-    | put _ _ s a => ext (sput s) (fun p : Pos__State (sput s) => a)
+    | get _ _ f   => ext (sget M)     (fun p : Pos__State (sget M) => match p with pget _ s => f s end)
+    | put _ _ s a => ext (sput M s) (fun p : Pos__State (sput M s) => a)
     end.
 
-  Lemma to_from__State : forall M A (ox : State M A), to__State M A (from__State ox) = ox.
+  Lemma to_from__State : forall M A (ox : State M A), to__State A (from__State ox) = ox.
   Proof.
     intros M A ox.
     destruct ox.
@@ -169,7 +169,7 @@ Section State.
     - reflexivity.
   Qed.
 
-  Lemma from_to__State : forall M A (e : Ext__State (M A)), from__State (to__State M A e) = e.
+  Lemma from_to__State : forall M A (e : Ext__State M (M A)), from__State (to__State A e) = e.
   Proof.
     intros M A [s pf].
     destruct s;
@@ -193,66 +193,73 @@ Section State.
 
 End State.
 
-(* Section Sharing. *)
-(*   Variable (X : Type). *)
+Section Sharing.
+  Variable (X : Type).
 
-(*   Inductive Sharing M (A : Type) := *)
-(*   | csharing : nat -> M X -> (X -> M A) -> Sharing M A. *)
+  Inductive Sharing M (A : Type) :=
+  | csharing : nat -> M X -> (X -> M A) -> Sharing M A.
 
-(*   Inductive Shape__Sharing M := *)
-(*   | ssharing : nat -> M X -> Shape__Sharing M. *)
+  Inductive Shape__Sharing M :=
+  | ssharing : nat -> M X -> Shape__Sharing M.
 
-(*   Inductive Pos__Sharing M : Shape__Sharing M -> Type := *)
-(*   | psharing : forall (n : nat) (mx : M X), Pos__Sharing (ssharing M n mx). *)
+  Inductive Pos__Sharing M : Shape__Sharing M -> Type :=
+  | psharing : forall (n : nat) (mx : M X), Pos__Sharing (ssharing M n mx).
 
-(*   Definition Ext__Sharing A := forall (M : Type -> Type), Ext (Shape__Sharing M) (@Pos__Sharing M) A. *)
+  Definition Ext__Sharing M A := Ext (Shape__Sharing M) (@Pos__Sharing M) M A.
 
-(*   Definition to__Sharing M A (e: Ext (Shape__Sharing M) (@Pos__Sharing M) (M A)) : Sharing M A := *)
-(*     match e with *)
-(*     | ext (ssharing _ n mx) fp => csharing M A n mx (fun x => fp (psharing M n mx)) *)
-(*     end. *)
+  Definition to__Sharing M A (e: Ext__Sharing M (M A)) : Sharing M A :=
+    match e with
+    | ext (ssharing _ n mx) fp => csharing M A n mx (fun x => fp (psharing _ n mx))
+    end.
 
-(*   Fixpoint from__Sharing M A `(Monad M) (z : Sharing M A) : Ext (Shape__Sharing M) (@Pos__Sharing M) (M A) := *)
-(*     match z with *)
-(*     | csharing _ _ n mx xma => ext (ssharing M n mx) (fun p : Pos__Sharing (ssharing M n mx) => match p with psharing _ _ _ => *)
-(*                                                                             (bind A mx (fun x => xma x)) end) *)
-(*     end. *)
+  Fail Fixpoint from__Sharing M A (z : Sharing M A) : Ext__Sharing M (M A) :=
+    match z with
+    | csharing _ _ n mx xma =>
+      ext (ssharing _ n mx) (fun p : Pos__Sharing (ssharing _ n mx)
+                           => match p with psharing _ m nx =>
+                                           (bind A mx (fun x => xma x))
+                              end)
+    end.
 
-(*   Lemma to_from__Sharing : forall M (Mon : Monad M) A (ox : Sharing M A), to__Sharing A (from__Sharing Mon ox) = ox. *)
-(*   Proof. *)
-(*     intros M Mon A ox. *)
-(*     destruct ox; reflexivity. *)
-(*   Qed. *)
+  Lemma to_from__Sharing : forall M A (ox : Sharing M A), to__Sharing A (from__Sharing M ox) = ox.
+  Proof.
+    intros M Mon A ox.
+    destruct ox.
+    simpl.
+    f_equal.
+    extensionality p.
+    unfold bind. 
+  Admitted.
 
-(*   Lemma from_to__Sharing : forall A (e : Ext__Sharing A), from__Sharing (to__Sharing e) = e. *)
-(*   Proof. *)
-(*     intros A [s pf]. *)
-(*     destruct s; *)
-(*       (simpl; *)
-(*        f_equal; *)
-(*        apply functional_extensionality; *)
-(*        intros p; *)
-(*        dependent destruction p; *)
-(*        reflexivity). *)
-(*   Qed. *)
-     
-(*   Instance C__Sharing : Container Sharing := *)
-(*     { *)
-(*       Shape := Shape__Sharing; *)
-(*       Pos   := Pos__Sharing; *)
-(*       to    := to__Sharing; *)
-(*       from  := from__Sharing; *)
-(*       to_from := to_from__Sharing; *)
-(*       from_to := from_to__Sharing *)
-(*     }. *)
+  Lemma from_to__Sharing : forall M `A (e : Ext__Sharing MM (M A)),
+      from__Sharing MM (to__Sharing A e) = e.
+  Proof.
+    intros M MonM A [s pf].
+    destruct s.
+    simpl.
+    f_equal.
+    extensionality p.
+    dependent destruction p.
+  Admitted.
 
-(* End Sharing. *)
+  Instance C__Sharing : HContainer Sharing :=
+    {
+      Shape := Shape__Sharing;
+      Pos   := Pos__Sharing;
+      to    := to__Sharing;
+      from  := from__Sharing;
+      to_from := to_from__Sharing;
+      from_to := from_to__Sharing
+    }.
 
-Definition Prog := Free C__Choice.
+End Sharing.
+
+Definition Prog := Free (C__Choice ChoiceF).
 Definition NDShare := C__Choice.
+
 Definition Fail A : Prog A :=
-  let s : @Shape _ NDShare := sfail
-    in impure (ext s (fun p : @Pos _ NDShare s => match p with end)).
+  let s : Shape__Choice := sfail
+    in impure (ext s (fun p : Pos__Choice s => match p with end)).
 
 Arguments Fail {_}.
 
