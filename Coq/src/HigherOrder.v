@@ -26,7 +26,6 @@ Section Free.
   Inductive Free (HC__F : HContainer H) A :=
   | pure : A -> Free HC__F A
   | impure : Ext (Shape M) (Pos M) M (Free HC__F A) -> Free HC__F A.
-
 End Free.
 Arguments pure {_} {_} {_} _.
 
@@ -212,7 +211,9 @@ Section Sharing.
     | ext (ssharing _ n mx) fp => csharing M A n mx (fun x => fp (psharing _ n mx))
     end.
 
-  Fail Fixpoint from__Sharing M A (z : Sharing M A) : Ext__Sharing M (M A) :=
+  Variable MM : forall M, Monad M.
+  
+  Fixpoint from__Sharing M A (z : Sharing M A) : Ext__Sharing M (M A) :=
     match z with
     | csharing _ _ n mx xma =>
       ext (ssharing _ n mx) (fun p : Pos__Sharing (ssharing _ n mx)
@@ -221,9 +222,9 @@ Section Sharing.
                               end)
     end.
 
-  Lemma to_from__Sharing : forall M A (ox : Sharing M A), to__Sharing A (from__Sharing M ox) = ox.
+  Lemma to_from__Sharing : forall M A (ox : Sharing M A), to__Sharing A (from__Sharing ox) = ox.
   Proof.
-    intros M Mon A ox.
+    intros M A ox.
     destruct ox.
     simpl.
     f_equal.
@@ -231,10 +232,10 @@ Section Sharing.
     unfold bind. 
   Admitted.
 
-  Lemma from_to__Sharing : forall M `A (e : Ext__Sharing MM (M A)),
-      from__Sharing MM (to__Sharing A e) = e.
+  Lemma from_to__Sharing : forall M A (e : Ext__Sharing M (M A)),
+      from__Sharing (to__Sharing A e) = e.
   Proof.
-    intros M MonM A [s pf].
+    intros M A [s pf].
     destruct s.
     simpl.
     f_equal.
@@ -254,12 +255,15 @@ Section Sharing.
 
 End Sharing.
 
-Definition Prog := Free (C__Choice ChoiceF).
+Inductive ChoiceF (A : Type) :=
+| cffail   : ChoiceF A
+| cfchoice : option (nat * nat) -> A -> A -> ChoiceF A.
+
+Definition Prog M := Free M (C__Choice).
 Definition NDShare := C__Choice.
 
-Definition Fail A : Prog A :=
-  let s : Shape__Choice := sfail
-    in impure (ext s (fun p : Pos__Choice s => match p with end)).
+Definition Fail M A : Prog M A :=
+  impure (@ext (Shape__Choice M) (@Pos__Choice M) M A (sfail M) (fun p : @Pos__Choice M (sfail M) => match p with end)).
 
 Arguments Fail {_}.
 
