@@ -696,6 +696,7 @@ Since \hinl{:+:} is right-associative in nested applications, we can match for t
 
 
 \subsection{Effect Handlers}
+\label{sec:effectHandlers}
 For each effect in a program's signature, a \textit{handler} is required.
 Handling an effect means transforming a program that contains a certain effect into a program where the effect's syntax does not occur anymore.
 However, the syntax is not just removed, but the effect's semantics is applied.
@@ -986,7 +987,174 @@ Firstly, syntax for explicitly marking the begin and end of a scope can be defin
 This leads to a more complicated handler because the begin and end tags can be mismatched in the program and one needs to keep track of the current scope environment.
 The second approach uses higher-order syntax, that is, the signature of a program is not just a functor but a function that takes a functor as an argument.
 This approach makes it possible to have the scoped program as an argument of the syntax constructor.
-In the following, an overview of both options is given.
+In the following, an overview of a  -- initially promising but ultimately incorrect  -- hybrid approach and both options mentioned before is given.
+
+\subsection{Hybrid Implementation}
+
+The idea of the hybrid implementation is a combination of the explicit scoping infrastructure and direct program arguments in the syntax definition that the higher-order implementation uses.
+In theory, this has the benefit of simple handlers and scoping via program arguments instead of explicit tags.
+Therefore, it seemed worthwhile to explore this approach instead of following one of the options mentioned in the introduction of the section.
+
+Beginning with the definition of the sharing syntax data type, we follow the idea of the higher-order approach and define a single constructor \hinl{Share'} with a program argument that represents the shared program.
+Although \hinl{p} is supposed to be only the shared program, the monadic bind structure moves the program that follows the \hinl{Share'} constructor into the argument \hinl{p}
+The same happened in \autoref{sec:effectHandlers} for the program argument of the state effect constructor \hinl{put}.
+
+\begin{minted}{Haskell}
+data Share p = Share' p
+
+share :: (Share :<: sig) => Prog sig a -> Prog sig (Prog sig a)
+share p = return $ inject (Share' p)
+\end{minted}
+
+The return type of \hinl{share} is not just a program but a program that returns a program.
+The reason for this is explained later in \autoref{subsec:sharingImplementation}.
+For the first implementation of \hinl{share}, this outer program layer is empty and thus created by \hinl{return}.
+
+In order to create an example that showcases the usage of \hinl{share} and the monadic structure, we need a few definitions.
+First, we define a non-deterministic coin that returns either \hinl{0} or \hinl{1} and a lifted addition function for programs that return integer results.
+Since \hinl{(+)} is a strict function in Haskell and Curry, we can mirror this behavior by binding both program arguments and then adding the results.
+
+\begin{minted}{Haskell}
+coin :: (ND :<: sig) => Prog sig Int
+coin = choice (return 0) (return 1)
+
+addM :: (Functor sig) => Prog sig Int -> Prog sig Int -> Prog sig Int
+addM p q = p >>= \i -> q >>= \j -> return (i + j)
+\end{minted}
+
+With these functions defined, we can now use the \hinl{share} operator to add a shared coin to an unshared coin, twice, as shown in the following example.
+This corresponds to the Curry code \hinl{let x = coin in (x + coin) + (x + coin)}. 
+
+\begin{minted}{Haskell}
+exAddSharedCoinTwice :: Prog (Share :+: ND :+: Void) Int
+exAddSharedCoinTwice = share coin >>= \fx -> addM (addM fx coin) 
+                                                  (addM fx coin)
+\end{minted}
+
+\vspace{0.32cm}
+
+\begin{minipage}{.4 \linewidth}
+\begin{minted}[escapeinside=||, fontsize=\footnotesize]{Haskell}
+< ?|$_\texttt{1}$|
+  ├── ?|$_\texttt{2}$|
+  │   ├── < ?|$_\texttt{1}$|
+  │   │     ├── ?|$_\texttt{2}$|
+  │   │     │   ├── 0 > >
+  │   │     │   └── 1 > >
+  .   .     └── ?|$_\texttt{2}$|
+  .   .         ├── 1 > >
+  .   .         └── 2 > >
+\end{minted}
+\begin{center}
+Hybrid implementation
+\end{center}
+\end{minipage}
+\hspace{.1 \linewidth}
+\vline
+\hspace{.1 \linewidth}
+\begin{minipage}{.475 \linewidth}
+\begin{minted}[escapeinside=||, fontsize=\footnotesize]{Haskell}
+< ?|$_\texttt{1}$|
+  ├── > ? 
+  │     ├── < ?|$_\texttt{1}$|
+  │     │     ├── > ? 
+  │     │     │     ├── 0
+  │     │     │     └── 1
+  .     .     └── > ? 
+  .     .           ├── 1
+  .     .           └── 2
+\end{minted}
+\begin{center}
+Explicit scoping tags
+\end{center}
+\end{minipage}
+
+\vspace{0.32cm}
+
+The left-hand side tree is generated using the data type \hinl{Share} with a single constructor, while the right-hand side visualizes a data type with two constructors that explicitly delimit the scope.
+Subscript numbers represent the ID of a choice.
+Although this information is added by a sharing handler we have not defined yet, choice IDs are important in order to understand the consequences of the data type definitions for the sharing effect.
+
+Choice IDs are assigned inside a sharing scope.
+When a sharing scope is duplicated due to the monadic structure, the choices inside get the same IDs.
+Finally, when the choice tree is evaluated, these choices are linked.
+The right-hand side tree shows us that explicit scoping tags allow ending a scope in a program.
+For example, the scope around the root choice ends first and then the next scope is opened.
+The visualization of the hybrid term shows that all opened sharing scopes are only closed at the end of each branch.
+This difference in term structure means that the handler for the hybrid approach never stops assigning IDs to choices because it cannot distinguish the shared program that was initially passed as an argument and the following program that was moved into the argument by the monadic structure.
+
+The hybrid implementation correctly assign the ID \hinl{1} for the choice that immediately follows the beginning of the scope.
+This is the shared choice that is defined in \hinl{coin}.
+The next choice within the branch originates from the unshared coin and ideally should not receive an ID.
+Indeed, the implementation with explicit \hinl{begin} and \hinl{end} tags closes the sharing scope after the first choice and thus, the choice does not receive an ID.
+The hybrid implementation, however, cannot stop assigning IDs to choices and thus assigns \hinl{2} to the choice.
+
+In the hybrid implementation, when a new scope is opened, the current scope is overwritten. 
+For this example, this means that the next choice is labeled with \hinl{1} again, since each scope is associated with an initial state that is copied, too, when the sharing scope is duplicated.
+Because there is only one sharing scope in the original program, all occurring scopes are duplicates that were created due to non-determinism.
+It is critical that copied sharing scopes behave identical because this ensures that the choices inside the scopes are named the same way, resulting in correct call-time choice behavior.
+In the example, however, this leads to a fatal flaw.
+Until now, assigning the ID \hinl{2} to the unshared choice below the root choice was unnecessary but not incorrect.
+As a consequence of the second sharing scope behaving identical to the first one, the second unshared choice also receives the ID \hinl{2}.
+Since we now have two equal IDs within a branch, this means that the second choice with the ID \hinl{2} is linked to the decision of the first choice with the ID \hinl{ID}, that is, the first unshared \hinl{coin} is linked to the second one.
+
+This was not intended in the original program and proves that the hybrid approach is unsuitable for modelling scoped effects and, consequently, sharing.
+Interestingly, this approach promisingly passed all example tests and algorithms in both Haskell and Coq.
+The flaw was only found while doing the finishing touches on the ID generation algorithm.
+This shows that the hybrid approach is not incorrect in its entirety but merely requires some refinement, as shown in the next subsection.
+
+\subsection{Higher-Order Scope Syntax}
+The higher-order approach described by \citet{wu2014effect} is based on a modified  program data type to represent scoped syntax.
+So far, the type variable \hinl{sig} has been a functor that is applied to the program type again.
+In the higher-order data type, however, \hinl{sig} is applied to a program functor and a type, which makes it of type \hinl{(* -> *) -> * -> *}.
+
+\begin{minted}{Haskell}
+data Prog   sig a = Return a | Op (sig (Prog sig a))
+data ProgHO sig a = Return a | Op (sig (Prog sig) a)
+\end{minted}
+
+Due to the functor argument of \hinl{sig}, it is now called a higher-order functor.
+Based on the new program type and higher-order functors, the existing infrastructure for combining signatures, injecting values and pattern matching can be adapted.
+This is not discussed here since we are mostly interested in the the definition of effect data types. 
+For example, the higher-order version of the sharing effect is defined as follows.
+
+\begin{minted}{Haskell}
+data HShare m a = forall x. Share' (m x) (x -> m a)
+\end{minted}
+
+Due to the new type of \hinl{sig} in the definition of programs, effect data types have an additional argument now, too.
+The single argument \hinl{p} has been replaced by a functor argument \hinl{m} and a type \hinl{a}.
+Applying \hinl{m} to \hinl{a} corresponds to the argument \hinl{p} we have seen in the previous effect types.
+One advantage of splitting \hinl{p} is that it is now possible to apply \hinl{m} to different types, whereas we were limited to \hinl{p} before.
+\citet{wu2014effect} demonstrate that this can be useful, for example, when defining exceptions with \hinl{throw} and \hinl{catch} syntax.
+Syntax for \hinl{catch} usually consists of a program where exceptions may occur, a handler for said exceptions and the remaining program.
+This structure is very similar to the sharing effect since we would also like to pass the shared program as an argument to the sharing syntax.
+However, this was not possible with functor-based program type, as we have seen in the previous subsection.
+With higher-order programs, however, we can represent the shared program as an argument of type \hinl{m x} where \hinl{m} represents \hinl{Prog sig} and \hinl{x} the return value of the program.
+The remaining program is a continuation function \hinl{x -> m a}that takes the result of the shared program and substitutes the results of all matching calls of \hinl{share}, similar to how the current state is propagated in the program for the state effect.
+
+The purpose of {forall x} lies in adding an independent type variable using the language extension \hinl{ExistentialQuantification}.
+In this case, independence means that the variable does not occur on the left-hand side of the definition and thus can be different for two values of the same type.
+For example, the following data type has a regular type variable and one introduced by \hinl{forall}.
+
+\begin{minted}{Haskell}
+data Test a = forall x. Test x a
+
+instance Functor Test where
+  fmap f (Test x a) = Test x (f a)
+\end{minted}
+
+With this definition, \hinl{[Test 42 True, Test () False]} is a valid expression of type \hinl{Test Bool}.
+When we define a functor instance for \hinl{Test}, the argument \hinl{x} remains unmodified while \hinl{f} is applied to \hinl{a}.
+Although in a different form, this applies to the sharing data type as well.
+The call of \hinl{fmap}, or rather the higher-order equivalent \hinl{emap}, in the definition of bind is responsible for building the program structure and thus, appends the remaining program to the shared program in the case of the definition we used for the hybrid implementation.
+Since \hinl{emap} transforms a value of type \hinl{Share m a} into a \hinl{Share m b}, there is no way to leave one program argument (the shared program) unmodified while applying a function to the other.
+For this reason, the additional, independent type variable \hinl{x} is necessary in the definition of the sharing effect data type.
+
+One disadvantage of the higher-order approach is the more complicated infrastructure and effect handlers.
+In short, \hinl{Other} cases are harder to handle because the simple \hinl{fmap}-approach does not work anymore.
+Additionally, due to the function argument of \hinl{Share'}, the visualization of sharing scopes and programs becomes difficult.
+Therefore, we will pursue the explicit scoping syntax approach for the remainder of the Haskell chapter.
 
 \subsection{Explicit Scope Syntax}
 \label{subsec:explicit}
@@ -1019,9 +1187,7 @@ inject $ BShare' (inject $ Choice' Nothing
 \end{minted}
 
 Now that we can delimit the scope of the sharing effect, it is time to define the actual sharing operator.
-The return type of \hinl{share} is not just a program but a program that returns a program.
-The reason for this is explained later in \autoref{subsec:sharingImplementation}.
-For the first implementation of \hinl{share}, this outer program layer is empty and thus created by \hinl{return}.
+
 
 \begin{minted}{Haskell}
 share :: (Share :<: sig) => Prog sig a -> Prog sig (Prog sig a)
@@ -1030,18 +1196,10 @@ share p = return $ do begin ; x <- p ; end ; return x
 
 \hinl{share} wraps \hinl{begin} and \hinl{end} tags around a call of bind that executes the program \hinl{p}.
 Then, the result is returned.
-To demonstrate the effect and usage of \hinl{share}, we define a non-deterministic coin that returns either \hinl{0} or \hinl{1} and an addition function for programs that return integer results.
-Since \hinl{(+)} is a strict function in Haskell and Curry, we can mirror this behavior by binding both program arguments and then adding the results.
 
-\begin{minted}{Haskell}
-coin :: (ND :<: sig) => Prog sig Int
-coin = choice (return 0) (return 1)
 
-addM :: (Functor sig) => Prog sig Int -> Prog sig Int -> Prog sig Int
-addM p q = p >>= \i -> q >>= \j -> return (i + j)
-\end{minted}
 
-With these functions defined, we can now use the \hinl{share} operator to add a shared coin, as shown in the following example.
+
 
 \begin{minted}{Haskell}
 exAddSharedCoin :: Prog (Share + ND + Void) Int
@@ -1107,117 +1265,9 @@ Consequently, the main finding from this definition is that we need to assign ID
 
 Before this issue is addressed, we first have a look at the higher-order approach for scoped effects.
 
-\subsection{Higher-Order Scope Syntax}
-The higher-order approach described by \citet{wu2014effect} builds on a slightly different program data type to represent scoped syntax.
-So far, the type variable \hinl{sig} has been a functor that is applied to the program type again.
-In the higher-order data type, however, \hinl{sig} is applied to a program functor and a type.
-
-\begin{minted}{Haskell}
-data Prog   sig a = Return a | Op (sig (Prog sig a))
-data ProgHO sig a = Return a | Op (sig (Prog sig) a)
-\end{minted}
-
-Due to the functor argument of \hinl{sig}, it is now called a higher-order functor.
-This property is generalized into a type class \hinl{HFunctor} that is defined as follows.
-
-\begin{minted}{Haskell}
-type f --> g = forall x . f x -> g x
-
-class HFunctor h where
-  hmap :: (Functor f , Functor g) => (f --> g) -> (h f --> h g)
-\end{minted}
-
-Instead of the \hinl{Functor} function \hinl{fmap}, the type class defines a function \hinl{hmap}.
-The type of \hinl{hmap} is similar to \hinl{fmap}, with the difference that variables that normally represent simple types are now functors.
-A mapping from one functor to another is then defined as a function from \hinl{f x} to \hinl{g x} for any type \hinl{x}.
-
-Based on the new program type and higher-order functors, the existing infrastructure for combining signatures, injecting values and pattern matching can be adapted.
-This is not discussed here since we are mostly interested in the the definition of effect data types. 
-For example, the higher-order version of the sharing effect is defined as follows.
-
-\begin{minted}{Haskell}
-data HShare f a = Share' (f a)
-\end{minted}
-
-Due to the new type of \hinl{sig} in the definition of programs, effect data types have an additional argument now, too.
-The single argument \hinl{p} has been replaced by a functor argument \hinl{f} and a type \hinl{a}.
-Applying \hinl{f} to \hinl{a} corresponds to the argument \hinl{p} we have seen in the previous effect types.
-One advantage of splitting \hinl{p} it is now possible to apply \hinl{f} to different types, whereas we were limited to \hinl{p} before.
-\citet{wu2014effect} demonstrate that this can be useful, for example, when defining exceptions with \hinl{throw} and \hinl{catch} syntax.
-In the context of call-time choice, however, we do not need this feature.
-
-The higher-order approach complicates writing effect handlers. In short, \hinl{Other} cases are harder to handle because the simple \hinl{fmap}-approach does not work anymore.
-Thus, the higher-order approach is not more favorable in general.
-However, if we have a second look at the definition of the sharing data type, we see that the explicit scope constructors are replaced with a single program argument that contains the scoped program.
-This definition of the sharing effect simplifies the handler because it is no longer necessary to extract the scoped program from within the \hinl{begin} and \hinl{end} tags.
-In addition, mismatched scope tags are no longer possible.
-
-With the simpler definition of the sharing effect in the higher-order approach and the more favorable program infrastructure for explicitly scoped syntax, a question arises: Is it possible to combine both ideas and their respective advantages into one implementation?
-
 \section{Implementation of Sharing as Effect}
 \label{subsec:sharingImplementation}
 
-A hybrid implementation that combines the explicit scoping approach and higher-order syntax definition has the benefit of simple handlers and scoping via program arguments instead of explicit tags.
-Therefore, it seems worthwhile to explore this new approach instead of following one of the options presented in the previous section.
-Nevertheless, the sharing effect and, consequently, call-time choice has been implemented in Haskell for all three options as part of the thesis.
-
-We begin the implementation of the sharing effect where we left off in \autoref{subsec:explicit}.
-Keeping in mind that the constructors of the sharing effect need an ID, we follow the idea of the higher-order approach and define a single constructor \hinl{Share'} with an ID argument and a program argument.
-The latter represents only the program that is to be shared.
-
-\begin{minted}{Haskell}
-data Share p = Share' ID p
-\end{minted}
-
-Reconsidering the example \hinl{exAddSharedCoin}, the following visualization compares the term structure of explicit scoping tags and the higher-order sharing scope without IDs.
-
-\vspace{0.32cm}
-
-\begin{minipage}{.4 \linewidth}
-\begin{minted}{Haskell}
-< ? 
-  ├── > < ? 
-  │       ├── > 0
-  │       └── > 1
-  └── > < ? 
-          ├── > 1
-          └── > 2
-\end{minted}
-\begin{center}
-Explicit scoping tags
-\end{center}
-\end{minipage}
-\hspace{.1 \linewidth}
-\vline
-\hspace{.1 \linewidth}
-\begin{minipage}{.475 \linewidth}
-\begin{minted}{Haskell}
-< ? 
-  ├── < ? 
-  │     ├── 0 > >
-  │     └── 1 > >
-  └── < ? 
-        ├── 1 > >
-        └── 2 > >
-\end{minted}
-\begin{center}
-Hybrid sharing scope
-\end{center}
-\end{minipage}
-
-\vspace{0.32cm}
-
-Explicit scoping tags allow ending a scope in a program.
-For example, the scope around the root choice ends first and then the next scope is opened.
-The visualization of the hybrid term shows that all opened sharing scopes are only closed at the end of each branch.
-This difference in term structure means that the handler for the hybrid approach never needs to close a scope because whenever a new scope is opened, it becomes the current scope.
-However, we need to consider one important point:
-If scopes cannot be closed, would one sharing scope at the beginning of the program not capture all following scopes, resulting in an incorrect program or at least a lot of overhead?
-
-\begin{minted}{Haskell}
-exAddSharedCoin :: Prog (Share + ND + Void) Int
-exAddSharedCoin = share coin >>= \fx -> addM (addM fx fx) coin
-\end{minted}
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
