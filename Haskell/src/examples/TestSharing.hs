@@ -373,3 +373,12 @@ distrib_bind_mplus = do c <- share coini
                         y <- coini
                         x <- c
                         cons (return x) (cons (return y) nil)
+
+exAddCoin :: NDShare Int
+exAddCoin = addM coini coini
+
+exAddSharedCoin :: NDShare Int
+exAddSharedCoin = share coini >>= \fx -> addM fx fx
+
+exAddSharedCoin2 :: NDShare Int
+exAddSharedCoin2 = share coini >>= \fx -> addM (addM fx coini) (addM fx coini)
