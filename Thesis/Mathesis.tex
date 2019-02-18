@@ -1230,7 +1230,7 @@ eshare (Return a)     = return (Return a)
 eshare (BShare p)     = eshare p
 eshare (EShare p)     = return p
 eshare Fail           = fail
-eshare (Choice _ p q) = choiceID (* ? *) (eshare p) (eshare q)
+eshare (Choice _ p q) = choiceID {- ID? -} (eshare p) (eshare q)
 eshare (Other op)     = Op (fmap eshare op)
 \end{minted}
 
@@ -1370,7 +1370,7 @@ do fx <- do -- state code is executed
        x <- coin
        end i
        return x
-  addM fx fx
+   addM fx fx
 \end{minted}
 
 Consequently, all occurrences of the state, that is, the scope IDs, are defined before the shared program is evaluated.
@@ -1386,6 +1386,112 @@ This is also reflected in the visualization of the example \hinl{addSharedCoin}.
              ├── 0> 1
              └── 0> 2
 \end{minted}
+
+\subsection{Sharing Infrastructure}
+
+\subsection{Nested Sharing}
+With the current definition of the \hinl{share} operator, simple sharing examples are modelled correctly.
+However, there are more complex scenarios that have not been considered yet.
+For example, calls of \hinl{share} within a shared expression, that is, nested sharing, leads to incorrect behavior.
+We consider the following example of adding the shared result of the addition of a shared coin.
+
+\begin{minted}{Haskell}
+exAddSharedCoinNested :: Prog (Share :+: ND) Int
+exAddSharedCoinNested = share (share coini >>= \fx -> addM fx fx) >>= 
+                          \fy -> addM fy fy
+\end{minted}
+
+The problematic part is generating the ID for the inner call of \hinl{share}.
+Whereas the outer sharing scope correctly receives the ID \hinl{0} for both occurrences within the term structure, the ID of the inner scope differs.
+
+\begin{minted}{Haskell}
+<0 <1 ? 
+      ├── 1> <1 ? 
+      │         ├── 1> 0> <0 <2 ? 
+      .         │               ├── 2> <2 ? 
+      .         .               │         ├── 2> 0> 0
+      .         .               .         └── 2> 0> 1
+\end{minted}
+
+The scope with ID \hinl{0} originate from the outer call of \hinl{share}, while the inner scopes correspond to the nested call.
+Both scopes with the ID \hinl{0} should behave identically, including the nested scopes.
+However, in the current implementation this is not the case.
+When \hinl{fy} is evaluated for the first time, the inner call to \hinl{share} receives the ID \hinl{1}, since state was incremented by the first call.
+The following scope with ID \hinl{0} is not affected by this because its ID was assigned together with the first scope.
+The second nested scope is not linked to the first one, however, because the state code of both scopes is executed separately.
+Thus, the increment operation from running the first nested \hinl{share} affects the second one and the ID \hinl{2} is assigned, although it should have been \hinl{1}.
+
+The problem is this example is therefore that the nested \hinl{share} calls are duplicated but the state is not.
+To solve this problem, we can add \hinl{put} to the program before \hinl{x <- p}, so that  nested calls of \hinl{share} in \hinl{p} behave identical if the scope program is duplicated. 
+
+\begin{minted}{Haskell}
+share :: (Share :<: sig, State Int :<: sig) 
+      => Prog sig a -> Prog sig (Prog sig a)
+share p = do
+  i <- get
+  put i + 1
+  return $ do
+    begin i
+    put {- new state? -}
+    x <- p
+    end i
+    return x
+\end{minted}
+
+For an example like \hinl{exAddSharedCoinNested}, the new state can be as simple as \hinl{i + 1}.
+With the added \hinl{put} syntax, the state within the duplicated scope is no longer different to the state in the original scope.
+Hence, the nested scope receives the correct ID.
+
+\begin{minted}{Haskell}
+<0 <1 ? 
+      ├── 1> <1 ? 
+      │         ├── 1> 0> <0 <1 ? 
+      .         │               ├── 1> <1 ? 
+      .         .               │         ├── 1> 0> 0
+      .         .               .         └── 1> 0> 1
+\end{minted}
+
+This is not a universal solution, however, since ID clashes can occur in some situations.
+When nested sharing is followed by another \hinl{share} call, as in the following example, the IDs inside the nested \hinl{share} and the IDs after the nested share can clash.
+
+\begin{minted}{Haskell}
+exAddSharedCoin4 :: Prog (Share :+: ND) Int
+exAddSharedCoin4 =
+  share (share coin >>= \fx -> addM fx fx) >>=
+  \fy -> share coin >>= \fz -> addM fy fz
+\end{minted}
+
+The tree shows the scope \hinl{1} wrapped around the duplicated, nested \hinl{share} scopes with ID \hinl{2}.
+After that, another scope with ID \hinl{2} follows, although this scope belongs to the shared coin \hinl{fz}.
+
+\begin{minted}{Haskell}
+<1 <2 ? 
+      ├── 2> <2 ? 
+      │         ├── 2> 1> <2 ?
+      .         │            ├── 2> 0
+      .         .            └── 2> 1
+\end{minted}
+
+This clash occurred because nested sharing and repeated sharing have the same namespace when \hinl{put (i + 1)} is used to set the scope state.
+In order to make the namespaces unique, one option is to have \hinl{put (i * 2)} in the outer program layer and \hinl{put (i * 2 + 1)} for the inner program layer.
+In the adapted syntax tree we can now see that the nested calls have the ID \hinl{2 * 1 + 1 = 3}, while the repeated call received the ID \hinl{2 * 1 = 2}.
+Most importantly, the IDs of the nested scopes and the last scope are different now.
+
+\begin{minted}{Haskell}
+<1 <3 ? 
+      ├── 3> <3 ? 
+      │         ├── 3> 1> <2 ? 
+      .         │            ├── 2> 0
+      .         .            └── 2> 1
+
+\end{minted}
+
+The \hinl{*2/*2+1} approach is used, for example, in the KiCS2 compiler.
+It can lead to large numbers very quickly, however, and is not suitable for Coq due to its Peano representation of numbers.
+A more elegant solution can be implemented using a pair of integers as state.
+This way, one component is incremented in the outer program layer and the other component in the inner layer.
+
+\subsection{Deep Sharing}
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
