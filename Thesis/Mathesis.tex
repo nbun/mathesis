@@ -1023,7 +1023,7 @@ addM p q = p >>= \i -> q >>= \j -> return (i + j)
 \end{minted}
 
 With these functions defined, we can now use the \hinl{share} operator to add a shared coin to an unshared coin, twice, as shown in the following example.
-This corresponds to the Curry code \hinl{let x = coin in (x + coin) + (x + coin)}. 
+This corresponds to the Curry code \hinl{let x = coin in (x + coin) + (x + coin)}.
 
 \begin{minted}{Haskell}
 exAddSharedCoinTwice :: Prog (Share :+: ND :+: Void) Int
@@ -1089,7 +1089,7 @@ The next choice within the branch originates from the unshared coin and ideally 
 Indeed, the implementation with explicit \hinl{begin} and \hinl{end} tags closes the sharing scope after the first choice and thus, the choice does not receive an ID.
 The hybrid implementation, however, cannot stop assigning IDs to choices and thus assigns \hinl{2} to the choice.
 
-In the hybrid implementation, when a new scope is opened, the current scope is overwritten. 
+In the hybrid implementation, when a new scope is opened, the current scope is overwritten.
 For this example, this means that the next choice is labeled with \hinl{1} again, since each scope is associated with an initial state that is copied, too, when the sharing scope is duplicated.
 Because there is only one sharing scope in the original program, all occurring scopes are duplicates that were created due to non-determinism.
 It is critical that copied sharing scopes behave identical because this ensures that the choices inside the scopes are named the same way, resulting in correct call-time choice behavior.
@@ -1115,7 +1115,7 @@ data ProgHO sig a = Return a | Op (sig (Prog sig) a)
 
 Due to the functor argument of \hinl{sig}, it is now called a higher-order functor.
 Based on the new program type and higher-order functors, the existing infrastructure for combining signatures, injecting values and pattern matching can be adapted.
-This is not discussed here since we are mostly interested in the the definition of effect data types. 
+This is not discussed here since we are mostly interested in the the definition of effect data types.
 For example, the higher-order version of the sharing effect is defined as follows.
 
 \begin{minted}{Haskell}
@@ -1158,15 +1158,17 @@ Therefore, we will pursue the explicit scoping syntax approach for the remainder
 
 \subsection{Explicit Scope Syntax}
 \label{subsec:explicit}
-When defining a new effect, we need to think about the syntax first.
-We already know that sharing is a scoped effect and thus, two constructors are required.
+The previous subsections have demonstrated that program arguments do not correctly model scopes unless we use higher-order infrastructure.
+Thus, an alternative approach is needed.
+A well known syntactical structure for delimiting scopes are explicit scope tags in the form of \hinl{begin} and \hinl{end} or brackets.
+Following this idea, we split the sharing syntax into two parts.
 One constructor marks the beginning of the scope, while the other marks the ending of the scope.
 
 \begin{minted}{Haskell}
 data Share p = BShare' p | EShare' p
 \end{minted}
 
-Both constructor have program arguments.
+Both constructor have programs arguments.
 \hinl{BShare'}s argument program contains the scoped program block followed by an \hinl{Eshare'} with the remaining program as an argument.
 Similar to the state effect, our smart constructors use \hinl{return ()} as an initial program that is replaced by the actual program when the bind structure is evaluated.
 
@@ -1196,38 +1198,14 @@ share p = return $ do begin ; x <- p ; end ; return x
 
 \hinl{share} wraps \hinl{begin} and \hinl{end} tags around a call of bind that executes the program \hinl{p}.
 Then, the result is returned.
-
-
-
-
-
-\begin{minted}{Haskell}
-exAddSharedCoin :: Prog (Share + ND + Void) Int
-exAddSharedCoin = share coin >>= \fx -> addM fx fx
-\end{minted}
-
-\hinl{exAddSharedCoin} corresponds to the Curry expression \hinl{let x = coin in x + x}.
-Hence, whichever choice is made when the first occurrence of \hinl{x} is evaluated must be repeated in the second one.
-The results of the expression should therefore be \hinl{0 + 0} or \hinl{1 + 1}.
-In the following visualization of programs that contain non-determinism and sharing, \hinl{?} represents non-determinism while angled brackets mark the \hinl{begin} and \hinl{end} tags of the sharing scope.
-
-\begin{minted}{Haskell}
-< ? 
-  ├── > < ? 
-  │       ├── > 0
-  │       └── > 1
-  └── > < ? 
-          ├── > 1
-          └── > 2
-\end{minted}
-
-The expression tree shows that the root choice, that is, the \hinl{coin} in the first \hinl{x}, is delimited by a scope.
-The choices that occur in both branches of the root choice originate from the second occurrence of \hinl{x}.
+One problem of this approach is that sharing tags can be mismatched.
+For this reason, sharing syntax should only be accessible by means of the smart constructor \hinl{share}.
+Nevertheless, mismatched scoping tags are part of the syntax definition and need to be handled.
 
 Now that we have defined the syntax of the sharing effect with explicit scope constructors, we need to consider how the handler should work.
 From the structure of the syntax follows that the handler needs to extract the scoped program between the \hinl{begin} and \hinl{end} tags and then modify the choices that occur inside the scope.
 Following this idea, we divide the sharing handler into two parts.
-The first part is \hinl{bshare}, a function that waits for a \hinl{begin} tag and then hands over the remaining program to \hinl{eshare}, which handles the scope and, again, returns the remaining program.
+The first part is \hinl{bshare}, a function that waits for a \hinl{begin} tag and then hands over its program argument to \hinl{eshare}, which handles the scope and finally returns the program that follows the scope.
 Since this program is now outside of the scope, \hinl{bshare} waits for the next \hinl{begin} tag without modifying any choices.
 
 \begin{minted}{Haskell}
@@ -1238,7 +1216,12 @@ bshare (EShare p) = error "mismatched Eshare"
 bshare (Other op) = Op (fmap bshare op)
 \end{minted}
 
-The second part, however, handles the scoped program and thus should modify choices in such a way that the program behaves as expected regarding call-time choice.
+The case of mismatched scoping tags, that is, an \hinl{Eshare} occurring before a \hinl{BShare} has opened a scope, can be handled in Haskell with a run-time error.
+In Coq, however, this is not possible.
+We could wrap the return type of the function in \hinl{Maybe} to represent mismatched tags, but this makes proofs more cumbersome due to the added case distinction.
+A solution to this problem is discussed in the next chapter about modelling call-time choice in Coq.
+
+The second part of the handler handles the scoped program and thus should modify choices in such a way that the program behaves as expected regarding call-time choice.
 
 \begin{minted}{Haskell}
 eshare :: (ND <: sig)
@@ -1251,23 +1234,25 @@ eshare (Choice _ p q) = choiceID (* ? *) (eshare p) (eshare q)
 eshare (Other op)     = Op (fmap eshare op)
 \end{minted}
 
-Pure values are handled by returning them unmodified.
-When another \hinl{begin} tag is found, \hinl{eshare} keeps modifying choices because the original scope has not been closed yet.
+Pure values are simply returned.
+When a \hinl{begin} tag is found, this means that there is a scope within in scope, that is, nested scopes.
+In this case, \hinl{eshare} keeps modifying choices because neither the original scope nor the new one has not been closed yet.
 Contrary to that, closing tags result in switching back to \hinl{bshare} for the remaining program.
 Finally, when a choice is encountered, an ID needs to be created for  \hinl{choiceID}, a function which creates a choice with an explicitly passed ID.
 However, this is a problem.
 
 The ID that the choice came with is always \hinl{Nothing} because choices are created without IDs.
 It comes to mind that \hinl{eshare} could have a state that is incremented for each encountered choice.
-Unfortunately, this would entail that the same IDs are assigned across different scopes, although this might not be intended.
+Unfortunately, this would entail that each choice is assigned a different ID, that is, two choices could never have the same ID.
+This defeats the purpose of choice IDs because it makes sharing impossible.
 
-Consequently, the main finding from this definition is that we need to assign IDs to sharing scopes, too, so that we can differentiate scopes that were created explicitly and scopes that were duplicated by choices in the program structure.
+Consequently, the main finding from the first attempt to define the sharing handler is that we need to add an identifier to sharing scopes.
+This allows linking scopes that were duplicated due to non-determinism in the program and can be used to create choice IDs.
+Since the problem of linking scopes is more relevant to the implementation of the sharing effect than scoped effects in general, it is discussed in the next section.
 
-Before this issue is addressed, we first have a look at the higher-order approach for scoped effects.
 
 \section{Implementation of Sharing as Effect}
 \label{subsec:sharingImplementation}
-
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
