@@ -257,24 +257,34 @@ End State.
 Section Sharing.
 
   Inductive Sharing (A : Type) :=
-  | csharing : nat -> A -> Sharing A.
+  | cbsharing : nat -> A -> Sharing A
+  | cesharing : nat -> A -> Sharing A.
 
   Inductive Shape__Sharing :=
-  | ssharing : nat -> Shape__Sharing.
+  | sbsharing : nat -> Shape__Sharing
+  | sesharing : nat -> Shape__Sharing.
 
   Inductive Pos__Sharing : Shape__Sharing -> Type :=
-  | psharing : forall (n : nat), Pos__Sharing (ssharing n).
+  | pbsharing : forall (n : nat), Pos__Sharing (sbsharing n)
+  | pesharing : forall (n : nat), Pos__Sharing (sesharing n).
 
   Definition Ext__Sharing A := Ext Shape__Sharing Pos__Sharing A.
 
   Definition to__Sharing A (e: Ext__Sharing A) : Sharing A :=
     match e with
-    | ext (ssharing n) fp => csharing n (fp (psharing n))
+    | ext (sbsharing n) fp => cbsharing n (fp (pbsharing n))
+    | ext (sesharing n) fp => cesharing n (fp (pesharing n))
     end.
 
   Fixpoint from__Sharing A (z : Sharing A) : Ext__Sharing A :=
     match z with
-    | csharing n a => ext (ssharing n) (fun p : Pos__Sharing (ssharing n) => match p with psharing _ => a end)
+    | cbsharing n a => ext (sbsharing n)
+                          (fun p : Pos__Sharing (sbsharing n)
+                           => match p with pbsharing _ => a end)
+    | cesharing n a => ext (sesharing n)
+                          (fun p : Pos__Sharing (sesharing n)
+                           => match p with pesharing _ => a end)
+
     end.
 
   Lemma to_from__Sharing : forall A (ox : Sharing A), to__Sharing (from__Sharing ox) = ox.

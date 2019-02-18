@@ -165,9 +165,12 @@ Section List.
                      let fix aux xs :=
                          let shr fp := Get >>= fun i =>
                                        Put (i * 2) >>= fun _ =>
-                                       pure (Share' i (
-                                         Put (i * 2 + 1) >>= fun _ =>
-                                         fp >>= fun x => aux x))
+                                       pure (BeginShare i >>= fun _ =>
+                                             Put (i * 2 + 1) >>= fun _ =>
+                                             fp >>= fun x =>
+                                             aux x >>= fun x' =>
+                                             EndShare i >>= fun _ =>
+                                             pure x')
                          in
                          match xs with
                          | Nil'       => @nilM A
@@ -212,8 +215,10 @@ Section List.
                | impure (ext (inr (inr (schoice mid))) pf) =>
                  (pf true >>= fun xs => lengthM xs) >>= fun x =>
                                                           (pf false >>= fun xs => lengthM xs) >>= fun y => pure (max x y)
-               | impure (ext (inr (inl (ssharing n)))  pf) =>
-                 pf (psharing n) >>= fun xs => lengthM xs
+               | impure (ext (inr (inl (sbsharing n)))  pf) =>
+                 pf (pbsharing n) >>= fun xs => lengthM xs
+               | impure (ext (inr (inl (sesharing n)))  pf) =>
+                 pf (pesharing n) >>= fun xs => lengthM xs
                end
       in m >>= fun i => pure (i + 1)
     end.

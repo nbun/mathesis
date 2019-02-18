@@ -178,6 +178,7 @@ Section exPB.
   
   Example exDupShareFirst : Prog (Pair bool bool) := dupShare (@firstM bool bool (pairM coin Fail)).
   Example res_exDupShareFirst :=  [Pair' (pure true) (pure true); Pair' (pure false) (pure false)].
+
   
   Example exShareNestedChoice : Prog (Pair bool bool) :=
     share ((pure true ? pure false) ? (pure true ? pure false)) >>=

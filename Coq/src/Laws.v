@@ -74,21 +74,6 @@ Section Free_Share_Ind__SC.
   Defined.
 End Free_Share_Ind__SC.
 
-Fixpoint upcast__SC A (fc : Free (C__Comb C__Sharing C__Choice) A) : Prog A :=
-  match fc with
-  | pure x => pure x
-  | impure (ext (inr sfail)          _)  => Fail
-  | impure (ext (inr (schoice mid)) pf)  => Effect.Choice mid (upcast__SC (pf true)) (upcast__SC (pf false))
-  | impure (ext (inl (ssharing n))  pf)  => Share' n (upcast__SC (pf (psharing n)))
-  end.
-
-Fixpoint upcast__C A (fc : Free C__Choice A) : Prog A :=
-  match fc with
-  | pure x => pure x
-  | impure (ext sfail          _)  => Fail
-  | impure (ext (schoice mid) pf)  => Effect.Choice mid (upcast__C (pf true)) (upcast__C (pf false))
-  end.
-
 Section SharingLaws.
   Variable (A : Type).
   Variable nf__A : Normalform A A.
@@ -152,7 +137,7 @@ Section SharingLaws.
       Eq_Prog eqA (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
   Proof. 
     intros f'.
-    unfold Eq_Prog, handle, Search.collectVals, Share'.
+    unfold Eq_Prog, handle, Search.collectVals.
     simpl.
     repeat (rewrite nf_impure; simpl).
     econstructor.
@@ -164,7 +149,7 @@ Section SharingLaws.
   Theorem Fail__id :
     Eq_Prog eqA (Share Fail >>= id) (pure Fail >>= id).
   Proof.
-    unfold Eq_Prog, handle, Search.collectVals, Share', Fail.
+    unfold Eq_Prog, handle, Search.collectVals, Fail.
     simpl.
     repeat (rewrite nf_impure; try unfold Share'; simpl).
     constructor.
@@ -192,41 +177,38 @@ Section SharingLaws.
       Eq_Prog eqA (Share Fail >>= const x) (pure (@Fail A) >>= const x).
   Proof. 
     intros x. 
-    unfold Eq_Prog, handle, Search.collectVals, Share'. simpl.
+    unfold Eq_Prog, handle, Search.collectVals.  simpl.
     do 2 (rewrite nf_impure; simpl).
     rewrite State_ND_independence with (m := 1).
     reflexivity.
   Qed.
 
-  Require Import Nat.
-  Search "dec".
-  Lemma sharing_id_independence : forall (p : Prog A) n i j k env1 env2,
-      (Search.dfs env1 (runChoice (nameChoices i j (runState n p)))) =
-      (Search.dfs env2 (runChoice (nameChoices i k (runState n p)))).
-      (* nameChoices i j p = nameChoices i k p. *)
-  Proof.
-    induction p using Free_Share_Ind; intros n i j k env1 env2.
-    - reflexivity.
-    - reflexivity.
-    - simpl.
-      destruct (EqNat.eq_nat_decide i j) as [Heq|Hneq].
-      apply EqNat.eq_nat_eq in Heq.
-      subst.
-      Admitted.
+  (* Require Import Nat. *)
+  (* Search "dec". *)
+  (* Lemma sharing_id_independence : forall (p : Prog A) n i j k env1 env2, *)
+  (*     (Search.dfs env1 (runChoice (nameChoices i j (runState n p)))) = *)
+  (*     (Search.dfs env2 (runChoice (nameChoices i k (runState n p)))). *)
+  (*     (* nameChoices i j p = nameChoices i k p. *) *)
+  (* Proof. *)
+  (*   induction p using Free_Share_Ind; intros n i j k env1 env2. *)
+  (*   - reflexivity. *)
+  (*   - reflexivity. *)
+  (*   - simpl. *)
+  (*     destruct (EqNat.eq_nat_decide i j) as [Heq|Hneq]. *)
+  (*     apply EqNat.eq_nat_eq in Heq. *)
+  (*     subst. *)
+  (*     Admitted. *)
 
   Theorem Choice__fstrict : forall (f' : A -> Prog A) p1 p2,
       Eq_Prog eqA (Share (p1 ? p2) >>= fun fx => fx >>= f') ((Share p1 ? Share p2) >>= fun fx => fx >>= f').
   Proof.
     intros f' p1 p2.
-    unfold Eq_Prog, handle, Search.collectVals, Share'.
+    unfold Eq_Prog, handle, Search.collectVals.
     simpl.
     repeat (rewrite nf_impure; simpl).
     induction  (nf (p1 >>= (fun x : A => shareArgs x) >>= f')) using Free_Share_Ind;
       induction  (nf (p2 >>= (fun x : A => shareArgs x) >>= f')) using Free_Share_Ind;
       simpl; try reflexivity.
-    - econstructor; try reflexivity.
-
-
     Admitted.
       
 
@@ -234,12 +216,8 @@ Section SharingLaws.
       Eq_Prog eqA (Share (p1 ? p2) >>= id) ((Share p1 ? Share p2) >>= id).
   Proof.
     intros.
-    unfold Eq_Prog, handle, Search.collectVals, Share', Fail.
+    unfold Eq_Prog, handle, Search.collectVals, Fail.
     simpl.
     repeat (rewrite nf_impure; try unfold Share'; simpl).
-    constructor.
-
-    
-
-
+    Admitted.
 End SharingLaws.
