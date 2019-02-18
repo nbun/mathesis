@@ -1250,9 +1250,142 @@ Consequently, the main finding from the first attempt to define the sharing hand
 This allows linking scopes that were duplicated due to non-determinism in the program and can be used to create choice IDs.
 Since the problem of linking scopes is more relevant to the implementation of the sharing effect than scoped effects in general, it is discussed in the next section.
 
-
 \section{Implementation of Sharing as Effect}
 \label{subsec:sharingImplementation}
+In this section, the simple implementation of sharing from the previous section is refined into an implementation that models call-time choice correctly.
+
+\subsection{Sharing IDs}
+To begin with, we consider the following example that shows why we need to link sharing scopes.
+
+\begin{minted}{Haskell}
+exAddSharedCoin :: Prog (Share :+: ND) Int
+exAddSharedCoin = share coin >>= \fx -> addM fx fx
+\end{minted}
+
+The \hinl{coin} in the addition is shared and thus, the expected result is \hinl{0} and \hinl{2}.
+When represented as a tree, the example looks like the following.
+
+\begin{minted}{Haskell}
+< ? 
+  ├── > < ? 
+  │       ├── > 0
+  │       └── > 1
+  └── > < ? 
+          ├── > 1
+          └── > 2
+\end{minted}
+
+In order to evaluate the example correctly, all choices need to have the same ID.
+Since all scopes are copies of the same call to \hinl{share}, the sharing handler needs to behave equally for all scopes and the choices within.
+However, this information is lost when the bind structure in the term duplicates the sharing scopes.
+Hence, the \hinl{begin} and \hinl{end} tags of the scope receive an ID.
+Although it would be sufficient to mark only the \hinl{begin} tags, it makes checking for mismatched tags easier to give \hinl{end} an ID, too.
+
+\begin{minted}{Haskell}
+data Share p = BShare' Int p | EShare' Int p
+\end{minted}
+
+With this new data type, how do we define the smart constructor \hinl{share}?
+There are two options: \hinl{share} either receives an ID as a parameter or the ID is generated inside the function.
+The former is much simpler to implement but would entail that the user needs to assign a unique ID to each call of \hinl{share}.
+Since it is good practice to hide such implementation-specific details from the user, the second approach of generating an ID within \hinl{share} is the better option.
+
+In order to generate an ID for a sharing scope, we need a state that the ID is derived from.
+Again, we have two options.
+The state could be implemented on the level of the \textit{modelling} language or the \textit{modelled} language.
+The former would mean that all programs would need to be defined within the state monad, which is conceptually similar to the approach of user-defined IDs that are put into the program from the outside.
+
+The latter approach uses the state effect on the \hinl{Prog} level, which was discussed in \autoref{sec:effectHandlers}.
+This means that \hinl{share} itself becomes a complex program instead of a simple smart constructor.
+In this case, the ID is generated within the program.
+
+Generally, using the \hinl{Prog} state effect is preferable because it does not require adapting the whole infrastructure to the state monad and it ties in elegantly with the theme of modelling effects.
+
+\begin{minted}{Haskell}
+share :: (Share :<: sig, State Int :<: sig) 
+      => Prog sig a -> Prog sig (Prog sig a)
+share p = return $ do 
+  i <- get
+  put (i + 1)
+  begin i
+  x <- p
+  end i
+  return x
+\end{minted}
+
+The signature of the program now needs to support an integer state in order to support sharing syntax.
+We still use \hinl{return} to create an empty, outer program layer.
+The inner program now contains state syntax that retrieves and increments the current state.
+The value from the state is then used as the ID of the sharing scope.
+
+The consequence of the added state code is visualized by means of the initial example \hinl{addSharedCoin}.
+
+\begin{minted}{Haskell}
+do fx <- share coin
+   addM fx fx
+\end{minted}
+
+Inlining the definition of \hinl{share} yields the following program.
+
+\begin{minted}{Haskell}
+do fx <- return $ do
+     i <- get
+     put (i + 1)
+     begin i
+     x <- coin
+     end i
+     return x
+   addM fx fx -- state code is duplicated!
+\end{minted}
+
+Due to the left identity law for bind, \hinl{fx <- return $ ...} acts like a \hinl{let} binding where \hinl{fx} is bound to the program that follows \hinl{return}.
+This results in the state code being duplicated in the addition.
+Unfortunately, this is not the desired behavior, as the following visualization shows.
+
+\begin{minted}[escapeinside=||]{Haskell}
+<0 ? 
+   ├── 0> <1 ? 
+   │         ├── 1> 0
+   │         └── 1> 1
+   └── 0> <1 ? 
+             ├── 1> 1
+             └── 1> 2
+\end{minted}
+
+When the state is initialized with \hinl{0}, the first scope receives the ID \hinl{0} and increments the state to \hinl{1} when the state code within the first occurrence of \hinl{fx} is executed.
+Then, the second \hinl{fx} is evaluated and the same happens again.
+Thus, the ID of the following scope is \hinl{1} for both branches\footnote{In this example, the state handler runs before the non-determinism handler and thus, choice branches have a local state.}.
+Since the idea of the added state is to link scopes together, so that duplicated scopes receive the same ID, this approach has failed.
+Luckily, just a small modification is needed to fix the problem.
+The problem of the current \hinl{share} implementation is that one part of the program -- the state code -- needs to be executed immediately, while the other part -- the shared program -- should only be evaluated if needed.
+In the current implementation of \hinl{share}, there is an empty, outer program layer that is evaluated by bind when using \hinl{share}.
+The reason for the nested program structure now becomes clear: The outer program layer contains the state code that is executed once when bind evaluates \hinl{share}.
+
+\begin{minted}{Haskell}
+do fx <- do -- state code is executed
+     i <- get
+     put (i + 1)
+     return $ do
+       begin i
+       x <- coin
+       end i
+       return x
+  addM fx fx
+\end{minted}
+
+Consequently, all occurrences of the state, that is, the scope IDs, are defined before the shared program is evaluated.
+Thus, it does not matter if or where in the program the result of \hinl{share} is evaluated.
+This is also reflected in the visualization of the example \hinl{addSharedCoin}.
+
+\begin{minted}{Haskell}
+<0 ? 
+   ├── 0> <0 ? 
+   │         ├── 0> 0
+   │         └── 0> 1
+   └── 0> <0 ? 
+             ├── 0> 1
+             └── 0> 2
+\end{minted}
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
