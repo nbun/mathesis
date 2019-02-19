@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="../">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">Thesis.Free</h1>
+
+<div class="code">
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="Thesis.Container.html#"><span class="id" title="library">Thesis.Container</span></a>.<br/>
+<span class="id" title="keyword">Set Implicit Arguments</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a name="Free"><span class="id" title="section">Free</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free.F"><span class="id" title="variable">F</span></a> : <span class="id" title="keyword">Type</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Type</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Inductive</span> <a name="Free"><span class="id" title="inductive">Free</span></a> (<span class="id" title="var">C__F</span> : <a class="idref" href="Thesis.Container.html#Container"><span class="id" title="class">Container</span></a> <a class="idref" href="Thesis.Free.html#Free.F"><span class="id" title="variable">F</span></a>) <span class="id" title="var">A</span> :=<br/>
+&nbsp;&nbsp;| <a name="pure"><span class="id" title="constructor">pure</span></a> : <a class="idref" href="Thesis.Free.html#A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#A"><span class="id" title="variable">A</span></a><br/>
+&nbsp;&nbsp;| <a name="impure"><span class="id" title="constructor">impure</span></a> : <a class="idref" href="Thesis.Container.html#Ext"><span class="id" title="inductive">Ext</span></a> <a class="idref" href="Thesis.Container.html#Shape"><span class="id" title="method">Shape</span></a> <a class="idref" href="Thesis.Container.html#Pos"><span class="id" title="method">Pos</span></a> (<a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#A"><span class="id" title="variable">A</span></a>) <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#A"><span class="id" title="variable">A</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="section">Free</span></a>.<br/>
+
+<br/>
+<span class="id" title="var">Arguments</span> <a class="idref" href="Thesis.Free.html#pure"><span class="id" title="constructor">pure</span></a> {<span class="id" title="var">_</span>} {<span class="id" title="var">_</span>} {<span class="id" title="var">_</span>} <span class="id" title="var">_</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a name="Free_Rect"><span class="id" title="section">Free_Rect</span></a>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Rect.F"><span class="id" title="variable">F</span></a> : <span class="id" title="keyword">Type</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Rect.C__F"><span class="id" title="variable">C__F</span></a> : <a class="idref" href="Thesis.Container.html#Container"><span class="id" title="class">Container</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.F"><span class="id" title="variable">F</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Rect.A"><span class="id" title="variable">A</span></a> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Rect.P"><span class="id" title="variable">P</span></a> : <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Type</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Rect.Pure_rect"><span class="id" title="variable">Pure_rect</span></a> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">x</span> : <a class="idref" href="Thesis.Free.html#Free_Rect.A"><span class="id" title="variable">A</span></a>), <a class="idref" href="Thesis.Free.html#Free_Rect.P"><span class="id" title="variable">P</span></a> (<a class="idref" href="Thesis.Free.html#pure"><span class="id" title="constructor">pure</span></a> <a class="idref" href="Thesis.Free.html#x"><span class="id" title="variable">x</span></a>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Rect.Impure_rect"><span class="id" title="variable">Impure_rect</span></a> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">s</span> : <a class="idref" href="Thesis.Container.html#Shape"><span class="id" title="method">Shape</span></a>) (<span class="id" title="var">pf</span> : <a class="idref" href="Thesis.Container.html#Pos"><span class="id" title="method">Pos</span></a> <a class="idref" href="Thesis.Free.html#s"><span class="id" title="variable">s</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.A"><span class="id" title="variable">A</span></a>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">(</span></a><span class="id" title="keyword">forall</span> <span class="id" title="var">p</span>, <a class="idref" href="Thesis.Free.html#Free_Rect.P"><span class="id" title="variable">P</span></a> (<a class="idref" href="Thesis.Free.html#pf"><span class="id" title="variable">pf</span></a> <a class="idref" href="Thesis.Free.html#p"><span class="id" title="variable">p</span></a>)<a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">)</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.P"><span class="id" title="variable">P</span></a> (<a class="idref" href="Thesis.Free.html#impure"><span class="id" title="constructor">impure</span></a> (<a class="idref" href="Thesis.Container.html#ext"><span class="id" title="constructor">ext</span></a> <a class="idref" href="Thesis.Free.html#s"><span class="id" title="variable">s</span></a> <a class="idref" href="Thesis.Free.html#pf"><span class="id" title="variable">pf</span></a>)).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Fixpoint</span> <a name="Free_Rect"><span class="id" title="definition">Free_Rect</span></a> (<span class="id" title="var">fx</span> : <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#Free_Rect.A"><span class="id" title="variable">A</span></a>) : <a class="idref" href="Thesis.Free.html#Free_Rect.P"><span class="id" title="variable">P</span></a> <a class="idref" href="Thesis.Free.html#fx"><span class="id" title="variable">fx</span></a> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">match</span> <a class="idref" href="Thesis.Free.html#fx"><span class="id" title="variable">fx</span></a> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;| <a class="idref" href="Thesis.Free.html#pure"><span class="id" title="constructor">pure</span></a> <span class="id" title="var">x</span> =&gt; <a class="idref" href="Thesis.Free.html#Free_Rect.Pure_rect"><span class="id" title="variable">Pure_rect</span></a> <span class="id" title="var">x</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;| <a class="idref" href="Thesis.Free.html#impure"><span class="id" title="constructor">impure</span></a> (<a class="idref" href="Thesis.Container.html#ext"><span class="id" title="constructor">ext</span></a> <span class="id" title="var">s</span> <span class="id" title="var">pf</span>) =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="Thesis.Free.html#Free_Rect.Impure_rect"><span class="id" title="variable">Impure_rect</span></a> <span class="id" title="var">s</span> <span class="id" title="var">pf</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> : <a class="idref" href="Thesis.Container.html#Pos"><span class="id" title="method">Pos</span></a> <span class="id" title="var">s</span> =&gt; <a class="idref" href="Thesis.Free.html#Free_Rect"><span class="id" title="definition">Free_Rect</span></a> (<span class="id" title="var">pf</span> <a class="idref" href="Thesis.Free.html#p"><span class="id" title="variable">p</span></a>))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Thesis.Free.html#Free_Rect"><span class="id" title="section">Free_Rect</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a name="Free_Ind"><span class="id" title="section">Free_Ind</span></a>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Ind.F"><span class="id" title="variable">F</span></a> : <span class="id" title="keyword">Type</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Ind.C__F"><span class="id" title="variable">C__F</span></a> : <a class="idref" href="Thesis.Container.html#Container"><span class="id" title="class">Container</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.F"><span class="id" title="variable">F</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Ind.A"><span class="id" title="variable">A</span></a> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Ind.P"><span class="id" title="variable">P</span></a> : <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Prop</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Ind.Pure_ind"><span class="id" title="variable">Pure_ind</span></a> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">x</span> : <a class="idref" href="Thesis.Free.html#Free_Ind.A"><span class="id" title="variable">A</span></a>), <a class="idref" href="Thesis.Free.html#Free_Ind.P"><span class="id" title="variable">P</span></a> (<a class="idref" href="Thesis.Free.html#pure"><span class="id" title="constructor">pure</span></a> <a class="idref" href="Thesis.Free.html#x"><span class="id" title="variable">x</span></a>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Free_Ind.Impure_ind"><span class="id" title="variable">Impure_ind</span></a> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">s</span> : <a class="idref" href="Thesis.Container.html#Shape"><span class="id" title="method">Shape</span></a>) (<span class="id" title="var">pf</span> : <a class="idref" href="Thesis.Container.html#Pos"><span class="id" title="method">Pos</span></a> <a class="idref" href="Thesis.Free.html#s"><span class="id" title="variable">s</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.A"><span class="id" title="variable">A</span></a>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">(</span></a><span class="id" title="keyword">forall</span> <span class="id" title="var">p</span>, <a class="idref" href="Thesis.Free.html#Free_Ind.P"><span class="id" title="variable">P</span></a> (<a class="idref" href="Thesis.Free.html#pf"><span class="id" title="variable">pf</span></a> <a class="idref" href="Thesis.Free.html#p"><span class="id" title="variable">p</span></a>)<a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">)</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.P"><span class="id" title="variable">P</span></a> (<a class="idref" href="Thesis.Free.html#impure"><span class="id" title="constructor">impure</span></a> (<a class="idref" href="Thesis.Container.html#ext"><span class="id" title="constructor">ext</span></a> <a class="idref" href="Thesis.Free.html#s"><span class="id" title="variable">s</span></a> <a class="idref" href="Thesis.Free.html#pf"><span class="id" title="variable">pf</span></a>)).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a name="Free_Ind"><span class="id" title="definition">Free_Ind</span></a> (<span class="id" title="var">fx</span> : <a class="idref" href="Thesis.Free.html#Free"><span class="id" title="inductive">Free</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.C__F"><span class="id" title="variable">C__F</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.A"><span class="id" title="variable">A</span></a>) : <a class="idref" href="Thesis.Free.html#Free_Ind.P"><span class="id" title="variable">P</span></a> <a class="idref" href="Thesis.Free.html#fx"><span class="id" title="variable">fx</span></a> := <a class="idref" href="Thesis.Free.html#Free_Rect"><span class="id" title="definition">Free_Rect</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.P"><span class="id" title="variable">P</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.Pure_ind"><span class="id" title="variable">Pure_ind</span></a> <a class="idref" href="Thesis.Free.html#Free_Ind.Impure_ind"><span class="id" title="variable">Impure_ind</span></a> <a class="idref" href="Thesis.Free.html#fx"><span class="id" title="variable">fx</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Thesis.Free.html#Free_Ind"><span class="id" title="section">Free_Ind</span></a>.<br/>
+
+<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>

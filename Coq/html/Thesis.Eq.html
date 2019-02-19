@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="../">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">Thesis.Eq</h1>
+
+<div class="code">
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="Thesis.Prog.html#"><span class="id" title="library">Thesis.Prog</span></a>.<br/>
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="Thesis.Classes.html#"><span class="id" title="library">Thesis.Classes</span></a>.<br/>
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="Thesis.Handler.html#"><span class="id" title="library">Thesis.Handler</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#"><span class="id" title="library">Coq.Classes.RelationClasses</span></a>.<br/>
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.Equivalence.html#"><span class="id" title="library">Equivalence</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Set Implicit Arguments</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a name="Eq_list"><span class="id" title="section">Eq_list</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Eq_list.A"><span class="id" title="variable">A</span></a> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Eq_list.eq_A"><span class="id" title="variable">eq_A</span></a> : <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Prop</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Eq_list.eq_A_refl"><span class="id" title="variable">eq_A_refl</span></a>  : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Reflexive"><span class="id" title="class">Reflexive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.eq_A"><span class="id" title="variable">eq_A</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Eq_list.eq_A_symm"><span class="id" title="variable">eq_A_symm</span></a>  : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Symmetric"><span class="id" title="class">Symmetric</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.eq_A"><span class="id" title="variable">eq_A</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Eq_list.eq_A_trans"><span class="id" title="variable">eq_A_trans</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Transitive"><span class="id" title="class">Transitive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.eq_A"><span class="id" title="variable">eq_A</span></a>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Inductive</span> <a name="Eq_list"><span class="id" title="inductive">Eq_list</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a> <span class="id" title="keyword">Prop</span> :=<br/>
+&nbsp;&nbsp;| <a name="eq_nil"><span class="id" title="constructor">eq_nil</span></a>  : <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Datatypes.html#nil"><span class="id" title="constructor">nil</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Datatypes.html#nil"><span class="id" title="constructor">nil</span></a><br/>
+&nbsp;&nbsp;| <a name="eq_cons"><span class="id" title="constructor">eq_cons</span></a> : <span class="id" title="keyword">forall</span> <span class="id" title="var">x</span> <span class="id" title="var">y</span> <span class="id" title="var">xs</span> <span class="id" title="var">ys</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="Thesis.Eq.html#Eq_list.eq_A"><span class="id" title="variable">eq_A</span></a> <a class="idref" href="Thesis.Eq.html#x"><span class="id" title="variable">x</span></a> <a class="idref" href="Thesis.Eq.html#y"><span class="id" title="variable">y</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> <a class="idref" href="Thesis.Eq.html#xs"><span class="id" title="variable">xs</span></a> <a class="idref" href="Thesis.Eq.html#ys"><span class="id" title="variable">ys</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Logic.html#1c93e43e07fbeaeb6a625cb6614beb5d"><span class="id" title="notation">-&gt;</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> (<a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Datatypes.html#cons"><span class="id" title="constructor">cons</span></a> <a class="idref" href="Thesis.Eq.html#x"><span class="id" title="variable">x</span></a> <a class="idref" href="Thesis.Eq.html#xs"><span class="id" title="variable">xs</span></a>) (<a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Init.Datatypes.html#cons"><span class="id" title="constructor">cons</span></a> <a class="idref" href="Thesis.Eq.html#y"><span class="id" title="variable">y</span></a> <a class="idref" href="Thesis.Eq.html#ys"><span class="id" title="variable">ys</span></a>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a name="eq_list_refl"><span class="id" title="lemma">eq_list_refl</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Reflexive"><span class="id" title="class">Reflexive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">xs</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">induction</span> <span class="id" title="var">xs</span> <span class="id" title="keyword">as</span> [ | <span class="id" title="var">y</span> <span class="id" title="var">ys</span>].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">constructor</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">constructor</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">reflexivity</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a name="eq_list_symm"><span class="id" title="lemma">eq_list_symm</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Symmetric"><span class="id" title="class">Symmetric</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">xs</span> <span class="id" title="var">ys</span> <span class="id" title="var">H</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">induction</span> <span class="id" title="var">H</span>; <span class="id" title="tactic">constructor</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">symmetry</span>. <span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a name="eq_list_trans"><span class="id" title="lemma">eq_list_trans</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Transitive"><span class="id" title="class">Transitive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span> <span class="id" title="keyword">with</span> <span class="id" title="tactic">auto</span>; <span class="id" title="tactic">try</span> <span class="id" title="tactic">constructor</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">xs</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">induction</span> <span class="id" title="var">xs</span>; <span class="id" title="tactic">intros</span> <span class="id" title="var">ys</span> <span class="id" title="var">zs</span> <span class="id" title="var">H1</span> <span class="id" title="var">H2</span>; <span class="id" title="tactic">inversion</span> <span class="id" title="var">H1</span>; <span class="id" title="tactic">subst</span>; <span class="id" title="tactic">inversion</span> <span class="id" title="var">H2</span>; <span class="id" title="tactic">subst</span>...<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">etransitivity</span>. <span class="id" title="tactic">apply</span> <span class="id" title="var">H3</span>. <span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">apply</span> <span class="id" title="var">IHxs</span> <span class="id" title="keyword">with</span> (<span class="id" title="var">y</span> := <span class="id" title="var">ys0</span>); <span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <a name="eq_list_Reflexive"><span class="id" title="instance">eq_list_Reflexive</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Reflexive"><span class="id" title="class">Reflexive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> := <a class="idref" href="Thesis.Eq.html#eq_list_refl"><span class="id" title="lemma">eq_list_refl</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <a name="eq_list_Symmetric"><span class="id" title="instance">eq_list_Symmetric</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Symmetric"><span class="id" title="class">Symmetric</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> := <a class="idref" href="Thesis.Eq.html#eq_list_symm"><span class="id" title="lemma">eq_list_symm</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <a name="eq_list_Transitive"><span class="id" title="instance">eq_list_Transitive</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Transitive"><span class="id" title="class">Transitive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> := <a class="idref" href="Thesis.Eq.html#eq_list_trans"><span class="id" title="lemma">eq_list_trans</span></a>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a name="Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a> `{<a class="idref" href="Thesis.Classes.html#Normalform"><span class="id" title="class">Normalform</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a>} (<span class="id" title="var">p1</span> <span class="id" title="var">p2</span> : <a class="idref" href="Thesis.Prog.html#Prog"><span class="id" title="definition">Prog</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="inductive">Eq_list</span></a> (<a class="idref" href="Thesis.Handler.html#handle"><span class="id" title="definition">handle</span></a> <a class="idref" href="Thesis.Eq.html#p1"><span class="id" title="variable">p1</span></a>) (<a class="idref" href="Thesis.Handler.html#handle"><span class="id" title="definition">handle</span></a> <a class="idref" href="Thesis.Eq.html#p2"><span class="id" title="variable">p2</span></a>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <a name="Eq_list.nf__A"><span class="id" title="variable">nf__A</span></a> : (<a class="idref" href="Thesis.Classes.html#Normalform"><span class="id" title="class">Normalform</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a> <a class="idref" href="Thesis.Eq.html#Eq_list.A"><span class="id" title="variable">A</span></a>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a name="eq_Prog_refl"><span class="id" title="lemma">eq_Prog_refl</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Reflexive"><span class="id" title="class">Reflexive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">p</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">reflexivity</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a name="eq_Prog_symm"><span class="id" title="lemma">eq_Prog_symm</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Symmetric"><span class="id" title="class">Symmetric</span></a> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">p1</span> <span class="id" title="var">p2</span> <span class="id" title="var">H</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">symmetry</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a name="eq_Prog_trans"><span class="id" title="lemma">eq_Prog_trans</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Transitive"><span class="id" title="class">Transitive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">p1</span> <span class="id" title="var">p2</span> <span class="id" title="var">p3</span> <span class="id" title="var">H1</span> <span class="id" title="var">H2</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H1</span>, <span class="id" title="var">H2</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">etransitivity</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <span class="id" title="var">H1</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <a name="eq_Prog_Reflexive"><span class="id" title="instance">eq_Prog_Reflexive</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Reflexive"><span class="id" title="class">Reflexive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a> := <a class="idref" href="Thesis.Eq.html#eq_Prog_refl"><span class="id" title="lemma">eq_Prog_refl</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <a name="eq_Prog_Symmetric"><span class="id" title="instance">eq_Prog_Symmetric</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Symmetric"><span class="id" title="class">Symmetric</span></a> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a> := <a class="idref" href="Thesis.Eq.html#eq_Prog_symm"><span class="id" title="lemma">eq_Prog_symm</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <a name="eq_Prog_Transitive"><span class="id" title="instance">eq_Prog_Transitive</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.9.0/stdlib//Coq.Classes.RelationClasses.html#Transitive"><span class="id" title="class">Transitive</span></a> <a class="idref" href="Thesis.Eq.html#Eq_Prog"><span class="id" title="definition">Eq_Prog</span></a> := <a class="idref" href="Thesis.Eq.html#eq_Prog_trans"><span class="id" title="lemma">eq_Prog_trans</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Thesis.Eq.html#Eq_list"><span class="id" title="section">Eq_list</span></a>.<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>

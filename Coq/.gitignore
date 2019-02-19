@@ -1,3 +1,5 @@
 /.coqdeps.d
 /Makefile
 /Makefile.conf
+/LICENSE
+/README.md
