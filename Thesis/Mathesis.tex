@@ -25,7 +25,7 @@
 
 \setmonofont{Fira Code Regular}
 \setmainfont{XCharter Roman}
-\newfontfamily{\fallbackfont}{Source Code Pro}[Scale=MatchLowercase]
+\newfontfamily{\fallbackfont}{STIX}[Scale=MatchLowercase]
 \DeclareTextFontCommand{\textfallback}{\fallbackfont}
 
 \usepackage{newunicodechar}
@@ -197,6 +197,7 @@ In the process, each choice ID's decision is stored and then repeated if the sam
 While this approach is useful when the host language supports laziness and sharing, another approach is necessary to model these effects when they are not built into the language.
 
 \subsection{Modelling Laziness and Sharing}
+\label{subsec:monadicLifting}
 \citet{fischer2009purely} introduce a monadic representation of non-determinism that supports sharing and non-strict evaluation.
 Out of simplicity, the implementation idea is presented in Haskell, similar to the approach of the original authors, using the example of permutation sort.
 The algorithm consists  of three components.
@@ -1492,6 +1493,88 @@ A more elegant solution can be implemented using a pair of integers as state.
 This way, one component is incremented in the outer program layer and the other component in the inner layer.
 
 \subsection{Deep Sharing}
+The implementation of \hinl{share} from the previous subsection supports nested sharing and top-level non-determinism.
+Modelling Curry's call-time choice also includes non-determinism that occurs in components of data types.
+Therefore, when a value of a data type with non-deterministic components is shared, the individual components should be shared, too.
+Similarly to \autoref{subsec:monadicLifting}, data types need to be lifted so that effectful components can be modelled properly.
+Since \hinl{Prog sig} is a monad if \hinl{sig} is a functor, the same monadic transformation works here, too.
+We reconsider the following lifted list data type.
+
+\begin{minted}{Haskell}
+data List m a = Nil | Cons (m a) (m (List m a))
+
+cons :: Monad m => n a -> n (List n a) -> m (List n a)
+cons x xs = return (Cons x xs)
+
+nil :: Monad m => m (List n a)
+nil = return Nil
+\end{minted}
+
+In order to make the existing infrastructure compatible with effectful data structures, we need to think about the way handlers work.
+Since values of lifted data types are considered pure values, although the components might be effectful, effect handlers do not modify such values, that is, the contained effects are not handled.
+Instead of differentiating primitive and complex pure values inside all handlers, we choose a different approach.
+For example, we consider the following transformation of a non-deterministic list in Curry syntax.
+
+\begin{minted}{Haskell}
+  [0 ? 1, 0 ? 1]
+= [0, 0 ? 1] ? [1, 0 ? 1]
+= [0, 0] ? [0, 1] ? [1, 0] ? [1, 1]
+\end{minted}
+
+Beginning with a list that contains non-deterministic elements, we can move choices from the components to the root of the expression.
+In the end, only lists without effectful arguments remain.
+The same concept can be transferred to our model.
+Before running any handlers, effects need to be moved outside of the components, which is called normal form.
+\todo{normal form strictness?}
+This concept is formalized in the following type class.
+
+\begin{minted}{Haskell}
+class Normalform m a b where
+    nf :: m a -> m b
+\end{minted}
+
+The parameters \hinl{a} and \hinl{b} are used to adapt the return type.
+For example, the function \hinl{nf} can normalize an argument of type \hinl{Prog sig (List (Prog sig) a)} into a value of type \hinl{Prog sig (List Identity a)}.
+This means that the effects that were contained in the \hinl{Prog sig} argument of \hinl{List} are moved into the outer program layer, while the inner program layer is replaced with the identity monad.
+
+The instance of \hinl{nf} for lists implements this idea.
+Firstly, the list is retrieved from the monadic value using bind, followed by pattern matching.
+The empty list cannot be further normalized.
+A non-empty list is normalized by recursive calls of \hinl{nf} for the element and the remaining list.
+The results need to be retrieved again because the result of \hinl{nf} is a monadic value of the monad \hinl{n}, while \hinl{m} is expected.
+Thus, the \hinl{return} statements in the last line move the results into the new monad.
+\begin{minted}{Haskell}
+instance (Normalform n a b, Monad m, Monad n) =>
+    Normalform n (List n a) (List m b) where
+    nf mxs = mxs >>= \xs ->
+               case xs of
+                 Nil -> nil
+                 Cons mz mzs -> nf mz  >>= \z ->
+                                nf mzs >>= \zs ->
+                                   cons (return z) (return zs)
+\end{minted}
+
+With \hinl{nf} as a normalization layer between effect handlers and data types with effectful components, we can now evaluate expressions like \hinl{cons coin (cons coin nil)}, as the following choice tree demonstrates.
+
+\begin{minted}{Haskell}
+? 
+├── ? 
+│   ├── [0,0]
+│   └── [0,1]
+└── ? 
+    ├── [1,0]
+    └── [1,1]
+\end{minted}
+
+This tree represents the transformation in Curry shown above.
+
+\begin{minted}{Haskell}
+class Shareable m a where
+  shareArgs :: Monad n 
+            => (forall b. Shareable m b => m b -> n (m b))
+            -> a -> n a
+\end{minted}
+
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
@@ -1620,18 +1703,17 @@ The extension of a container models the concrete data type.
 
 \chapter{Conclusion}
 
-\begin{minted}{Coq}
+\begin{minted}[escapeinside=||]{Coq}
 
-  Class Monad (M: Type → Type) ≔
-    {
-      ret : ∀ A, A → M A;
-      bind : ∀ A B, M A → (A → M B) → M B;
-      left_unit : ∀ A B (x0: A) (f: A → M B),
-                    bind (ret x0) f = f x0;
-      right_unit : ∀ A (ma: M A), bind ma (@ret A) = ma;
-      bind_assoc: ∀ A B C (ma : M A) (f: A → M B) (g: B → M C),
-                    bind ma (fun y ⇒ bind (f y) g) = bind (bind ma f) g
-    }.
+  Class Container|$_\text{\texttt{Asd}}$| F :=
+  {
+    Shape : Type;
+    Pos : Shape -> Type;
+    to : forall A, Ext Shape Pos A -> F A;
+    from : forall A, F A -> Ext Shape Pos A;
+    to_from : forall A (fx : F A), to (from fx) = fx;
+    from_to : forall A (e : Ext Shape Pos A), from (to e) = e
+  }.
 
   Definition join (M: Type → Type) `(Monad M) A (mmx : M (M A)) : M A ≔ bind _ mmx (fun x ⇒ x).
 
