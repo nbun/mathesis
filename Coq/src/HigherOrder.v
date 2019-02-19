@@ -193,22 +193,21 @@ Section State.
 End State.
 
 Section Sharing.
-  Variable (X : Type).
 
   Inductive Sharing M (A : Type) :=
-  | csharing : nat -> M X -> (X -> M A) -> Sharing M A.
+  | csharing : forall X, nat -> M X -> (X -> M A) -> Sharing M A.
 
-  Inductive Shape__Sharing M :=
-  | ssharing : nat -> M X -> Shape__Sharing M.
+  Inductive Shape__Sharing (M : Type -> Type) :=
+  | ssharing : forall X, nat -> X -> Shape__Sharing M.
 
   Inductive Pos__Sharing M : Shape__Sharing M -> Type :=
-  | psharing : forall (n : nat) (mx : M X), Pos__Sharing (ssharing M n mx).
+  | psharing : forall X (x : X) (n : nat), Pos__Sharing (ssharing M n x).
 
   Definition Ext__Sharing M A := Ext (Shape__Sharing M) (@Pos__Sharing M) M A.
 
-  Definition to__Sharing M A (e: Ext__Sharing M (M A)) : Sharing M A :=
+  Definition to__Sharing M `(Monad M) A (e: Ext__Sharing M (M A)) : Sharing M A :=
     match e with
-    | ext (ssharing _ n mx) fp => csharing M A n mx (fun x => fp (psharing _ n mx))
+    | ext (ssharing _ n x) fp => csharing M A n (ret x) (fun y => fp (psharing M x n))
     end.
 
   Variable MM : forall M, Monad M.
@@ -217,9 +216,9 @@ Section Sharing.
     match z with
     | csharing _ _ n mx xma =>
       ext (ssharing _ n mx) (fun p : Pos__Sharing (ssharing _ n mx)
-                           => match p with psharing _ m nx =>
-                                           (bind A mx (fun x => xma x))
-                              end)
+                               => match p with
+                                    psharing _ x m => xma mx
+                                  end)
     end.
 
   Lemma to_from__Sharing : forall M A (ox : Sharing M A), to__Sharing A (from__Sharing ox) = ox.
@@ -257,39 +256,45 @@ End Sharing.
 
 Inductive ChoiceF (A : Type) :=
 | cffail   : ChoiceF A
-| cfchoice : option (nat * nat) -> A -> A -> ChoiceF A.
+| cfchoice : option (nat * nat) -> A -> A -> A -> ChoiceF A.
 
 Definition Prog M := Free M (C__Choice).
 Definition NDShare := C__Choice.
 
 Definition Fail M A : Prog M A :=
-  impure (@ext (Shape__Choice M) (@Pos__Choice M) M A (sfail M) (fun p : @Pos__Choice M (sfail M) => match p with end)).
+  @impure M Choice C__Choice A (ext (sfail M) (fun p : Pos__Choice (sfail M) => match p with end)).
 
 Arguments Fail {_}.
 
-Definition Choice' A mid l r : Prog A :=
-  let s : @Shape _ NDShare := schoice mid
-  in impure (ext s (fun p : @Pos _ NDShare s => if p then l else r)).
+Definition Choice' M A mid l r : Prog M A :=
+  let s  := schoice M mid
+  in @impure M Choice C__Choice A (ext s (fun p : Pos__Choice s => if p then l else r)).
 
-Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
+Fixpoint runChoice M A (fc : Free M C__Choice A) : Tree A :=
   match fc with
-  | pure x => Leaf x
-  | impure (ext sfail   _)  => Empty A
-  | impure (ext (schoice mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
+  | pure _ x => Leaf x
+  | impure (ext (sfail _)   _)  => Empty A
+  | impure (ext (schoice _ mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
   end.
 
 Require Import Lists.List.
 Import ListNotations.
 
-Definition handle A (p : Prog A) := collectVals (runChoice p).
-Definition coin := Choice' None (pure true) (pure false).
-Example example1 : Prog bool := coin.
+Definition handle M A (p : Prog M A) := collectVals (runChoice p).
+Definition coin M : Prog M bool := Choice' None (pure bool true) (pure bool false).
+Example example1 M : Prog M bool := coin M.
 Example res_example1 := [true; false].
 
-Example example2 : Prog bool := Choice' None coin  coin.
+Example example2 M : Prog M bool := Choice' None (coin M)  (coin M).
 Example res_example2 := [true; false; true; false].
 
 Definition exBs := [(example1, res_example1); (example2, res_example2)].
   
-Lemma tests__exBs : Forall (fun '(p,r) => handle p = r) exBs.
+Lemma tests__exBs : Forall (fun '(p,r) => handle (p ChoiceF) = r) exBs.
 Proof. repeat econstructor. Qed.
+
+Definition Share' (n : nat) X M `(MM : Monad M) A (fs : Prog M A) : Prog M A :=
+  let s : Shape__Sharing (Prog M) := ssharing _ _ n fs
+  in @impure _ Sharing (C__Sharing _) A (ext s (fun p : Pos__Sharing s => match p with
+                                                                            psharing _ _ n mx => 
+                                                                          end)).
