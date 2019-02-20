@@ -1423,7 +1423,7 @@ The second nested scope is not linked to the first one, however, because the sta
 Thus, the increment operation from running the first nested \hinl{share} affects the second one and the ID \hinl{2} is assigned, although it should have been \hinl{1}.
 
 The problem is this example is therefore that the nested \hinl{share} calls are duplicated but the state is not.
-To solve this problem, we can add \hinl{put} to the program before \hinl{x <- p}, so that  nested calls of \hinl{share} in \hinl{p} behave identical if the scope program is duplicated. 
+To solve this problem, we can add \hinl{put} to the program before \hinl{x <- p}, so that  nested calls of \hinl{share} in \hinl{p} behave identical if the scope program is duplicated.
 
 \begin{minted}{Haskell}
 share :: (Share :<: sig, State Int :<: sig) 
@@ -1641,7 +1641,8 @@ In addition, it became clear that the namespace that supplies IDs for nested sha
 
 Lastly, we added deep sharing by defining type classes for normalization and sharing of components.
 The former moves effects from inside a complex data type to the root of the expression, so that handlers do not need to consider complex data types themselves.
-The latter defines a function \hinl{shareArgs} that allows us to not only share whole terms but also the individual components. The implementation of \hinl{share} now looks as follows.
+The latter defines a function \hinl{shareArgs} that allows us to not only share whole terms but also the individual components.
+The implementation of \hinl{share} now looks as follows.
 
 \begin{minted}{Haskell}
 instance (Share <: sig, State (Int, Int) <: sig, ND <: sig) 
