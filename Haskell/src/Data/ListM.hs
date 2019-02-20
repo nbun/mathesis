@@ -42,13 +42,13 @@ instance (Normalform n a b, Monad m, Monad n) =>
                                    nf sxs >>= \xs ->
                                    cons (return x) (return xs)
 
-instance (Sharing m, Shareable m a) => Shareable m (List m a) where
+instance (Shareable m a) => Shareable m (List m a) where
     shareArgs f Nil = nil
-    shareArgs f (Cons sy sys) = do sy' <- f sy
-                                   sys' <- f sys
-                                   cons sy' sys'
+    shareArgs f (Cons mx mxs) = do mz  <- f mx
+                                   mzs <- f mxs
+                                   cons mz mzs
 
--------------------------------------------
+
 -- random function definitions for lists --
 -------------------------------------------
 firstM :: MonadPlus m => m (List m a) -> m a

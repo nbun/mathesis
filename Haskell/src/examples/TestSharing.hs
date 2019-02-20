@@ -395,23 +395,3 @@ exAddSharedCoin4 =
 exAddSharedCoin5 :: NDShare Int
 exAddSharedCoin5 =
   share (cons coini nil) >>= \fxs -> addM (headM fxs) (headM fxs)
-
-
-begin :: (Share <: sig) => Prog sig ()
-begin = inject (BShare' (42, 42) (return ()))
-
-end :: (Share <: sig) => Prog sig ()
-end = inject (EShare' (42, 42) (return ()))
-
-exAddSharedCoin6 :: NDShare Int
-exAddSharedCoin6 =
-  share (cons coini nil) >>= headM
-  -- (return $ do begin; x <- (cons coini nil); x' <- shareArgs share x; end; return x') >>= headM
-  -- headM $ do begin; x <- (cons coini nil); x' <- shareArgs share x; end; return x'
-  -- headM $ do begin; x' <- shareArgs share (Cons coini nil); end; return x'
-  -- headM $ do begin; x' <- shareArgs share (Cons coini nil); end; return x'
-  -- headM $ do begin; x' <- (share coini >>= \mz -> share nil >>= \mzs -> cons mz mzs); end; return x'
-  -- headM $ do begin; x' <- (share coini >>= \mz -> cons mz nil); end; return x'
-  -- headM $ do begin; end; (share coini >>= \mz -> cons mz nil)
-  -- do begin; end; (share coini >>= \mz -> headM $ cons mz nil)
-  -- do begin; end; share coini >>= id
