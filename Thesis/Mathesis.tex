@@ -1510,7 +1510,8 @@ nil :: Monad m => m (List n a)
 nil = return Nil
 \end{minted}
 
-In order to make the existing infrastructure compatible with effectful data structures, we need to think about the way handlers work.
+\paragraph{Handling Effectful Components}
+In order to make the existing infrastructure compatible with effectful components of data structures, we need to think about the way handlers work.
 Since values of lifted data types are considered pure values, although the components might be effectful, effect handlers do not modify such values, that is, the contained effects are not handled.
 Instead of differentiating primitive and complex pure values inside all handlers, we choose a different approach.
 For example, we consider the following transformation of a non-deterministic list in Curry syntax.
@@ -1567,6 +1568,42 @@ With \hinl{nf} as a normalization layer between effect handlers and data types w
 \end{minted}
 
 This tree represents the transformation in Curry shown above.
+For all data types that occur in a program, a lifted version with a \hinl{Normalform} instance needs to be defined.
+Primitive types require instances, too, but can be simply defined as \hinl{nf = id} because primitive types cannot contain effectful values.
+
+\paragraph{Sharing Complex Data Types}
+At the moment, complex data types like lists can only be shared wholly.
+This means that expressions like \hinl{let xs = [0?1] in xs ++ xs} correctly yield \hinl{[0,0]} and \hinl{[1,1]}, but \hinl{let xs = [0?1] in head xs + head xs} is evaluated to all four possible results instead of only \hinl{0} and \hinl{2}, as shown below.
+
+\begin{minted}{Haskell}
+<(1,1) (1,1)> ? 
+              ├── <(1,1) (1,1)> ? 
+              │                 ├── 0
+              │                 └── 1
+              └── <(1,1) (1,1)> ? 
+                                ├── 1
+                                └── 2
+\end{minted}
+
+The sharing scopes are opened correctly but close immediately without including the choices.
+To understand how the empty scopes are created, we have a look at a simplified example where \hinl{head} occurs only once.
+For further simplification, the \hinl{share} implementation without IDs is used.
+
+\begin{minted}{Haskell}
+  share (cons coin nil) >>= headM
+= (return $ do begin; x <- (cons coin nil); end; return x) >>= headM
+= headM $ do begin; x <- (cons coin nil); end; return x
+= headM $ do begin; end; return (Cons coin nil)
+= do begin; end; headM (return (Cons coin nil))
+= do begin; end; coin
+\end{minted}
+
+Since \hinl{x <- (cons coin nil)} is inside the scope but \hinl{return x} is outside, this step moves the choice contained inside the list out of the sharing scope.
+For the previous example of adding the list's head twice, the last line would end with \hinl{addM coin coin}, which explains why no sharing is present.
+What is missing here is deep sharing, that is, sharing of the individual components of the list, so that the decision of the coins are linked.
+
+Deep sharing is realized similar to the explicit-sharing library\footnote{http://hackage.haskell.org/package/explicit-sharing-0.9} which implements the approach of \citep{fischer2009purely} presented in \autoref{sec:sharingComputations}.
+At its core, deep sharing is implemented via a type class \hinl{Shareable} that all data types with shareable components need to implement.
 
 \begin{minted}{Haskell}
 class Shareable m a where
@@ -1574,6 +1611,80 @@ class Shareable m a where
             => (forall b. Shareable m b => m b -> n (m b))
             -> a -> n a
 \end{minted}
+
+Although \hinl{shareArgs} is parameterized over a function that generalizes the type of the sharing operator, it is used only with \hinl{share} in this model.
+Similar to \hinl{share}, the function \hinl{shareArgs} adds a monad layer to its input.
+\todo{Why?}
+
+When it comes to instances for types like lifted lists, the implementation is straight-forward.
+The empty list does not need to be shared.
+For non-empty lists, the function \hinl{f}, that is, \hinl{share}, is applied to the components.
+Then the result is retrieved using bind and a list is constructed again.
+The additional monad layer required by the function type is implemented using \hinl{cons}, since the function is a smart constructor for a program that returns a list.
+
+\begin{minted}{Haskell}
+instance (Shareable m a) => Shareable m (List m a) where
+    shareArgs f Nil = nil
+    shareArgs f (Cons mx mxs) = do mz  <- f mx
+                                   mzs <- f mxs
+                                   cons mz mzs
+\end{minted}
+
+With the implementation of deep sharing by means of \hinl{shareArgs}, we can finally define a sharing operator that covers nested choices, repeated sharing, nested sharing and deep sharing.
+
+Nested choices, that is, multiple choices within one sharing scope, is implemented as part of the handler, which is discussed in the next section.
+
+Repeated sharing required adding an ID and state code to distinguish different scopes.
+IDs are also required to link duplicated sharing scopes, so that they behave identically.
+Nested sharing required adding a \hinl{put} statement to the sharing scope, so that nested calls of \hinl{share} have a defined state to work with.
+In addition, it became clear that the namespace that supplies IDs for nested sharing needs to be distinct from the supply for repeated sharing, since the same IDs can otherwise be assigned unintentionally.
+
+Lastly, we added deep sharing by defining type classes for normalization and sharing of components.
+The former moves effects from inside a complex data type to the root of the expression, so that handlers do not need to consider complex data types themselves.
+The latter defines a function \hinl{shareArgs} that allows us to not only share whole terms but also the individual components. The implementation of \hinl{share} now looks as follows.
+
+\begin{minted}{Haskell}
+instance (Share <: sig, State (Int, Int) <: sig, ND <: sig) 
+          => Sharing (Prog sig) where
+  share p = do
+    (i, j) <- get
+    put (i + 1, j)
+    return $ do
+      begin (i,j)
+      put (i, j + 1)
+      x <- p
+      x' <- shareArgs share x
+      end (i,j)
+      return x'
+\end{minted}
+
+The ID supply is implemented using a state with two components which are incremented depending on the program layer.
+The outer layer, which is responsible for repeated sharing, increments the first component, while the second component is incremented in the inner program layer, which affects nested sharing.
+
+We can observe the effect of \hinl{shareArgs} in the same example as before.
+
+\begin{minted}[escapeinside=||]{Haskell}
+ share (cons coin nil) >>= headM
+= (return $ do begin; x <- (cons coin nil); 
+   x' <- shareArgs share x; end; return x') >>= headM
+= headM $ do begin; 
+   x' <- shareArgs share (Cons coin nil); end; return x'
+= headM $ do begin; 
+   x' <- (share coin >>= \mz -> 
+          share nil  >>= \mzs -> cons mz mzs); end; return x'
+= headM $ do begin; 
+   x' <- (share coin >>= \mz -> cons mz nil); end; return x'
+= headM $ do begin; end; (share coin >>= \mz -> cons mz nil)
+= do begin; end; (share coin >>= \mz -> headM (cons mz nil))
+= do begin; end; share coin >>= id
+\end{minted}
+
+The result still shows an empty scope from sharing the whole list.
+There is a difference, however, in the last part of the expression.
+Whereas \hinl{share} without deep sharing resulted in a simple coin, adding \hinl{shareArgs} wraps the coin in another call of \hinl{share}.
+Thus, the choice is shared correctly and the \hinl{share} operator behaves as expected.
+
+\subsection{Sharing Handler}
 
 
 \chapter{Call-Time Choice modelled in Coq}
