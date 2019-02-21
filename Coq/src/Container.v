@@ -140,11 +140,11 @@ Section Choice.
 
   Inductive Choice (A : Type) :=
   | cfail   : Choice A
-  | cchoice : option (nat * nat) -> A -> A -> Choice A.
+  | cchoice : option (nat * nat * nat) -> A -> A -> Choice A.
 
   Inductive Shape__Choice :=
   | sfail : Shape__Choice
-  | schoice : option (nat * nat) -> Shape__Choice.
+  | schoice : option (nat * nat * nat) -> Shape__Choice.
 
   Definition Pos__Choice (s: Shape__Choice) : Type :=
     match s with
@@ -257,16 +257,16 @@ End State.
 Section Sharing.
 
   Inductive Sharing (A : Type) :=
-  | cbsharing : nat -> A -> Sharing A
-  | cesharing : nat -> A -> Sharing A.
+  | cbsharing : (nat * nat) -> A -> Sharing A
+  | cesharing : (nat * nat) -> A -> Sharing A.
 
   Inductive Shape__Sharing :=
-  | sbsharing : nat -> Shape__Sharing
-  | sesharing : nat -> Shape__Sharing.
+  | sbsharing : (nat * nat) -> Shape__Sharing
+  | sesharing : (nat * nat) -> Shape__Sharing.
 
   Inductive Pos__Sharing : Shape__Sharing -> Type :=
-  | pbsharing : forall (n : nat), Pos__Sharing (sbsharing n)
-  | pesharing : forall (n : nat), Pos__Sharing (sesharing n).
+  | pbsharing : forall (n : (nat * nat)), Pos__Sharing (sbsharing n)
+  | pesharing : forall (n : (nat * nat)), Pos__Sharing (sesharing n).
 
   Definition Ext__Sharing A := Ext Shape__Sharing Pos__Sharing A.
 
@@ -300,8 +300,8 @@ Section Sharing.
       (simpl;
        f_equal;
        apply functional_extensionality;
-       intros p;
-       dependent destruction p;
+       intros p';
+       dependent destruction p';
        reflexivity).
   Qed.
      
@@ -316,5 +316,3 @@ Section Sharing.
     }.
 
 End Sharing.
-
-

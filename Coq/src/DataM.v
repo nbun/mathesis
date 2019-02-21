@@ -163,13 +163,13 @@ Section List.
     {
       shareArgs := fun xs =>
                      let fix aux xs :=
-                         let shr fp := Get >>= fun i =>
-                                       Put (i * 2) >>= fun _ =>
-                                       pure (BeginShare i >>= fun _ =>
-                                             Put (i * 2 + 1) >>= fun _ =>
+                         let shr fp := Get >>= fun '(i,j) =>
+                                       Put (i + 1, j) >>= fun _ =>
+                                       pure (BeginShare (i,j) >>= fun _ =>
+                                             Put (i, j + 1) >>= fun _ =>
                                              fp >>= fun x =>
                                              aux x >>= fun x' =>
-                                             EndShare i >>= fun _ =>
+                                             EndShare (i,j) >>= fun _ =>
                                              pure x')
                          in
                          match xs with
@@ -208,7 +208,7 @@ Section List.
       let m := match fxs with
                | pure xs => lengthM xs
                | impure (ext (inl (sget _)) pf) =>
-                 pf (pget 42) >>= fun xs => lengthM xs
+                 pf (pget (42, 42)) >>= fun xs => lengthM xs
                | impure (ext (inl (sput s'))   pf) =>
                  pf (pput s') >>= fun xs => lengthM xs
                | impure (ext (inr (inr sfail)) _)  => pure 0

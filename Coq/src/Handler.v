@@ -21,7 +21,7 @@ Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
   | impure (ext (schoice mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
   end.
 
-Fixpoint runState A (n : nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice) A :=
+Fixpoint runState A (n : nat * nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice) A :=
   match fc with
   | pure x => pure x
   | impure (ext (inl (sget _))    pf) => runState n  (pf (pget n))
@@ -32,8 +32,11 @@ Fixpoint runState A (n : nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice
   | impure (ext (inr (inl (sesharing m)))  pf) => EndShare__SC   m (runState n (pf (pesharing m)))
   end.
 
+Definition tripl A B C (p : A * B) (c : C) : A * B * C :=
+  let '(a,b) := p in (a,b,c).
+
 Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Choice A :=
-  let fix nameChoices (next scope : nat) (scopes : list nat) (fs : Prog__SC A)
+  let fix nameChoices (next : nat) (scope : nat * nat) (scopes : list (nat * nat)) (fs : Prog__SC A)
   : Free C__Choice A  :=
       match fs with
       | pure x => pure x
@@ -48,7 +51,7 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
       | impure (ext (inr (schoice _))  pf) =>
         let l := nameChoices (next + 1) scope scopes (pf true) in
         let r := nameChoices (next + 1) scope scopes (pf false)
-        in Choice__C (Some (scope, next)) l r
+        in Choice__C (Some (tripl scope next)) l r
       end
   in match fs with
      | pure x => pure x
@@ -61,4 +64,4 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
      end.
 
 Definition handle A `{Normalform A A} (fs : Prog A) : list A :=
-  collectVals (runChoice (runSharing (runState 1 (nf fs)))).
+  collectVals (runChoice (runSharing (runState (0,0) (nf fs)))).

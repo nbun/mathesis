@@ -179,7 +179,7 @@ Section SharingLaws.
     intros x. 
     unfold Eq_Prog, handle, Search.collectVals.  simpl.
     do 2 (rewrite nf_impure; simpl).
-    rewrite State_ND_independence with (m := 1).
+    rewrite State_ND_independence with (m := (0,0)).
     reflexivity.
   Qed.
 

@@ -4,38 +4,38 @@ Require Import Thesis.Classes.
 
 Set Implicit Arguments.
 
-Definition Get : Prog nat :=
-  let s : @Shape _ NDShare := inl (sget nat)
+Definition Get : Prog (nat * nat) :=
+  let s : @Shape _ NDShare := inl (sget (nat * nat))
   in impure (ext s (fun p : @Pos _ NDShare s => match p with pget s => pure s end)).
 
-Definition Put (n : nat) : Prog unit :=
+Definition Put (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inl (sput n)
   in impure (ext s (fun p : @Pos _ NDShare s => match p with pput s => pure tt end)).
 
-Definition BeginShare (n : nat) : Prog unit :=
+Definition BeginShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sbsharing n))
   in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
 
-Definition EndShare (n : nat) : Prog unit :=
+Definition EndShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sesharing n))
   in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
 
-Definition BeginShare__SC A (n : nat) (fp : Prog__SC A) : Prog__SC A :=
+Definition BeginShare__SC A (n : nat * nat) (fp : Prog__SC A) : Prog__SC A :=
   let s : @Shape _ NDShare__SC := inl (sbsharing n)
   in impure (ext s (fun p : @Pos _ NDShare__SC s => fp)).
 
-Definition EndShare__SC A (n : nat) (fp : Prog__SC A) : Prog__SC A :=
+Definition EndShare__SC A (n : nat * nat) (fp : Prog__SC A) : Prog__SC A :=
   let s : @Shape _ NDShare__SC := inl (sesharing n)
   in impure (ext s (fun p : @Pos _ NDShare__SC s => fp)).
 
 Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
-  Get >>= fun i =>
-  Put (i * 2) >>= fun _ =>
-  pure (BeginShare i >>= fun _ =>
-        Put (i * 2 + 1) >>= fun _ =>
+  Get >>= fun '(i,j) =>
+  Put (i + 1, j) >>= fun _ =>
+  pure (BeginShare (i,j) >>= fun _ =>
+        Put (i, j + 1) >>= fun _ =>
         fp >>= fun x =>
         shareArgs x >>= fun x' =>
-        EndShare i >>= fun _ =>
+        EndShare (i,j) >>= fun _ =>
         pure x').
 Arguments Share {_} {_} fp.
 

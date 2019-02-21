@@ -3,7 +3,7 @@ Require Import Thesis.Effect.
 
 Set Implicit Arguments.
 
-Definition ID : Type := nat * nat.
+Definition ID : Type := nat * nat * nat.
 
 Inductive Tree A :=
 | Empty  : Tree A
@@ -14,7 +14,8 @@ Inductive Decision := L | R.
 
 Definition beq_id (id1 id2 : ID) : bool :=
   match id1,id2 with
-  | (n11, n12), (n21, n22) => andb (beq_nat n11 n21) (beq_nat n12 n22)
+  | (n11, n12, n13), (n21, n22, n23) => andb (andb (beq_nat n11 n21) (beq_nat n12 n22))
+                                            (beq_nat n13 n23)
   end.
 
 Definition total_map (K V : Type) := K -> V.
