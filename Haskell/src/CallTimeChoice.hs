@@ -59,46 +59,38 @@ data Share cnt = BShare' (Int, Int) cnt | EShare' (Int, Int) cnt
 pattern BShare i p <- (project -> Just (BShare' i p))
 pattern EShare i p <- (project -> Just (EShare' i p))
 
-runShare :: (Functor sig, ND <: sig) => Prog (Share + sig) a -> (Prog sig a)
-runShare = bshare
+runShare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
+runShare (Return a)   = return a
+runShare (BShare i p) = nameChoices 1 [i] p
+runShare (EShare _ p) = error "runShare: mismatched EShare"
+runShare (Other op)   = Op (fmap runShare op)
 
-bshare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
-bshare (Return a)   = return a
-bshare (BShare i p) = eshare 1 [i] p >>= bshare
-bshare (EShare _ p) = error "bshare: mismatched Eshare"
-bshare (Other op)   = Op (fmap bshare op)
+nameChoices :: (ND <: sig)
+            => Int -> [(Int, Int)] -> Prog (Share + sig) a -> Prog sig a
 
-eshare :: (ND <: sig)
-       => Int -> [(Int, Int)]
-       -> Prog (Share + sig) a
-       -> Prog sig (Prog (Share + sig) a)
-eshare next scopes prog =
+nameChoices next scopes@((l,r):_) prog =
   case prog of
-    Return a   -> return (Return a)
-    BShare i p -> eshare 1 (i:scopes) p
+    Return a   -> return a
+    BShare i p -> nameChoices 1 (i:scopes) p
     EShare j p -> checkScope j next scopes p
     Fail       -> fail
-    Choice _ p q ->
-      let next' = next + 1
-          p' = eshare next' scopes p
-          q' = eshare next' scopes q
-          (l,r) = head scopes
-      in choiceID (Just (l, r, next)) p' q'
-    Other op -> Op (fmap (eshare next scopes) op)
+    Choice _ p q -> let f = nameChoices (next + 1) scopes
+                    in choiceID (Just (l, r, next)) (f p) (f q)
+    Other op -> Op (fmap (nameChoices next scopes) op)
 
 checkScope :: (ND <: sig)
            => (Int, Int) -> Int -> [(Int, Int)]
            -> Prog (Share + sig) a
-           -> Prog sig (Prog (Share + sig) a)
+           -> Prog sig a
 checkScope j next scopes p =
   case scopes of
-    []     -> error "eshare: mismatched EShare"
+    []     -> error "checkScope: mismatched EShare"
     [i]    -> if i == j
-              then return p
-              else error "eshare: wrong scope"
+              then runShare p
+              else error "checkScope: wrong scope"
     (i:is) -> if i == j
-              then eshare next is p
-              else error "eshare: crossing scopes"
+              then nameChoices next is p
+              else error "checkScope: crossing scopes"
 
 
 -- interface implementation --
