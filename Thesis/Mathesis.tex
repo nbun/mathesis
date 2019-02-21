@@ -1686,6 +1686,79 @@ Whereas \hinl{share} without deep sharing resulted in a simple coin, adding \hin
 Thus, the choice is shared correctly and the \hinl{share} operator behaves as expected.
 
 \subsection{Sharing Handler}
+The previous sections were focused on defining a program that models the different aspects of sharing syntactically, that is, scopes with the correct IDs should appear at the correct positions.
+What happens inside those scopes has not been discussed in detail, yet.
+Hence, this section focuses on handling the sharing effect.
+
+\begin{minted}{Haskell}
+runShare :: (ND :<: sig) => Prog (Share + sig) a -> Prog sig a
+runShare (Return a)   = return a
+runShare (BShare i p) = nameChoices [trip i 0] p
+runShare (EShare _ p) = error "runShare: mismatched EShare"
+runShare (Other op)   = Op (fmap runShare op)
+\end{minted}
+
+Beginning with the top-level handler, there is not much of a difference to the first implementation of the handler in \autoref{subsec:explicit}.
+Although the structure is the same, the function \hinl{nameChoices} that handles the program inside the scope now has an additional argument of type \hinl{[Scope]}.
+A scope is a triple of integers where the first two digits represent the ID of a scope and the last digit is a counter.
+The function \hinl{trip} is a smart constructor for constructing triples from an ID and an initial counter value.
+
+When a program inside a scope should be handled, the function \hinl{nameChoices} takes over.
+The signature is the same as for \hinl{runShare} except for a list of scopes.
+This list represents the the current scope environment, that is, how many scopes surround the current program.
+The third component of a scope becomes important when a choice is encountered.
+
+\begin{minted}{Haskell}
+nameChoices :: (ND :<: sig)
+            => [Scope] -> Prog (Share + sig) a -> Prog sig a
+nameChoices [] _ = error "nameChoices: missing scope"
+nameChoices scopes@(i@(l,r,next):scps) prog =
+  case prog of
+    Return a     -> return a
+    BShare i p   -> nameChoices (trip i 0 : scopes) p
+    EShare i p   -> checkScope i scopes p
+    Fail         -> fail
+    Choice _ p q -> let f = nameChoices (inc i : scps)
+                    in choiceID (Just i) (f p) (f q)
+    Other op     -> Op (fmap (nameChoices scopes) op)
+\end{minted}
+
+The ID of a scope is not enough to assign an ID to a choice because multiple choices can occur within the same scope.
+Thus, each scope has a counter that is incremented with the function \hinl{inc} when a choice has been assigned an ID, so that the next choice will receive an different ID.
+When a scope inside a scope is found, \hinl{nameChoices} continues handling the program but the ID the of the scope is added to the environment.
+Ending a scope is performed by the function \hinl{checkScopes} that is passed the ID of the ending tag, the scope environment and the remaining program.
+
+\begin{minted}{Haskell}
+checkScope :: (ND :<: sig)
+           => SID -> [Scope] -> Prog (Share + sig) a -> Prog sig a
+checkScope i scopes p =
+  case scopes of
+    []             -> error "checkScope: mismatched EShare"
+    [(l,r,_)]      -> if (l,r) == i
+                        then runShare p
+                        else error "checkScope: wrong scope"
+    ((l,r,_):scps) -> if (l,r) == i
+                        then nameChoices scps p
+                        else error "checkScope: crossing scopes"
+\end{minted}
+
+There are three cases to distinguish when ending a scope.
+Firstly, the scope environment could be empty, that is, no scope has been opened.
+Since closing tags are supposed to follow opening tags, this is an error.
+
+Secondly, the scope environment can have only one surrounding scope.
+In this case, the ID of the ending tag is checked against the current scope from the environment.
+If it matches, we leave the scope and let \hinl{runShare} handle the remaining program.
+If the tags do not match, this is an error.
+
+Thirdly, the environment can contain more than one open scopes.
+Similar to the previous case, the tag IDs are compared.
+This time, matching tags means that we are still inside a scope.
+The current scope is left by removing the head element of \hinl{scopes} and \hinl{nameChoices} handles the remaining program.
+Here it becomes clear why we need to memorize a counter for each scope: When a nested scope interrupts handling the current scope, we must not begin counting from some initial value again after the nested scope is handled.
+Otherwise, the first choice of the scope and the first choice after the nested scope would receive the same ID.
+
+\section{Examples}
 
 
 \chapter{Call-Time Choice modelled in Coq}
