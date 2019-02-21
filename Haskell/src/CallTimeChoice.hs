@@ -59,39 +59,48 @@ data Share cnt = BShare' (Int, Int) cnt | EShare' (Int, Int) cnt
 pattern BShare i p <- (project -> Just (BShare' i p))
 pattern EShare i p <- (project -> Just (EShare' i p))
 
+trip :: (a,b) -> c -> (a,b,c)
+trip (a,b) c = (a,b,c)
+
+inc :: (a,b,Int) -> (a,b,Int)
+inc (a,b,x) = (a,b,x + 1)
+
+type Scope = (Int, Int, Int)
+type SID   = (Int, Int)
+
 runShare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
 runShare (Return a)   = return a
-runShare (BShare i p) = nameChoices 1 [i] p
+runShare (BShare i p) = nameChoices [trip i 0] p
 runShare (EShare _ p) = error "runShare: mismatched EShare"
 runShare (Other op)   = Op (fmap runShare op)
 
 nameChoices :: (ND <: sig)
-            => Int -> [(Int, Int)] -> Prog (Share + sig) a -> Prog sig a
-
-nameChoices next scopes@((l,r):_) prog =
+            => [Scope] -> Prog (Share + sig) a -> Prog sig a
+nameChoices [] _ = error "nameChoices: missing scope"
+nameChoices scopes@(i@(l,r,next):scps) prog =
   case prog of
-    Return a   -> return a
-    BShare i p -> nameChoices 1 (i:scopes) p
-    EShare j p -> checkScope j next scopes p
-    Fail       -> fail
-    Choice _ p q -> let f = nameChoices (next + 1) scopes
-                    in choiceID (Just (l, r, next)) (f p) (f q)
-    Other op -> Op (fmap (nameChoices next scopes) op)
+    Return a     -> return a
+    BShare i p   -> nameChoices (trip i 0 : scopes) p
+    EShare j p   -> checkScope j scopes p
+    Fail         -> fail
+    Choice _ p q -> let f = nameChoices (inc i : scps)
+                    in choiceID (Just i) (f p) (f q)
+    Other op     -> Op (fmap (nameChoices scopes) op)
 
 checkScope :: (ND <: sig)
-           => (Int, Int) -> Int -> [(Int, Int)]
-           -> Prog (Share + sig) a
-           -> Prog sig a
-checkScope j next scopes p =
+           => SID -> [Scope] -> Prog (Share + sig) a -> Prog sig a
+checkScope i scopes p =
   case scopes of
-    []     -> error "checkScope: mismatched EShare"
-    [i]    -> if i == j
-              then runShare p
-              else error "checkScope: wrong scope"
-    (i:is) -> if i == j
-              then nameChoices next is p
-              else error "checkScope: crossing scopes"
-
+    []             -> error "checkScope: mismatched EShare"
+    [(l,r,next)]   -> if (l,r) == i
+                        then runShare p
+                        else error "checkScope: wrong scope"
+    -- ((l,r,_):(l',r',_):scps) -> if (l,r) == i
+    --                     then nameChoices ((l', r', 0) : scps) p
+    --                     else error "checkScope: crossing scopes"
+    ((l,r,_):scps) -> if (l,r) == i
+                        then nameChoices scps p
+                        else error "checkScope: crossing scopes"
 
 -- interface implementation --
 ------------------------------
