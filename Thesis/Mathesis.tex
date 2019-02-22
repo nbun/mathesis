@@ -1760,6 +1760,27 @@ Otherwise, the first choice of the scope and the first choice after the nested s
 
 \section{Examples}
 
+As an example of a more complex program that makes use of explicit sharing, the implementation of permutation sort shown in \autoref{subsec:explicit} is adapted.
+Conveniently, the second implementation is parameterized over instances of \hinl{MonadPlus} and uses the same lifted data types that are used to implement deep sharing.
+Thus, we only need to add explicit sharing to the \hinl{sort} function.
+
+\begin{minted}{Haskell}
+sort :: (MonadPlus m, Sharing m) => m (List m Int) -> m (List m Int)
+sort l = do
+  xs <- share (perm l)
+  b <- isSorted xs
+  guard b
+  xs
+\end{minted}
+
+Since the function is already generalized over instances of \hinl{MonadPlus}, explicit sharing is added as a type constraint by means of the class \hinl{Sharing}.
+The only function defined by \hinl{Sharing} is the sharing operator \hinl{share}, which depends on an instance of \hinl{Shareable}, that is, the function \hinl{shareArgs} for deep sharing must be defined.
+
+\begin{minted}{Haskell}
+class MonadPlus s => Sharing (s :: * -> *) where
+    share :: Shareable s a => s a -> s (s a)
+\end{minted}
+
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
