@@ -16,7 +16,7 @@ import           Data.ListM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoiceHybrid
+import           CallTimeChoiceHO
 
 class Convertible m a b where
     convert :: a -> m b
@@ -61,21 +61,20 @@ perm mxs = mxs >>= \xs -> case xs of
                               Cons mx mxs -> insert mx (perm mxs)
 
 insert :: (Sharing m, MonadPlus m) => m Int -> m (List m Int) -> m (List m Int)
-insert e l = share e >>= \e' ->
-     cons e' l
+insert e l =
+     cons e l
      `mplus` do
         ys <- l
         case ys of
-          Cons x xs -> cons x (insert e' xs)
+          Cons x xs -> cons x (insert e xs)
           _         -> mzero
 
 sort :: (MonadPlus m, Sharing m) => m (List m Int) -> m (List m Int)
 sort l = do
   xs <- share (perm l)
   b <- isSorted xs
-  case b of
-    True  -> xs
-    False -> mzero
+  guard b
+  xs
 
 isSorted :: Monad m => m (List m Int) -> m Bool
 isSorted mxs = mxs >>= \xs -> case xs of
@@ -91,3 +90,7 @@ isSorted' mx mxs = mxs >>= \xs -> case xs of
                                          if x <= y
                                            then isSorted' (return y) mys
                                            else return False
+main = do
+  args <- getArgs
+  case args of
+    [x] -> let x' = read x :: Int in testSort [x',x'-1..0]
