@@ -18,7 +18,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoiceHybrid
+import           CallTimeChoiceHO
 
 class Convertible m a b where
     convert :: a -> m b
@@ -49,17 +49,6 @@ testList3 = [5,42,3,1,1337,51,123,125,347,174,1000]
 
 partitionM :: MonadPlus m => (m Int -> m Bool) -> m (List m Int) -> m (Pair m (List m Int))
 partitionM mp = foldrM (selectM mp) (pairM nil nil)
-
--- partitionM :: MonadPlus m => (m Int -> m Bool) -> m (List m Int) -> m (Pair m (List m Int))
--- partitionM mp =  mxs >>=
---   \xs -> case xs of
---            Nil         -> pairM nil nil
---            Cons my mys ->
---              do (Pair ts fs) <- partitionM mp mys
---                 b <- mp my
---                 if b
---                   then pairM (cons my ts) fs
---                   else pairM ts (cons my fs)
 
 selectM :: MonadPlus m => (m a -> m Bool) -> m a -> m (Pair m (List m a)) -> m (Pair m (List m a))
 selectM mp mx mpa = do

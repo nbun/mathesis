@@ -106,7 +106,7 @@ rShare (Share i p k) = go i 1 p >>= \r -> rShare (k $ runIdentity r)
        => (Int, Int) -> Int -> Prog (HShare + sig) a -> Prog sig (Identity a)
     go _ _ (Return a )    = fmap Identity $ return a
     go _ _ (Fail     )    = fail
-    go _ n (Share i p k)    = go i 1 p >>= \r -> rShare (k $ runIdentity r)
+    go i n (Share j p k)    = go j 1 p >>= \r -> go i n (k $ runIdentity r)
     go i@(l,r) n (Choice _ p q) = let n' = n + 1
                                       p' = go i n' p
                                       q' = go i n' q
@@ -175,8 +175,7 @@ instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog 
     let p' = do
           put (i, j + 1)
           x <- p
-          x' <- shareArgs share x
-          return x'
+          shareArgs share x
     return $ shares (i, j) p'
 
 instance AllValues NDShare where
