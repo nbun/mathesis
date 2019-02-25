@@ -298,8 +298,6 @@ Definition Share' (n : nat) M A (fs : Free (C__Sharing M) A) : Free (C__Sharing 
   apply fs.
   Unshelve.
   simpl.
-  apply (ssharing M A n fs).
-
-  (* let s : @Shape _ _ (C__Sharing M) := ssharing (Free (C__Sharing M)) A n fs *)
-  (* in @impure Sharing M (C__Sharing M) A (ext s *)
-  (*                                           (fun p : @Pos__Sharing (Free (C__Sharing M)) s => fs)). *)
+  eapply ssharing.
+  - apply n.
+  - Admitted.
