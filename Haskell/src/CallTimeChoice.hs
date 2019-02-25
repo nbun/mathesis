@@ -70,6 +70,7 @@ type SID   = (Int, Int)
 
 runShare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
 runShare (Return a)   = return a
+-- runShare (BShare _ (EShare _ p)) = trace "empty scope 1" $ runShare p
 runShare (BShare i p) = nameChoices [trip i 0] p
 runShare (EShare _ p) = error "runShare: mismatched EShare"
 runShare (Other op)   = Op (fmap runShare op)
@@ -80,6 +81,7 @@ nameChoices [] _ = error "nameChoices: missing scope"
 nameChoices scopes@(i@(l,r,next):scps) prog =
   case prog of
     Return a     -> return a
+    -- BShare _ (EShare _ p) -> trace "empty scope 2" $ nameChoices scopes p
     BShare i p   -> nameChoices (trip i 0 : scopes) p
     EShare j p   -> checkScope j scopes p
     Fail         -> fail
@@ -95,9 +97,6 @@ checkScope i scopes p =
     [(l,r,next)]   -> if (l,r) == i
                         then runShare p
                         else error "checkScope: wrong scope"
-    -- ((l,r,_):(l',r',_):scps) -> if (l,r) == i
-    --                     then nameChoices ((l', r', 0) : scps) p
-    --                     else error "checkScope: crossing scopes"
     ((l,r,_):scps) -> if (l,r) == i
                         then nameChoices scps p
                         else error "checkScope: crossing scopes"

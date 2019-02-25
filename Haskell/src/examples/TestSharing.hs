@@ -19,7 +19,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoice
+import           CallTimeChoiceHO
 
 example1 :: MonadPlus m => m Bool
 example1 = coin

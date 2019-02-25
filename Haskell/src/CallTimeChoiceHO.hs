@@ -181,35 +181,6 @@ instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog 
 instance AllValues NDShare where
   allValues = runCurry . nf
 
--- deriving instance Show a => Show (Prog (HShare + HND + HVoid) a)
-
--- instance (Pretty a, Show a) => Pretty (Prog (HShare + HND + HVoid) a) where
---   pretty' (Return x)     _ = pretty x
---   pretty' (Share i p)   w = "<" ++ si ++ " " ++ pretty' p (w + 2 + 2 * length si) ++ si ++ ">"
---     where si = show i
---   pretty' Fail           _ = "!"
---   pretty' (Choice m p q) wsp =
---     "? " ++  showID m
---     ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
---     ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
---     where showID Nothing  = ""
---           showID (Just x) = show x
-
---   pretty = flip pretty' 0
-
--- instance (Pretty a, Show a) => Pretty (Prog (HND + HVoid) a) where
---  pretty' (Return x)     _ = pretty x
---  pretty' Fail           _ = "!"
---  pretty' (Choice m p q) wsp =
---    "? " ++  showID m
---    ++ "\n" ++ replicate wsp ' ' ++ "├── " ++ pretty' p (wsp+6)
---    ++ "\n" ++ replicate wsp ' ' ++ "└── " ++ pretty' q (wsp+6)
---    where showID Nothing  = ""
---          showID (Just x) = show x
-
---  pretty = flip pretty' 0
-
-
 prettyProgNoShare :: (Pretty a, Show a)
                   => Int -> [Int] -> [Int] -> Prog (HND + HVoid) a -> String
 prettyProgNoShare _ _    scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
