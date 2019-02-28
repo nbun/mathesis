@@ -15,4 +15,8 @@ src/Eq.v
 src/Laws.v
 src/HigherOrder/Container.v
 src/HigherOrder/Free.v
+src/HigherOrder/Prog.v
+src/HigherOrder/Classes.v
 src/HigherOrder/Base.v
+src/HigherOrder/Effect.v
+src/HigherOrder/Handler.v

@@ -4,12 +4,13 @@ Require Import Coq.Program.Equality.
 Inductive Ext
           Shape
           (Pos : Shape -> Type)
-          (Ctx : forall s : Shape, Pos s -> Type -> Type)
+          (PosX : Shape -> Type)
+          (Ctx : forall s : Shape, PosX s -> Type)
           (F : Type -> Type)
           A :=
-  ext : forall s, (forall p : Pos s, F (Ctx s p A)) -> Ext Shape Pos Ctx F A.
+  ext : forall s, (Pos s -> F A) -> (forall p : PosX s, F (Ctx s p)) -> Ext Shape Pos PosX Ctx F A.
 
-Arguments ext {_ _ _ _ _} s pf.
+Arguments ext {_ _ _ _ _ _} s pf pfx.
 
 Set Implicit Arguments.
 
@@ -17,16 +18,17 @@ Class HContainer (H : (Type -> Type) -> Type -> Type) :=
   {
     Shape   : Type;
     Pos     : Shape -> Type;
-    Ctx     : forall s : Shape, Pos s -> Type -> Type;
-    to      : forall F A, Ext Shape Pos Ctx F A -> H F A;
-    from    : forall F A, H F A -> Ext Shape Pos Ctx F A;
+    PosX   : Shape -> Type;
+    Ctx     : forall s : Shape, PosX s -> Type;
+    to      : forall F A, Ext Shape Pos PosX Ctx F A -> H F A;
+    from    : forall F A, H F A -> Ext Shape Pos PosX Ctx F A;
     to_from : forall F A (fx : H F A), to (from fx) = fx;
-    from_to : forall F A (e : Ext Shape Pos Ctx F A), from (to e) = e
+    from_to : forall F A (e : Ext Shape Pos PosX Ctx F A), from (to e) = e
   }.
 
-Section Zero.
+Inductive Void :=.
 
-  Inductive Void :=.
+Section Zero.
 
   Definition Zero (M : Type -> Type) (A : Type) := Void.
 
@@ -34,13 +36,16 @@ Section Zero.
 
   Definition Pos__Zero (s : Shape__Zero) := Void.
 
-  Definition Ctx__Zero (s : Shape__Zero) : Pos__Zero s -> Type -> Type := match s with end.
+  Definition PosX__Zero (S : Shape__Zero) := Void.
 
-  Definition Ext__Zero := Ext Shape__Zero Pos__Zero Ctx__Zero.
+  Definition Ctx__Zero (s : Shape__Zero) : Pos__Zero s -> Type :=
+    match s with end.
+
+  Definition Ext__Zero := Ext Shape__Zero Pos__Zero PosX__Zero Ctx__Zero.
 
   Definition to__Zero F A (e: Ext__Zero F A) : Zero F A :=
     match e with
-      ext s _ => match s with end
+      ext s _ _ => match s with end
     end.
 
   Definition from__Zero F A (z: Zero F A) : Ext__Zero F A :=
@@ -71,6 +76,89 @@ Section Zero.
 
 End Zero.
 
+Section Combination.
+
+  Variable H1 H2 : (Type -> Type) -> Type -> Type.
+  Variable C1 : HContainer H1.
+  Variable C2 : HContainer H2.
+
+  Inductive Comb F A : Type :=
+  | Inl : H1 F A -> Comb F A
+  | Inr : H2 F A -> Comb F A.
+
+  Definition fold_sum (A B : Type) (C : sum A B -> Type)
+           (f : forall (a : A), C (inl _ a))
+           (g : forall (b : B), C (inr _ b))
+           (x : A + B) : C x :=
+  match x with
+  | inl y => f y
+  | inr y => g y
+  end.
+
+  Definition fold_sum' (A B : Type) (C : Type) (f : A -> C) (g : B -> C) (x : A + B) : C :=
+    fold_sum (fun _ => C) f g x.
+
+  Definition Shape__Comb : Type := sum (@Shape H1 C1) (@Shape H2 C2).
+
+  Definition Pos__Comb : Shape__Comb -> Type := fold_sum' (@Pos H1 C1) (@Pos H2 C2).
+
+  Definition PosX__Comb : Shape__Comb -> Type := fold_sum' (@PosX H1 C1) (@PosX H2 C2).
+    
+  Definition Ctx__Comb (s : Shape__Comb) (p : PosX__Comb s) : Type.
+    destruct s;
+      apply Ctx with (s0 := s);
+      apply p.
+  Defined.
+
+  Definition Ext__Comb := Ext Shape__Comb Pos__Comb PosX__Comb Ctx__Comb.
+
+  Definition to__Comb F A (e: Ext__Comb F A) : Comb F A :=
+    match e with
+    | ext (inl s1) pf pfx => Inl (to (ext s1 pf pfx))
+    | ext (inr s2) pf pfx => Inr (to (ext s2 pf pfx))
+    end.
+
+  Fixpoint from__Comb F A (z : Comb F A) : Ext__Comb F A :=
+    match z with
+    | Inl fa => match from F A fa with
+                 ext s1 pf1 pfx1 => ext (inl s1) pf1 pfx1
+               end
+    | Inr ga => match from F A ga with
+                 ext s2 pf2 pfx2 => ext (inr s2) pf2 pfx2
+               end
+    end.
+
+  Lemma to_from__Comb : forall F A (ox : Comb F A), to__Comb (from__Comb ox) = ox.
+  Proof.
+    intros F A ox.
+    destruct ox as [f|f];
+      (simpl;
+       destruct (from F A f) eqn:H;
+       unfold to__Comb;
+       rewrite <- H;
+       rewrite to_from;
+       reflexivity).
+  Qed.
+
+  Lemma from_to__Comb : forall F A (e : Ext__Comb F A), from__Comb (to__Comb e) = e.
+  Proof.
+    intros F A [s pf].
+    destruct s; (simpl; rewrite from_to; reflexivity).
+  Qed.
+
+  Instance C__Comb : HContainer Comb :=
+    {
+      Shape := Shape__Comb;
+      Pos   := Pos__Comb;
+      Ctx   := Ctx__Comb;
+      to    := to__Comb;
+      from  := from__Comb;
+      to_from := to_from__Comb;
+      from_to := from_to__Comb
+    }.
+
+End Combination.
+
 Section Choice.
 
   Inductive Choice M (A : Type) :=
@@ -87,24 +175,25 @@ Section Choice.
     | schoice _ => bool
     end.
 
-  Definition Ctx__Choice (s : Shape__Choice) : Pos__Choice s -> Type -> Type :=
-    match s with
-    | sfail     => fun _ A => A
-    | schoice _ => fun _ A => A
-    end.
+  Definition PosX__Choice (s: Shape__Choice) : Type := Void.
 
-  Definition Ext__Choice := Ext Shape__Choice Pos__Choice Ctx__Choice.
+
+  Definition Ctx__Choice (s : Shape__Choice) : PosX__Choice s -> Type := fun _ => unit.
+
+  Definition Ext__Choice := Ext Shape__Choice Pos__Choice PosX__Choice Ctx__Choice.
 
   Definition to__Choice F A (e: Ext__Choice F A) : Choice F A :=
     match e with
-    | ext sfail f   => cfail F A
-    | ext (schoice mid) f => cchoice F A mid (f true) (f false)
+    | ext sfail _ _   => cfail F A
+    | ext (schoice mid) pf _ => cchoice F A mid (pf true) (pf false)
     end.
 
   Fixpoint from__Choice F A (z : Choice F A) : Ext__Choice F A :=
     match z with
-    | cfail _ _     => ext sfail   (fun p : Pos__Choice sfail => match p with end)
+    | cfail _ _           => ext sfail  (fun p : Pos__Choice sfail => match p with end)
+                                (fun p : PosX__Choice sfail => match p with end)
     | cchoice _ _ mid l r => ext (schoice mid) (fun p : Pos__Choice (schoice mid) => if p then l else r)
+                                (fun p : PosX__Choice (schoice mid) => match p with end)
     end.
 
   Lemma to_from__Choice : forall F A (ox : Choice F A), to__Choice (from__Choice ox) = ox.
@@ -119,6 +208,8 @@ Section Choice.
     destruct s; simpl; f_equal; extensionality p.
     - contradiction.
     - destruct p; reflexivity.
+    - destruct p; reflexivity.
+    - destruct p.
   Qed.
       
   Instance C__Choice : HContainer Choice :=
@@ -149,24 +240,24 @@ Section State.
   | pget : forall (st : S), Pos__State sget
   | pput : forall (st : S), Pos__State (sput st).
 
-  Definition Ctx__State (s : Shape__State) : Pos__State s -> Type -> Type :=
-    match s with
-    | sget   => fun _ A => A
-    | sput _ => fun _ A => A
-    end.
+  Definition PosX__State : Shape__State -> Type := fun _ => Void.
 
-  Definition Ext__State := Ext Shape__State Pos__State Ctx__State.
+  Definition Ctx__State (s : Shape__State) : PosX__State s -> Type := fun _ => unit.
+
+  Definition Ext__State := Ext Shape__State Pos__State PosX__State Ctx__State.
 
   Definition to__State F A (e: Ext__State F A) : State F A :=
     match e with
-    | ext sget     fp => get F A (fun s => fp (pget s))
-    | ext (sput s) fp => put F A s (fp (pput s))
+    | ext sget     fp _ => get F A (fun s => fp (pget s))
+    | ext (sput s) fp _ => put F A s (fp (pput s))
     end.
 
   Fixpoint from__State F A (z : State F A) : Ext__State F A :=
     match z with
     | get _ _ f   => ext sget     (fun p : Pos__State sget => match p with pget s => f s end)
+                        (fun p : PosX__State sget => match p with end)
     | put _ _ s a => ext (sput s) (fun p : Pos__State (sput s) => a)
+                        (fun p : PosX__State sget => match p with end)
     end.
 
   Lemma to_from__State : forall F A (ox : State F A), to__State (from__State ox) = ox.
@@ -194,7 +285,7 @@ Section State.
       Pos   := Pos__State;
       Ctx   := Ctx__State;
       to    := to__State;
-      from  := from__State; 
+      from  := from__State;
       to_from := to_from__State;
       from_to := from_to__State
     }.
@@ -213,31 +304,34 @@ Section Sharing.
     let '(ssharing _ X) := s in X.
 
   Inductive Pos__Sharing (s : Shape__Sharing) : Type :=
-  | pshared : Pos__Sharing s
   | pcont   : shapeType s -> Pos__Sharing s.
 
-  Definition Ctx__Sharing (s : Shape__Sharing) (p : Pos__Sharing s) : Type -> Type :=
+  Inductive PosX__Sharing (s : Shape__Sharing) : Type :=
+  | pshared : PosX__Sharing s.
+
+  Definition Ctx__Sharing (s : Shape__Sharing) (p : PosX__Sharing s) : Type :=
     match p with
-    | pshared _ => fun _ => shapeType s
-    | pcont _ _ => fun A => A
+    | pshared _ => shapeType s
     end.
 
-  Definition Ext__Sharing := Ext Shape__Sharing Pos__Sharing Ctx__Sharing.
+  Definition Ext__Sharing := Ext Shape__Sharing Pos__Sharing PosX__Sharing Ctx__Sharing.
 
   Definition to__Sharing F A (e: Ext__Sharing F A) : Sharing F A :=
     match e with
-    | ext (ssharing n _ as s) fp => csharing F A n (fp (pshared s)) (fun x => fp (pcont s x))
+    | ext (ssharing n _ as s) fp fpx => csharing F A n (fpx (pshared s)) (fun x => fp (pcont s x))
     end.
 
-  Definition from__Sharing F A (z : Sharing F A) : Ext__Sharing F A :=
-    match z with
-    | csharing _ _ n fx xfa => ext (ssharing n _)
-                                  (fun p :  Pos__Sharing (ssharing n _) =>
-                                     match p with
-                                     | pshared _ => fx
-                                     | pcont _ s => xfa s
-                                     end)
-    end.
+  Definition from__Sharing F A (z : Sharing F A) : Ext__Sharing F A.
+    destruct z.
+    apply ext with (s := ssharing p X).
+    - intros.
+      destruct X0.
+      + apply f0.
+        apply s.
+    - intros.
+      destruct p0.
+      + simpl. apply f.
+  Defined.
 
   Lemma to_from__Sharing : forall F A (ox : Sharing F A), to__Sharing (from__Sharing ox) = ox.
   Proof.
