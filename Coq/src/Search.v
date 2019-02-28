@@ -1,5 +1,4 @@
 Require Import EqNat.
-Require Import Thesis.Effect.
 
 Set Implicit Arguments.
 
