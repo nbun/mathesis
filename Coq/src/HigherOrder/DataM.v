@@ -38,8 +38,8 @@ Section Prim.
   Definition nf__nat (n : Prog nat) :=
     free_bind n (fun n' => pure n').
 
-  Lemma nf_impure__nat : forall s (pf : _ -> Prog nat),
-      nf__nat (impure (ext s pf)) = impure (ext s (fun p => nf__nat (pf p))).
+  Lemma nf_impure__nat : forall s (pf : _ -> Prog nat) pfx,
+      nf__nat (impure (ext s pf pfx)) = impure (ext s (fun p => nf__nat (pf p)) pfx).
   Proof. trivial. Qed.
 
   Global Instance normalform__nat : Normalform nat nat :=
@@ -51,8 +51,8 @@ Section Prim.
   Definition nf__bool (b : Prog bool) :=
     b >>= fun b' => pure b'.
 
-  Lemma nf_impure__bool : forall s (pf : _ -> Prog bool),
-      nf__bool (impure (ext s pf)) = impure (ext s (fun p => nf__bool (pf p))).
+  Lemma nf_impure__bool : forall s (pf : _ -> Prog bool) pfx,
+      nf__bool (impure (ext s pf pfx)) = impure (ext s (fun p => nf__bool (pf p)) pfx).
   Proof. trivial. Qed.
 
   Global Instance normalform__bool : Normalform bool bool :=
@@ -100,8 +100,8 @@ Section Pair.
                            nf sp2 >>= fun b2 =>
                                         pairM (pure b1) (pure b2).
 
-  Lemma nf_impure__Pair A B C D nf__AC nf__BD : forall s (pf : _ -> Prog (Pair A B)),
-      @nf__Pair A B C D nf__AC nf__BD (impure (ext s pf)) = impure (ext s (fun p => nf__Pair (pf p))).
+  Lemma nf_impure__Pair A B C D nf__AC nf__BD : forall s (pf : _ -> Prog (Pair A B)) pfx,
+      @nf__Pair A B C D nf__AC nf__BD (impure (ext s pf pfx)) = impure (ext s (fun p => nf__Pair (pf p)) pfx).
   Proof. trivial. Qed.
 
   Global Instance normalform__Pair A B C D {nf__AC : Normalform A C} {nf__BD : Normalform B D} : Normalform (Pair A B) (Pair C D) :=
@@ -113,6 +113,7 @@ Section Pair.
 End Pair.
 
 Section List.
+
   Inductive List A :=
   | Nil' : List A
   | Cons' : Prog A -> Prog (List A) -> List A.
