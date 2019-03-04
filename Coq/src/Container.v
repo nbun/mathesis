@@ -66,44 +66,33 @@ End Zero.
 Section Combination.
 
   Variable F G : Type -> Type.
-  Variable C1 : Container F.
-  Variable C2 : Container G.
+  Variable C__F : Container F.
+  Variable C__G : Container G.
 
   Inductive Comb A : Type :=
   | Inl : F A -> Comb A
   | Inr : G A -> Comb A.
 
-  Definition fold_sum (A B : Type) (C : sum A B -> Type)
-           (f : forall (a : A), C (inl _ a))
-           (g : forall (b : B), C (inr _ b))
-           (x : A + B) : C x :=
-  match x with
-  | inl y => f y
-  | inr y => g y
-  end.
+  Definition Shape__Comb : Type := sum (@Shape F C__F) (@Shape G C__G).
 
-  Definition fold_sum' (A B : Type) (C : Type) (f : A -> C) (g : B -> C) (x : A + B) : C :=
-    fold_sum (fun _ => C) f g x.
-
-  Definition Shape__Comb : Type := sum (@Shape F C1) (@Shape G C2).
-  Definition Pos__Comb : Shape__Comb -> Type := fold_sum' (@Pos F C1) (@Pos G C2).
+  Definition Pos__Comb (s : Shape__Comb) : Type :=
+    match s with
+    | inl x => @Pos F C__F x
+    | inr x => @Pos G C__G x
+    end.
 
   Definition Ext__Comb A := Ext Shape__Comb Pos__Comb A.
 
   Definition to__Comb (A : Type) (e: Ext__Comb A) : Comb A :=
     match e with
-    | ext (inl s1) pf => Inl (to (ext s1 pf))
-    | ext (inr s2) pf => Inr (to (ext s2 pf))
+    | ext (inl s) pf => Inl (to (ext s pf))
+    | ext (inr s) pf => Inr (to (ext s pf))
     end.
 
-  Fixpoint from__Comb A (z : Comb A) : Ext__Comb A :=
+  Definition from__Comb A (z : Comb A) : Ext__Comb A :=
     match z with
-    | Inl fa => match from fa with
-                 ext s1 pf1 => ext (inl s1) pf1
-               end
-    | Inr ga => match from ga with
-                 ext s2 pf2 => ext (inr s2) pf2
-               end
+    | Inl x => let '(ext s pf) := from x in ext (inl s) pf
+    | Inr x => let '(ext s pf) := from x in ext (inr s) pf
     end.
 
   Lemma to_from__Comb : forall A (ox : Comb A), to__Comb (from__Comb ox) = ox.
@@ -137,14 +126,15 @@ Section Combination.
 End Combination.
 
 Section Choice.
+  Definition ID : Type := (nat * nat * nat).
 
   Inductive Choice (A : Type) :=
   | cfail   : Choice A
-  | cchoice : option (nat * nat * nat) -> A -> A -> Choice A.
+  | cchoice : option ID -> A -> A -> Choice A.
 
   Inductive Shape__Choice :=
   | sfail : Shape__Choice
-  | schoice : option (nat * nat * nat) -> Shape__Choice.
+  | schoice : option ID -> Shape__Choice.
 
   Definition Pos__Choice (s: Shape__Choice) : Type :=
     match s with
@@ -152,7 +142,7 @@ Section Choice.
     | schoice _ => bool
     end.
 
-  Definition Ext__Choice A := Ext Shape__Choice Pos__Choice A.
+  Definition Ext__Choice : Type -> Type := Ext Shape__Choice Pos__Choice.
 
   Definition to__Choice A (e: Ext__Choice A) : Choice A :=
     match e with
@@ -162,8 +152,13 @@ Section Choice.
 
   Fixpoint from__Choice A (z : Choice A) : Ext__Choice A :=
     match z with
-    | cfail _     => ext sfail   (fun p : Pos__Choice sfail => match p with end)
-    | cchoice mid l r => ext (schoice mid) (fun p : Pos__Choice (schoice mid) => if p then l else r)
+    | cfail _     =>
+      let pf (p : Pos__Choice sfail) := match p with end
+      in ext sfail pf
+    | cchoice mid l r =>
+      let s := schoice mid
+      in let pf (p : Pos__Choice s) := if p then l else r
+         in ext s pf
     end.
 
   Lemma to_from__Choice : forall A (ox : Choice A), to__Choice (from__Choice ox) = ox.
@@ -175,17 +170,13 @@ Section Choice.
   Lemma from_to__Choice : forall A (e : Ext__Choice A), from__Choice (to__Choice e) = e.
   Proof.
     intros A [s pf].
-    destruct s; simpl; f_equal; apply functional_extensionality; intros x.
+    destruct s; simpl; f_equal; extensionality p.
     - contradiction.
-    - destruct x; reflexivity.
+    - destruct p; reflexivity.
   Qed.
       
   Instance C__Choice : Container Choice :=
     {
-      Shape := Shape__Choice;
-      Pos   := Pos__Choice;
-      to    := to__Choice;
-      from  := from__Choice;
       to_from := to_from__Choice;
       from_to := from_to__Choice
     }.
