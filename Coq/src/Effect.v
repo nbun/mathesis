@@ -6,11 +6,11 @@ Set Implicit Arguments.
 
 Definition Get : Prog (nat * nat) :=
   let s : @Shape _ NDShare := inl (sget (nat * nat))
-  in impure (ext s (fun p : @Pos _ NDShare s => match p with pget s => pure s end)).
+  in impure (ext s (fun p : @Pos _ NDShare s => pure p)).
 
 Definition Put (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inl (sput n)
-  in impure (ext s (fun p : @Pos _ NDShare s => match p with pput s => pure tt end)).
+  in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
 
 Definition BeginShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sbsharing n))

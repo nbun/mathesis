@@ -208,9 +208,9 @@ Section List.
       let m := match fxs with
                | pure xs => lengthM xs
                | impure (ext (inl (sget _)) pf) =>
-                 pf (pget (42, 42)) >>= fun xs => lengthM xs
-               | impure (ext (inl (sput s'))   pf) =>
-                 pf (pput s') >>= fun xs => lengthM xs
+                 pf (42,42) >>= fun xs => lengthM xs
+               | impure (ext (inl (sput s')) pf) =>
+                 pf tt >>= fun xs => lengthM xs
                | impure (ext (inr (inr sfail)) _)  => pure 0
                | impure (ext (inr (inr (schoice mid))) pf) =>
                  (pf true >>= fun xs => lengthM xs) >>= fun x =>

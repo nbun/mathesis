@@ -150,7 +150,7 @@ Section Choice.
     | ext (schoice mid) f => cchoice mid (f true) (f false)
     end.
 
-  Fixpoint from__Choice A (z : Choice A) : Ext__Choice A :=
+  Definition from__Choice A (z : Choice A) : Ext__Choice A :=
     match z with
     | cfail _     =>
       let pf (p : Pos__Choice sfail) := match p with end
@@ -194,22 +194,24 @@ Section State.
   Inductive Shape__State :=
   | sget : Shape__State
   | sput : S -> Shape__State.
-  
-  Inductive Pos__State : Shape__State -> Type :=
-  | pget : forall (st : S), Pos__State sget
-  | pput : forall (st : S), Pos__State (sput st).
 
+  Definition Pos__State (s : Shape__State) : Type :=
+    match s with
+    | sget   => S
+    | sput _ => unit
+    end.
+  
   Definition Ext__State A := Ext Shape__State Pos__State A.
 
   Definition to__State (A : Type) (e: Ext__State A) : State A :=
     match e with
-    | ext sget     fp => get (fun s => fp (pget s))
-    | ext (sput s) fp => put s (fp (pput s))
+    | ext sget     fp => get (fun s => fp s)
+    | ext (sput s) fp => put s (fp tt)
     end.
-
-  Fixpoint from__State A (z : State A) : Ext__State A :=
+  
+  Definition from__State A (z : State A) : Ext__State A :=
     match z with
-    | get f   => ext sget     (fun p : Pos__State sget => match p with pget s => f s end)
+    | get f   => ext sget     (fun p : Pos__State sget => f p)
     | put s a => ext (sput s) (fun p : Pos__State (sput s) => a)
     end.
 
@@ -267,7 +269,7 @@ Section Sharing.
     | ext (sesharing n) fp => cesharing n (fp (pesharing n))
     end.
 
-  Fixpoint from__Sharing A (z : Sharing A) : Ext__Sharing A :=
+  Definition from__Sharing A (z : Sharing A) : Ext__Sharing A :=
     match z with
     | cbsharing n a => ext (sbsharing n)
                           (fun p : Pos__Sharing (sbsharing n)
