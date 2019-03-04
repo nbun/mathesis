@@ -2281,6 +2281,31 @@ Notation "mx >>= f" := (free_bind mx f)
 While we could define a monad type class and an instance for \cinl{Free}, this is omitted to simplify the implementation.
 Consequently, instead of \hinl{return}, the function \cinl{pure} is used to create monadic values.
 
+\subsection{Effect Stack and Handlers}
+
+The Coq implementation is based on an effect stack that is handled in a fixed order.
+The topmost effect is the state effect, followed by sharing and, lastly, non-determinism.
+In order to show the differences between the definition of handlers in Haskell and Coq, we first have to define the state container.
+
+To avoid adding another type argument to all definitions, the type of the state is defined as a section variable \cinl{S}.
+
+The shape of the state container has two constructors that represent the original data type.
+While \cinl{sget} has no arguments because the function argument \cinl{S -> A} returns an \cinl{A} and thus, is handled by the position function, \cinl{sput} carries the new state from the original constructor.
+
+\begin{minted}{Coq}
+Inductive Shape__State :=
+| sget : Shape__State
+| sput : S -> Shape__State.
+\end{minted}
+
+\begin{minted}{Coq}
+Definition Pos__State (s : Shape__State) : Type :=
+  match s with
+  | sget   => S
+  | sput _ => unit
+  end.
+\end{minted}
+
 \section{Sharing}
 \label{sec:lawsOfSharing}
 \begin{itemize}
