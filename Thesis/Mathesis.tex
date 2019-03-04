@@ -697,7 +697,7 @@ Since \hinl{:+:} is right-associative in nested applications, we can match for t
 
 
 \subsection{Effect Handlers}
-\label{sec:effectHandlers}
+\label{subsec:effectHandlers}
 For each effect in a program's signature, a \textit{handler} is required.
 Handling an effect means transforming a program that contains a certain effect into a program where the effect's syntax does not occur anymore.
 However, the syntax is not just removed, but the effect's semantics is applied.
@@ -1105,6 +1105,7 @@ The flaw was only found while doing the finishing touches on the ID generation a
 This shows that the hybrid approach is not incorrect in its entirety but merely requires some refinement, as shown in the next subsection.
 
 \subsection{Higher-Order Scope Syntax}
+\label{subsec:HOscopesyntax}
 The higher-order approach described by \citet{wu2014effect} is based on a modified  program data type to represent scoped syntax.
 So far, the type variable \hinl{sig} has been a functor that is applied to the program type again.
 In the higher-order data type, however, \hinl{sig} is applied to a program functor and a type, which makes it of type \hinl{(* -> *) -> * -> *}.
@@ -1841,27 +1842,30 @@ In the following chapter, the current model is implemented in Coq.
 
 \chapter{Call-Time Choice modelled in Coq}
 \label{ch:callTimeChoiceCoq}
-The goal of this chapter is to transfer the Haskell implementation of call-time choice to Coq.
-We begin with the data structure \hinl{Prog}, that is, the free monad, which allowed us to model programs with effects of type \hinl{sig} and results of type \hinl{a}.
+The goal of this chapter is to transfer one of the  Haskell implementation approaches of the call-time choice model to Coq.
+Before implementing a specific approach, the obstacles that Coq's more restrictive language entails are discussed.
+We begin with the data structure \hinl{Prog}, that is, the free monad, which allows us to model programs with effects of type \hinl{sig} and results of type \hinl{a}.
+In Haskell, the data type looks as follows.
 
 \begin{minted}{Haskell}
 data Prog sig a = Return a | Op (sig (Prog sig a))
 \end{minted}
 
-The definition in Coq looks very similar to the Haskell version, aside from renaming and the explicit constructor types.
+The direct translation of the definition to Coq looks very similar to the Haskell version, aside from renaming and the explicit constructor types.
 
 \begin{minted}{Coq}
-Inductive Free F A :=
+Fail Inductive Free F A :=
 | pure : A -> Free F A
 | impure : F (Free F A) -> Free F A.
 \end{minted}
 
 However, the definition is rejected by Coq upon loading the file with the following error message.
 
-\begin{minted}{Text}
+\begin{minted}[fontsize=\footnotesize]{Coq}
 Non-strictly positive occurrence of "Free" in "F (Free F A) -> Free F A".
 \end{minted}
 
+Non-strictly positive occurrence is the main challenge when modelling effects in Coq.
 The reason for this error is explained in the next section.
 
 \section{Non-strictly Positive Occurrence}
@@ -1921,30 +1925,164 @@ One approach to achieve this goal is described in the next section.
 \item How do we translate effect functors into containers?
 \end{itemize}
 
-Containers are an abstraction of data types that store values, with the property that only strictly positive data types can be modelled as a container.
-This will allow us to define a version of \mintinline{Coq}{Free} that works with containers of type constructors instead of the type constructors itself.
-First, however, we will have a more detailed look at containers.
+Containers, as introduced by \citet{Abbott2005containers}, are an abstraction of data types that store values, with the property that only strictly positive functors. can be modelled as a container.
+This will allow us to define a version of \cinl{Free} that works with containers of type constructors instead of the type constructors itself. 
+In the following, we have a more detailed look at containers and how they relate to functors.
+
+\subsection{First-Order Containers}
+For a functor \cinl{F}, we define a first version of a container class that looks as follows.
+
+\begin{minted}{Coq}
+Class Container F :=
+  {
+    Shape   : Type;
+    Pos     : Shape -> Type;
+  }.
+\end{minted}
 
 The first component of a container is the type \mintinline{Coq}{Shape}.
 A shape determines how the data type is structured, regardless of the stored values.
-For example, the  shape of a list is the same as the shape of Peano numbers: a number that  represents the length of the list, or rather the number of \hinl{Cons}/\hinl{Succ} applications.
+For example, the  shape of a list is the same as the shape of Peano numbers: a number that  represents the length of the list, or rather the number of \cinl{Cons}/\cinl{Succ} applications.
 A pair, on the other hand, has only a single shape.
 
-The second component of a container is a function \mintinline{Coq}{Pos : Shape -> Type} that gives each shape a type that represents the positions within the shape.
+The second component of a container is a function \cinl{Pos : Shape -> Type} that gives each shape a type that represents the positions within the shape.
 In the example of pairs, the shape has two positions, the first and second component.
 Each element of a list is a position within the shape.
 Therefore, the position type for lists with length $n$ is natural numbers smaller than $n$.
 Peano numbers do not have elements and therefore, the position type for each shape is empty.
 
 Containers can be extended by a function that maps all valid positions to values.
-Since the position type depends on a concrete shape, the definition in Coq is quantified universally over values of type \mintinline{Coq}{Shape}.
+Since the position type depends on a concrete shape, the definition in Coq is quantified universally over values of type \cinl{Shape}.
+In the following definition, \cinl{Shape} and \cinl{Pos} represent the components of a container as defined above.
 
 \begin{minted}{Coq}
-Inductive Ext Shape (Pos : Shape -> Type) A := 
-  ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
+Inductive Ext Shape Pos A := 
+| ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
 \end{minted}
 
-The extension of a container models the concrete data type.
+The extension of a container is isomorphic to the original data type.
+This means that we can define functions \cinl{to} and \cinl{from} that transform values of the container extension into values of the original data type and vice versa.
+Additionally, proofs that show \cinl{to . from = id} and \hinl{from . to = id} as evidence of the isomorphism are required.
+Thus, the \cinl{Container} class is extended by the transformation functions and the isomorphism proofs.
+
+\begin{minted}{Coq}
+Class Container F :=
+  {
+    Shape   : Type;
+    Pos     : Shape -> Type;
+    to      : forall A, Ext Shape Pos A -> F A;
+    from    : forall A, F A -> Ext Shape Pos A;
+    to_from : forall A (fx : F A), to (from fx) = fx;
+    from_to : forall A (e : Ext Shape Pos A), from (to e) = e
+  }.
+\end{minted}
+
+To gain a better understanding of how functors are represented using containers, the following subsection describes the general scheme for translating a functor into an isomorphic container\footnote{Often the container extension is meant when talking about containers. As described in the container class, only the extension of a container is isomorphic to the original data type but not the container alone.}.
+
+\subsection{Modelling Functors as Containers}
+As an example of modelling a functor as a container, we consider the non-determinism effect described in \autoref{subsec:effectHandlers}
+The definition of the data type is simply translated from Haskell.
+
+\begin{minted}{Coq}
+  Inductive Choice (A : Type) :=
+  | cfail   : Choice A
+  | cchoice : option ID -> A -> A -> Choice A.
+\end{minted}
+
+When determining the shape of a functor, we first have to consider whether the data type is recursive.
+For the effect data types, recursion is introduced by \cinl{Free}, so the types are generally non-recursive.
+This means that we only need one shape for each constructor.
+
+Next, we focus on the arguments of the constructors.
+Since \cinl{cfail} has no arguments, there is no data that needs to be stored in its shape.
+\cinl{cchoice}, however, has three arguments.
+In the definition of the container extensions in the previous subsection, a function of type \cinl{forall s, Pos s -> A} was mentioned.
+This function is responsible for all arguments of type \cinl{A} and thus, they are not part of the shape of the \cinl{cchoice} contructor.
+All arguments of types other than \cinl{A}, that is, \cinl{option ID} in this case, become part of the shape.
+This results in the following shape for the type \cinl{Choice}.
+
+\begin{minted}{Coq}
+  Inductive Shape__Choice :=
+  | sfail : Shape__Choice
+  | schoice : option ID -> Shape__Choice.
+\end{minted}
+
+The second component of a container is the function \cinl{Pos} that assigns each shape a position type.
+This type describes all positions for values of type \cinl{A} in the constructor that the shape represents.
+For the \cinl{cfail} constructor, there are no arguments (of type \cinl{A}).
+This means that when \cinl{Pos} receives a shape \cinl{sfail}, a type that represents no positions needs to be returned.
+Thus, the constructorless type \cinl{Inductive Void :=.} is returned.
+On the other hand, \hinl{cchoice} contains two arguments of type \cinl{A} and thus, has two positions.
+We could define a new type with two constructors, but for this simple task, \cinl{bool} works just as well.
+Consequently, \cinl{true} means the first \cinl{A} position in \cinl{cchoice} and \cinl{false} the second one.
+
+\begin{minted}{Coq}
+Definition Pos__Choice (s: Shape__Choice) : Type :=
+  match s with
+  | sfail  => Void
+  | schoice _ => bool
+  end.
+\end{minted}
+
+With the definition of \cinl{Shape} and \cinl{Pos}, we can define the container extension type as follows.
+
+\begin{minted}{Coq}
+Definition Ext__Choice : Type -> Type := Ext Shape__Choice Pos__Choice.
+\end{minted}
+
+The transformation functions are a first indicator whether the definition of the shape and position types are correct.
+When transforming a value of type \cinl{Choice}, we need to supply two arguments to the container extension constructor \cinl{ext}.
+Firstly, the shape that corresponds to the constructor.
+For \cinl{cfail} and \cinl{cchoice}, this is \cinl{sfail} and \cinl{schoice} respectively.
+The latter takes the optional ID argument since this information cannot be stored in the second argument \cinl{ext}: the position function.
+To construct such a function, we define a function \cinl{pf} that takes a position argument.
+The type of the position is determined by \cinl{Pos} applied to the first argument of \cinl{ext}, that is, the shape that corresponds to the constructor that is currently handled.
+Evaluating \cinl{Pos__Choice sfail} yields \cinl{Void}, so we need to return a value of type \cinl{A} for each constructor of the type.
+Since \cinl{Void} does not have constructors, we do not need to return anything.
+This is expressed in Coq by doing empty pattern matching on the position argument of the function.
+The type of the position is known at compile time and thus, Coq accepts this definition.
+
+\begin{minted}{Coq}
+Fixpoint from__Choice A (z : Choice A) : Ext__Choice A :=
+  match z with
+  | cfail _     =>
+    let pf (p : Pos__Choice sfail) := match p with end
+    in ext sfail pf
+  | cchoice mid l r =>
+    let s := schoice mid
+    in let pf (p : Pos__Choice s) := if p then l else r
+       in ext s pf
+  end.
+\end{minted}
+
+The position function in case of \cinl{cchoice} is slightly more involved.
+This time, \cinl{Pos__Choice} returns \cinl{bool} as the type of the argument \cinl{p}.
+Consequently, we need to return a value of type \cinl{A} for both members of the type \cinl{bool}.
+Since \cinl{cchoice} has two such arguments, we just need to return the corresponding argument depending on whether \cinl{p} is \cinl{true} or \cinl{false}.
+
+Based on this intuition of how the position function works, \cinl{to} can be defined easily.
+We pattern match for the different shapes and create values using the corresponding constructors of the original data type.
+This time, there is a position function \cinl{pf} given by the container extension.
+Knowing the type of argument it expects, we use the function to retrieve the values of type \cinl{A}.
+
+\begin{minted}{Coq}
+ Definition to__Choice A (e: Ext__Choice A) : Choice A :=
+    match e with
+    | ext sfail         pf => cfail A
+    | ext (schoice mid) pf => cchoice mid (pf true) (pf false)
+    end.
+\end{minted}
+
+\begin{minted}{Coq}
+Lemma to_from__Choice : forall A (ox : Choice A),
+                          to__Choice (from__Choice ox) = ox.
+  Proof.
+    intros A ox.
+    destruct ox; reflexivity.
+  Qed.
+\end{minted}
+
+
 
 \section{Modelling Effects}
 \begin{itemize}
@@ -1958,6 +2096,40 @@ The extension of a container models the concrete data type.
 \begin{itemize}
 \item Laws of sharing
 \end{itemize}
+
+\section{Extra}
+\subsection{Higher-Order Containers}
+In \autoref{subsec:HOscopesyntax}, the higher-order approach of modelling effect signatures not as a functor, but as as higher-order functor of type \hinl{(* -> *) -> * -> *} was discussed.
+Similar to the first-order data type for \hinl{Prog}, the following higher-order version fails due to non-strictly positive occurrence of \cinl{Free}.
+
+\begin{minted}{Coq}
+Fail Inductive Free F A :=
+| pure : A -> Free F A
+| impure : F (Free F) A -> Free F A.
+\end{minted}
+
+This calls for a higher-order container that is able to represent higher-order functors.
+Initially, one could assume that we can adapt the first-order container by replacing the functor \cinl{F} with the higher-order functor \cinl{H} and adding the necessary functor arguments of \cinl{H} to the list of quantified variables, as follows.
+
+\begin{minted}{Coq}
+Class HContainer (H : (Type -> Type) -> Type -> Type) :=
+  {
+    Shape   : Type;
+    Pos     : Shape -> Type;
+    to      : forall F A, Ext Shape Pos F A -> H F A;
+    from    : forall F A, H F A -> Ext Shape Pos F A;
+    to_from : forall F A (fx : H F A), to (from fx) = fx;
+    from_to : forall F A (e : Ext Shape Pos F A), from (to e) = e
+  }.
+\end{minted}
+
+The extension of such a higher-order container needs to be adapted, too.
+Reconsidering higher-order functor data types, such as choice, the type variables \hinl{m} and \hinl{a}
+
+\begin{minted}{Coq}
+Inductive Ext Shape (Pos : Shape -> Type) (F : Type -> Type) A := 
+  ext : forall s, (Pos s -> F A) -> Ext Shape Pos F A.
+\end{minted}
 
 \chapter{Curry Programs modelled in Coq}
 \begin{itemize}
