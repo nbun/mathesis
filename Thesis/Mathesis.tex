@@ -2169,6 +2169,70 @@ Thus, Coq is able to infer the omitted definitions.
 \item How do we translate recursive functions?
 \end{itemize}
 
+In the previous section, a technique for representing functors as containers was presented.
+The initial motivation for this was the issue of non-strictly positive occurrence errors in the definition of \cinl{Free}.
+Since containers can only represent strictly positive functors, the following definition is accepted by Coq.
+
+\begin{minted}{Coq}
+Variable F : Type -> Type.
+
+Inductive Free (C__F : Container F) A :=
+| pure   : A -> Free C__F A
+| impure : Ext Shape Pos (Free C__F A) -> Free C__F A.
+\end{minted}
+
+The parameter \cinl{F} is replaced by the container that represents \cinl{F}.
+Instead of writing \cinl{F (Free F A)} as the first argument of \cinl{impure}, we can now use the extension of the container \cinl{C__F} applied to \cinl{Free C__F A}.
+
+\subsection{Infrastructure}
+
+With the \cinl{Free} data type defined, we can begin implementing the remaining infrastructure. 
+In the Haskell implementation, various type classes and language extensions were used to make working with effects as comfortable as possible.
+For the Coq implementation, the infrastructure is not implemented as generalized as before, but rather tailored to the purpose of modelling call-time choice.
+This means, for example, that handlers do not work with arbitrary signatures where one part is a type variable.
+
+\paragraph{Combining Effects}
+Although it would be possible to merge all effects into one call-time choice effect with a large handler, the combination of independent effects is still a good idea in terms of modularity.
+Thus, we need a counterpart to the functor \hinl{:+:} in Haskell.
+
+The original functor is still parameterized over two functors \cinl{F} and \cinl{G} that represent effects.
+
+\begin{minted}{Coq}
+Variable F G : Type -> Type.
+
+Inductive Comb A : Type :=
+| Inl : F A -> Comb A
+| Inr : G A -> Comb A.
+\end{minted}
+
+Since \cinl{Comb} combines effects into a new effect functor, we need to represent the combination as a container, too.
+We assume that we have containers \cinl{C__F : Container F} and \cinl{C__G : Container G} for both functors.
+The shape can then be defined as a \cinl{sum} type -- the Haskell equivalent is \hinl{Either} -- of the containers' shapes.
+
+\begin{minted}{Coq}
+Definition Shape__Comb : Type := sum (@Shape F C__F) (@Shape G C__G).
+\end{minted}
+
+The same principle applies to the function \cinl{Pos}.
+The shape argument can be distinguished by means of the \cinl{sum} constructors \cinl{inl} and \cinl{inr}.
+Depending on the \cinl{sum} constructor, the shape inside is passed to the \cinl{Pos} function of either \cinl{C__F} or \cinl{C__G}.
+
+\begin{minted}{Coq}
+Definition Pos__Comb (s : Shape__Comb) : Type :=
+  match s with
+  | inl x => @Pos F C__F x
+  | inr x => @Pos G C__G x
+  end.
+\end{minted}
+
+The transformation functions also depend on the functions defined in the containers for \cinl{F} and \cinl{G}.
+To transform an \cinl{Ext__Comb} into a \cinl{Comb}, the \cinl{sum} constructor that wraps around the shape is removed and the original \cinl{to} function is called.
+The result is then wrapped in a \cinl{Inl} or \cinl{Inr} constructor.
+Transforming a \cinl{Comb} into an \cinl{Ext__Comb} is achieved by passing the value inside the \hinl{Comb} constructor to \cinl{from} and then wrapping a \cinl{sum} constructor around the shape of the result.
+
+The isomorphism proofs work similar to the \cinl{Choice} proofs in regard to destructing values and shapes.
+In addition, the isomorphism properties arising from $\texttt{C}_\texttt{F} \cong \texttt{F}$ and $\texttt{C}_\texttt{G} \cong \texttt{G}$ are applied.
+
 \section{Sharing}
 \label{sec:lawsOfSharing}
 \begin{itemize}
