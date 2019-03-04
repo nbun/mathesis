@@ -2233,6 +2233,54 @@ Transforming a \cinl{Comb} into an \cinl{Ext__Comb} is achieved by passing the v
 The isomorphism proofs work similar to the \cinl{Choice} proofs in regard to destructing values and shapes.
 In addition, the isomorphism properties arising from $\texttt{C}_\texttt{F} \cong \texttt{F}$ and $\texttt{C}_\texttt{G} \cong \texttt{G}$ are applied.
 
+\paragraph{Monad Operations}
+In the Haskell monad instance for \hinl{Prog}, we used \hinl{fmap} to distribute a function throughout the structure determined by the functor argument.
+Since the Coq implementation uses containers instead of functors, we need to define a function that behaves similar to \hinl{fmap}.
+For this purpose, the function \cinl{cmap} is defined as follows.
+
+\begin{minted}{Coq}
+Variable F : Type -> Type.
+Variable C__F : Container F.
+
+Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) 
+  : Ext Shape Pos B :=
+  match x with
+  | ext s pf => ext s (fun x => f (pf x))
+  end.
+\end{minted}
+
+Instead of an argument of type \cinl{F A} and an \cinl{F B} result, the corresponding container extension is used.
+In order to behave like \hinl{fmap}, the function needs to apply the argument \cinl{f} to all values of type \cinl{A}.
+The arguments are returned by the position function \cinl{pf}, so the new position function that returns values of type \cinl{B} is \cinl{f . pf}.
+
+Based on this definition, we can defined bind for \cinl{Free}.
+Although a direct definition would be possible, this can lead to issues with Coq's termination check in some situation.
+Therefore, the function argument is introduced as a section variable.
+
+\begin{minted}{Coq}
+Variable A B: Type.
+Variable f: A -> Free C__F B.
+
+Fixpoint free_bind' (ffA: Free C__F A) :=
+  match ffA with
+  | pure x => f x
+  | impure e => impure (cmap free_bind' e)
+  end.
+\end{minted}
+
+The function is defined similar to the Haskell version.
+Since \cinl{f} is a section variable instead of an argument of the function, \hinl{fmap (>>= f)} becomes \cinl{cmap free_bind'}.
+Outside of the section, we can now define \cinl{free_bind} by flipping the argument order, so that the added function argument is moved to the usual position.
+Using Coq's notation mechanism, we can define bind as an infix operator to keep the definitions similar to the Haskell implementation.
+
+\begin{minted}{Coq}
+Notation "mx >>= f" := (free_bind mx f)
+                       (at level 50, left associativity).
+\end{minted}
+
+While we could define a monad type class and an instance for \cinl{Free}, this is omitted to simplify the implementation.
+Consequently, instead of \hinl{return}, the function \cinl{pure} is used to create monadic values.
+
 \section{Sharing}
 \label{sec:lawsOfSharing}
 \begin{itemize}
