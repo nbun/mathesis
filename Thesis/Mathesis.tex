@@ -2019,7 +2019,7 @@ Consequently, \cinl{true} means the first \cinl{A} position in \cinl{cchoice} an
 \begin{minted}{Coq}
 Definition Pos__Choice (s: Shape__Choice) : Type :=
   match s with
-  | sfail  => Void
+  | sfail     => Void
   | schoice _ => bool
   end.
 \end{minted}
@@ -2073,6 +2073,9 @@ Knowing the type of argument it expects, we use the function to retrieve the val
     end.
 \end{minted}
 
+Finally, the remaining parts of the container definition are the isomorphism proofs.
+The first proof is done by case distinction over the value \cinl{ox}.
+
 \begin{minted}{Coq}
 Lemma to_from__Choice : forall A (ox : Choice A),
                           to__Choice (from__Choice ox) = ox.
@@ -2082,7 +2085,82 @@ Lemma to_from__Choice : forall A (ox : Choice A),
   Qed.
 \end{minted}
 
+In both cases, the transformation functions neither add nor remove information, as shown in the following for the \cinl{cchoice} constructor.
 
+\begin{minted}{Coq}
+  to__Choice (from__Choice (cchoice mid l r))
+= let s := schoice mid
+  in let pf (p : Pos__Choice s) := if p then l else r
+     in to__Choice (ext s pf)
+= let s := schoice mid
+  in let pf (p : Pos__Choice s) := if p then l else r
+     in cchoice mid (pf true) (pf false)
+= cchoice mid l r
+\end{minted}
+
+The second proof is slightly more complicated than the first one.
+Whereas we had to show the equality of two values of type \cinl{Choice} before, we now need to do the same for values of type \cinl{Ext__Choice}.
+Since such values contain function arguments, we need to show function equality.
+
+\begin{minted}{Coq}
+Lemma from_to__Choice : forall A (e : Ext__Choice A),
+  from__Choice (to__Choice e) = e.
+Proof.
+  intros A [s pf].
+  destruct s; simpl; f_equal; extensionality p.
+  - contradiction.
+  - destruct p; reflexivity.
+Qed. 
+\end{minted}
+
+After destructing the shape of \cinl{e} for a case distinction and simplifying the expression, we are in a situation where the goal is similar to \cinl{ext sfail pf = ext sfail pf'}.
+The tactic \cinl{f_equal} states that two values are equal if both constructors are the same and all arguments are equal, too.
+Since the constructor and first argument are equal, the only remaining goal is to prove that the position functions are equal.
+The tactic \cinl{extensionality} is useful to show function equality, that is, $\forall x: f x = g x \implies f = g$.
+The position \cinl{p} appears in the proof context with an appropriate type, which is determined by the function \cinl{Pos__Choice}.
+There are two goals left to prove that correspond to the shapes of the container.
+The first goal arises from \cinl{sfail} and looks as follows.
+
+\begin{minted}{Coq}
+A : Type
+pf : Void -> A
+p : Void
+============================
+match p return A with
+end = pf p
+\end{minted}
+
+Since the position function for \cinl{sfail} takes arguments of type \cinl{Void}, there is a value \cinl{p} of type \cinl{Void} in the context.
+However, this is not possible because \cinl{Void} has no constructors.
+Consequently, the tactic \cinl{contradiction} solves this case.
+
+For the second case that corresponds to the shape \cinl{schoice}, the position function takes arguments of type \cinl{bool}.
+
+\begin{minted}{Coq}
+A : Type
+o : option ID
+pf : bool -> A
+p : bool
+============================
+(if p then pf true else pf false) = pf p
+\end{minted}
+
+If we destruct \hinl{p}, we can see that the \cinl{if}-statement returns \cinl{pf true} if \cinl{p} is \cinl{true} and vice versa, which leads to two trivially true equations.
+This shows that the transformation functions form an isomorphism.
+Therefore, strictly positive functors can be represented as container extensions.
+
+Finally, the container instance can be defined as follows.
+
+\begin{minted}{Coq}
+  Instance C__Choice : Container Choice :=
+    {
+      to_from := to_from__Choice;
+      from_to := from_to__Choice
+    }.
+\end{minted}
+
+The isomorphism contains all necessary information about the container and its extension.
+Thus, Coq is able to infer the omitted definitions.
 
 \section{Modelling Effects}
 \begin{itemize}
