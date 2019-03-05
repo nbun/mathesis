@@ -166,11 +166,16 @@ Section SharingLaws.
     intros n m.
     induction p using Free_Share_Ind.
     - reflexivity.
-    - reflexivity.
     - simpl.
-      rewrite IHp1.
-      rewrite IHp2.
-      reflexivity.
+      do 2 f_equal.
+      extensionality x.
+      contradiction.
+    - simpl.
+      do 2 f_equal.
+      extensionality x.
+      destruct x.
+      + rewrite IHp1. reflexivity.
+      + rewrite IHp2. reflexivity.
   Qed.
 
   Theorem Fail__const : forall x,

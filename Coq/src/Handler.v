@@ -24,12 +24,9 @@ Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
 Fixpoint runState A (n : nat * nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice) A :=
   match fc with
   | pure x => pure x
-  | impure (ext (inl sget)        pf) => runState n (pf n)
-  | impure (ext (inl (sput s'))   pf) => runState s' (pf tt)
-  | impure (ext (inr (inr sfail)) _)  => Fail__SC
-  | impure (ext (inr (inr (schoice mid))) pf) => Choice__SC mid (runState n (pf true)) (runState n (pf false))
-  | impure (ext (inr (inl (sbsharing m)))  pf) => BeginShare__SC m (runState n (pf (pbsharing m)))
-  | impure (ext (inr (inl (sesharing m)))  pf) => EndShare__SC   m (runState n (pf (pesharing m)))
+  | impure (ext (inl sget)      pf) => runState n (pf n)
+  | impure (ext (inl (sput s')) pf) => runState s' (pf tt)
+  | impure (ext (inr s) pf)         => impure (cmap (runState n) (ext s pf))
   end.
 
 Definition tripl A B C (p : A * B) (c : C) : A * B * C :=
@@ -58,9 +55,7 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
      | impure (ext (inl (sbsharing n))  pf) =>
        nameChoices 1 n (cons n nil) (pf (pbsharing n))
      | impure (ext (inl (sesharing n))  pf) => runSharing (pf (pesharing n))
-     | impure (ext (inr sfail)         _)  => Fail__C
-     | impure (ext (inr (schoice mid)) pf) =>
-       Choice__C mid (runSharing (pf true)) (runSharing (pf false))
+     | impure (ext (inr s) pf) => impure (cmap (@runSharing A) (ext s pf))
      end.
 
 Definition handle A `{Normalform A A} (fs : Prog A) : list A :=
