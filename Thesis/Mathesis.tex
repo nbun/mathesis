@@ -2281,16 +2281,25 @@ Notation "mx >>= f" := (free_bind mx f)
 While we could define a monad type class and an instance for \cinl{Free}, this is omitted to simplify the implementation.
 Consequently, instead of \hinl{return}, the function \cinl{pure} is used to create monadic values.
 
-\subsection{Effect Stack and Handlers}
+\paragraph{Effect Syntax}
 
-The Coq implementation is based on an effect stack that is handled in a fixed order.
-The topmost effect is the state effect, followed by sharing and, lastly, non-determinism.
-In order to show the differences between the definition of handlers in Haskell and Coq, we first have to define the state container.
+In the Haskell implementation, the type class \hinl{:<:} was used to inject syntax into a program, that is, an appropriate nesting of the combination functor \hinl{:+:} was derived from the type context.
+Contrary to that, the Coq implementation is based on a fixed effect stack that is handled in a predetermined  order.
+Whereas we used \hinl{inject} to define effect syntax like the \hinl{get} operator, we now have to combine the effects manually.
+Firstly, however, the state effect container is defined as an example of syntax constructors.
 
 To avoid adding another type argument to all definitions, the type of the state is defined as a section variable \cinl{S}.
 
-The shape of the state container has two constructors that represent the original data type.
-While \cinl{sget} has no arguments because the function argument \cinl{S -> A} returns an \cinl{A} and thus, is handled by the position function, \cinl{sput} carries the new state from the original constructor.
+\begin{minted}{Coq}
+Inductive State (A : Type) :=
+| cget : (S -> A) -> State A
+| cput : S -> A -> State A.
+\end{minted}
+
+The shape of the state container has two constructors that represent the constructors of \cinl{State}.
+The function \cinl{S -> A} is not part of the shape because it returns a value of type \cinl{A}.
+Thus, the position function is responsible for handling this argument.
+For \cinl{sput}, the first argument carries the new state from the original constructor.
 
 \begin{minted}{Coq}
 Inductive Shape__State :=
@@ -2298,11 +2307,95 @@ Inductive Shape__State :=
 | sput : S -> Shape__State.
 \end{minted}
 
+The function \cinl{Pos} returns either \cinl{S} or \cinl{unit}, depending on the given shape.
+Since the function argument of \cinl{cget} returns a value of type \cinl{A} for every \cinl{S}, each value of \cinl{S} represents a position of the shape \cinl{sget}.
+\cinl{cput} has only one argument of type \cinl{A} and thus, the type \cinl{unit} is returned.
+
 \begin{minted}{Coq}
 Definition Pos__State (s : Shape__State) : Type :=
   match s with
   | sget   => S
   | sput _ => unit
+  end.
+\end{minted}
+
+The transformation functions are omitted here since this section is focused on effect syntax.
+In order to define syntax for the state effect, we first need to define an effect stack.
+The effect stack is constructed by means of the combination container and the effect containers that were defined in the previous section.
+Similar to the Haskell implementation, the state effect -- with a pair of natural numbers as state -- should be handled first.
+Therefore, it is the outermost effect.
+The other argument of \cinl{C__Comb} is the combination of sharing and non-determinism, the former of which is defined in the next section.
+ 
+\begin{minted}{Coq}
+Definition NDShare := C__Comb (C__State (nat * nat)) 
+                              (C__Comb C__Sharing C__Choice).
+Definition Prog := Free NDShare.
+\end{minted}
+
+When \cinl{Free} is applied to \cinl{NDShare}, the resulting functor represents programs that are evaluated with respect to call-time choice.
+
+With the effect stack in mind, we can begin defining syntax for the state effect.
+The definition of the Haskell smart constructor for \hinl{get} is as follows.
+
+\begin{minted}{Haskell}
+get :: (State s :<: sig) => Prog sig s
+get = inject (Get' return)
+\end{minted}
+
+In Coq, the definition is implemented by defining a value of the \cinl{NDShare} combination container.
+Therefore, we need to supply a shape and a position function to the constructor \cinl{ext}.
+The shape for \hinl{get} is \cinl{sget}.
+However, \cinl{sget} is a shape of the state container but we need a combination shape for this definition to be correct.
+Consequently, we use \cinl{inl} as a combination shape with \cinl{sget} as its argument.
+In this case \cinl{inl} is used to select the left container argument of \cinl{NDShare}, which is the state container, as defined previously.
+
+\begin{minted}{Coq}
+Definition Get : Prog (nat * nat) :=
+  let s : @Shape _ NDShare := inl sget
+  in impure (ext s (fun p : @Pos _ NDShare s => pure p)).
+\end{minted}
+
+The position function takes arguments of type \cinl{@Pos _ NDShare (inl sget)}.
+According to the definition of \cinl{Pos} for the combination container, the function \cinl{Pos} of the left container is applied to \cinl{sget}.
+As defined above, the function \cinl{Pos__State} returns \cinl{S} or rather \cinl{nat * nat} for the shape \cinl{sget}.
+Since we have a position \cinl{p : nat * nat} and need to return a value of type \cinl{Prog (nat * nat)}, applying \cinl{pure} to \cinl{p} yields the correct result.
+
+The smart constructor for \hinl{put} works similar to \hinl{get}, with the difference that the new state is stored within the shape.
+Furthermore, the return type is \cinl{Prog unit} because \hinl{put} has no information to return.
+Thus, the position function, whose argument \cinl{p} has the type \cinl{unit} according to \cinl{Pos__State}, always returns \cinl{pure tt}.
+
+\begin{minted}{Coq}
+Definition Put (n : nat * nat) : Prog unit :=
+  let s : @Shape _ NDShare := inl (sput n)
+  in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
+\end{minted}
+
+For the other effects, the syntax smart constructors are defined similarly.
+Since sharing and non-determinism are combined in the right argument of the \cinl{Comb} container, the shapes are wrapped in \cinl{inr}.
+Then, the shape is wrapped again in \cinl{inl} or \cinl{inr}, depending on the position of the effect within the second combination container, as shown in the smart constructor for failed computations.
+
+\begin{minted}{Coq}
+Definition Fail A : Prog A :=
+  let s : @Shape _ NDShare := inr (inr sfail)
+  in impure (ext s (fun p : @Pos _ NDShare s => match p with end)).
+\end{minted}
+
+\subsection{Effect Stack and Handlers}
+
+
+
+
+\begin{minted}{Coq}
+Fixpoint runState A (n : nat * nat) (p : Prog A) 
+    : Free (C__Comb C__Sharing C__Choice) A :=
+  match p with
+  | pure x => pure x
+  | impure (ext (inl (sget _))    pf) => runState n (pf n)
+  | impure (ext (inl (sput s'))   pf) => runState s' (pf tt)
+  | impure (ext (inr (inr sfail)) _)  => Fail__SC
+  | impure (ext (inr (inr (schoice mid))) pf) => 
+      Choice__SC mid (runState n (pf true)) (runState n (pf false))
+  (* ... *)
   end.
 \end{minted}
 
