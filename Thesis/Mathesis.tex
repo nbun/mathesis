@@ -2382,20 +2382,44 @@ Definition Fail A : Prog A :=
 
 \subsection{Effect Stack and Handlers}
 
+With the definitions of effect and combination containers, smart constructors and the effect stack from the previous subsection, we can now discuss handlers.
+\autoref{fig:effectStackHandling} visualizes the effect stack and how handlers remove effects one by one.
 
+\begin{figure}[H]
+{\centering \cinl{C__Comb (C__State (nat * nat)) (C__Comb C__Sharing C__Choice)} \par}
 
+\hspace*{.48\textwidth} {\Large \boldmath $\downarrow$} \mintinline[fontsize=\scriptsize]{Coq}{runState}
+
+{\centering \cinl{C__Comb C__Sharing C__Choice} \par}
+
+\hspace*{.48\textwidth} {\Large \boldmath $\downarrow$} \mintinline[fontsize=\scriptsize]{Coq}{runSharing}
+
+{\centering \cinl{C__Choice} \par}
+
+\hspace*{.48\textwidth} {\Large \boldmath $\downarrow$} \mintinline[fontsize=\scriptsize]{Coq}{runChoice}
+
+{\centering \cinl{Tree} \par}
+
+\hspace*{.48\textwidth} {\Large \boldmath $\downarrow$} \mintinline[fontsize=\scriptsize]{Coq}{dfs}
+
+{\centering \cinl{list} \par}
+\caption{Effect Stack Handling}
+\label{fig:effectStackHandling}
+\end{figure}
+
+Beginning with \cinl{NDShare}, the first handler \cinl{runState} handles the state effect and returns a program without state syntax.
+Then, handlers for sharing and non-determinism handle the respective effects and a choice tree is returned.
+The tree is then transformed into a list via depth-first search according to the algorithm presented in \autoref{subsec:effectHandlers}.
+
+Since the Coq implementation does not have view patterns and pattern synonyms to simplify pattern matching 
 
 \begin{minted}{Coq}
-Fixpoint runState A (n : nat * nat) (p : Prog A) 
-    : Free (C__Comb C__Sharing C__Choice) A :=
-  match p with
+Fixpoint runState A (n : nat * nat) (fc : Prog A) : Prog__SC A :=
+  match fc with
   | pure x => pure x
-  | impure (ext (inl (sget _))    pf) => runState n (pf n)
-  | impure (ext (inl (sput s'))   pf) => runState s' (pf tt)
-  | impure (ext (inr (inr sfail)) _)  => Fail__SC
-  | impure (ext (inr (inr (schoice mid))) pf) => 
-      Choice__SC mid (runState n (pf true)) (runState n (pf false))
-  (* ... *)
+  | impure (ext (inl sget)      pf) => runState n (pf n)
+  | impure (ext (inl (sput s')) pf) => runState s' (pf tt)
+  | impure (ext (inr s) pf) => impure (cmap (runState n) (ext s pf))
   end.
 \end{minted}
 
