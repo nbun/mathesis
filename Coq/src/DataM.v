@@ -207,7 +207,7 @@ Section List.
     | Cons' _ fxs =>
       let m := match fxs with
                | pure xs => lengthM xs
-               | impure (ext (inl (sget _)) pf) =>
+               | impure (ext (inl sget) pf) =>
                  pf (42,42) >>= fun xs => lengthM xs
                | impure (ext (inl (sput s')) pf) =>
                  pf tt >>= fun xs => lengthM xs
