@@ -247,6 +247,8 @@ Section State.
 
 End State.
 
+Arguments sget {_}.
+
 Section Sharing.
 
   Inductive Sharing (A : Type) :=

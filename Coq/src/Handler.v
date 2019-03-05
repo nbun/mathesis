@@ -24,7 +24,7 @@ Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
 Fixpoint runState A (n : nat * nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice) A :=
   match fc with
   | pure x => pure x
-  | impure (ext (inl (sget _))    pf) => runState n (pf n)
+  | impure (ext (inl sget)        pf) => runState n (pf n)
   | impure (ext (inl (sput s'))   pf) => runState s' (pf tt)
   | impure (ext (inr (inr sfail)) _)  => Fail__SC
   | impure (ext (inr (inr (schoice mid))) pf) => Choice__SC mid (runState n (pf true)) (runState n (pf false))

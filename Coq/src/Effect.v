@@ -5,12 +5,12 @@ Require Import Thesis.Classes.
 Set Implicit Arguments.
 
 Definition Get : Prog (nat * nat) :=
-  let s : @Shape _ NDShare := inl (sget (nat * nat))
-  in impure (ext s (fun p : @Pos _ NDShare s => pure p)).
+  let s : @Shape _ NDShare := inl sget
+  in impure (ext s pure).
 
 Definition Put (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inl (sput n)
-  in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
+  in impure (ext s (fun _ => pure tt)).
 
 Definition BeginShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sbsharing n))

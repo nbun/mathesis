@@ -8,14 +8,14 @@ Require Import Lists.List.
 Import ListNotations.
 
 Section PermSort.
-  Fixpoint insert' fx xs : Prog (List nat) :=
+  Fixpoint insert' (fx : Prog nat) (xs : List nat) : Prog (List nat) :=
     match xs with
     | Nil' _ => Fail
     | Cons' fy fys => consM fy ((consM fx fys) ? (fys >>= insert' fx))
     end.
   
   Definition insert (fx : Prog nat) (fxs : Prog (List nat)) : Prog (List nat) :=
-    Share fx >>= fun fx' => (consM fx' fxs) ? (fxs >>= insert' fx').
+    (consM fx fxs) ? (fxs >>= insert' fx).
 
   Fixpoint perm' (xs : List nat) : Prog (List nat) :=
     match xs with
