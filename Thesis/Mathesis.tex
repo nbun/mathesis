@@ -2539,12 +2539,18 @@ The function \cinl{nameChoices} has the same issue where a closing tag with an I
 This situation is handled the same way as in \cinl{runSharing}.
 When a choice is encountered, an ID is assigned based on the current scope and scope counter, as seen in the Haskell implementation.
 
-An alternative solution to the problem handling mismatched tags is the higher-order approach described in \autoref{subsec:HOscopesyntax}, which is discussed in the next section.
+An alternative solution to the problem of handling mismatched tags is the higher-order approach discussed in the next section.
 
 \section{Modelling Effects using Higher-Order Containers}
 \label{sec:coqHO}
+
+The first-order approach of modelling effects shown in this chapter allows representing scoped effects only with explicit scope delimiters.
+In the last chapter, a higher-order approach was briefly discussed in \autoref{subsec:HOscopesyntax} as an alternative way to define scopes without explicit delimiters.
+Due to the more abstract definition and the function arguments in the term structure, it was not suitable for discussing the different aspects of the sharing implementation.
+However, with the prospect of avoiding mismatched scope tags being a tangible benefit, it seems worthwhile to pursue this approach in Coq.
+
 \subsection{Higher-Order Containers}
-In \autoref{subsec:HOscopesyntax}, the higher-order approach of modelling effect signatures not as a functor, but as as higher-order functor of type \hinl{(* -> *) -> * -> *} was discussed.
+In the higher-order approach, effect signatures are represented not as a simple functor, but as as higher-order functor of type \hinl{(* -> *) -> * -> *}.
 Similar to the first-order data type for \hinl{Prog}, the following higher-order version fails due to non-strictly positive occurrence of \cinl{Free}.
 
 \begin{minted}{Coq}
