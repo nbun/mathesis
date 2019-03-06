@@ -303,35 +303,25 @@ Section Sharing.
   Definition shapeType (s : Shape__Sharing) : Type :=
     let '(ssharing _ X) := s in X.
 
-  Inductive Pos__Sharing (s : Shape__Sharing) : Type :=
-  | pcont   : shapeType s -> Pos__Sharing s.
+  Definition Pos__Sharing (s : Shape__Sharing) := shapeType s.
 
-  Inductive PosX__Sharing (s : Shape__Sharing) : Type :=
-  | pshared : PosX__Sharing s.
+  Definition PosX__Sharing : Shape__Sharing -> Type := fun _ => unit.
 
-  Definition Ctx__Sharing (s : Shape__Sharing) (p : PosX__Sharing s) : Type :=
-    match p with
-    | pshared _ => shapeType s
-    end.
+  Definition Ctx__Sharing (s : Shape__Sharing) : PosX__Sharing s -> Type := fun _ => shapeType s.
 
   Definition Ext__Sharing := Ext Shape__Sharing Pos__Sharing PosX__Sharing Ctx__Sharing.
 
   Definition to__Sharing F A (e: Ext__Sharing F A) : Sharing F A :=
     match e with
-    | ext (ssharing n _ as s) fp fpx => csharing F A n (fpx (pshared s)) (fun x => fp (pcont s x))
+    | ext (ssharing n _ as s) fp fpx => csharing F A n (fpx tt) (fun x => fp x)
     end.
 
-  Definition from__Sharing F A (z : Sharing F A) : Ext__Sharing F A.
-    destruct z.
-    apply ext with (s := ssharing p X).
-    - intros.
-      destruct X0.
-      + apply f0.
-        apply s.
-    - intros.
-      destruct p0.
-      + simpl. apply f.
-  Defined.
+  Definition from__Sharing F A (z : Sharing F A) : Ext__Sharing F A :=
+    match z with
+    | csharing _ _ n fx xfa =>
+      let s := ssharing n _
+      in ext s (fun p : Pos__Sharing s => xfa p) (fun _ => fx)
+    end.
 
   Lemma to_from__Sharing : forall F A (ox : Sharing F A), to__Sharing (from__Sharing ox) = ox.
   Proof.

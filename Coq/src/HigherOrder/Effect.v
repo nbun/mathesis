@@ -16,13 +16,13 @@ Definition Put (n : nat * nat) : Prog unit :=
 
 Definition Share' (n : nat * nat) A (fs : Prog A) : Prog A :=
   let s : @Shape _ NDShare := inr (inl (ssharing n A))
-  in impure (ext s (fun p : @Pos _ NDShare s => match p with pcont _ s => pure s end)
-                 (fun p : @PosX _ NDShare s => match p with pshared _ => fs end)).
+  in impure (ext s (fun p : @Pos _ NDShare s => pure p)
+                 (fun p : @PosX _ NDShare s => fs)).
 
 Definition Share'__SC (n : nat * nat) A (fs : Prog__SC A) : Prog__SC A :=
   let s : @Shape _ NDShare__SC := (inl (ssharing n A))
-  in impure (ext s (fun p : @Pos _ NDShare__SC s => match p with pcont _ x => pure x end)
-                 (fun p : @PosX _ NDShare__SC s => match p with pshared _ => fs end)).
+  in impure (ext s (fun p : @Pos _ NDShare__SC s => pure p)
+                 (fun p : @PosX _ NDShare__SC s => fs)).
 
 Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
   Get >>= fun '(i,j) =>

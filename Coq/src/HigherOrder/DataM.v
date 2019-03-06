@@ -114,119 +114,119 @@ End Pair.
 
 Section List.
 
-  Inductive List A :=
+  Fail Inductive List A :=
   | Nil' : List A
   | Cons' : Prog A -> Prog (List A) -> List A.
 
-  Arguments Nil' {_}.
+(*   Arguments Nil' {_}. *)
 
-  Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
-    pure (Cons' fx fxs).
+(*   Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) := *)
+(*     pure (Cons' fx fxs). *)
 
-  Definition nilM {A} : Prog (List A) := pure (@Nil' A).
+(*   Definition nilM {A} : Prog (List A) := pure (@Nil' A). *)
 
-  Definition headM A (fxs : Prog (List A)) : Prog A :=
-    fxs >>= fun xs => match xs with
-                   | Nil'      => @Fail A
-                   | Cons' x _ => x
-                   end.
-
-
-  Definition tailM A (fxs : Prog (List A)) : Prog (List A) :=
-    fxs >>= fun xs => match xs with
-                   | Nil'      => @Fail (List A)
-                   | Cons' _ xs => xs
-                   end.
+(*   Definition headM A (fxs : Prog (List A)) : Prog A := *)
+(*     fxs >>= fun xs => match xs with *)
+(*                    | Nil'      => @Fail A *)
+(*                    | Cons' x _ => x *)
+(*                    end. *)
 
 
-  Definition dupl A (fx : Prog A) : Prog (List A) :=
-    consM fx (consM fx (@nilM A)).
+(*   Definition tailM A (fxs : Prog (List A)) : Prog (List A) := *)
+(*     fxs >>= fun xs => match xs with *)
+(*                    | Nil'      => @Fail (List A) *)
+(*                    | Cons' _ xs => xs *)
+(*                    end. *)
 
-  Definition duplShare A `{Shareable A} (fx : Prog A) : Prog (List A) :=
-    Share fx >>= fun x => consM x (consM x (@nilM A)).
 
-  Fixpoint appM' A (xs : List A) (fxs : Prog (List A)) : Prog (List A) :=
-    match xs with
-    | Nil'         => fxs
-    | Cons' fz fzs => consM fz (fzs >>= fun zs => appM' zs fxs)
-    end.
+(*   Definition dupl A (fx : Prog A) : Prog (List A) := *)
+(*     consM fx (consM fx (@nilM A)). *)
 
-  Definition appM A (fxs fys : Prog (List A)) : Prog (List A) :=
-    fxs >>= fun xs => appM' xs fys.
+(*   Definition duplShare A `{Shareable A} (fx : Prog A) : Prog (List A) := *)
+(*     Share fx >>= fun x => consM x (consM x (@nilM A)). *)
 
-  Definition shareArgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
-    match xs with
-    | Nil'       => @nilM A
-    | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys
-    end.
+(*   Fixpoint appM' A (xs : List A) (fxs : Prog (List A)) : Prog (List A) := *)
+(*     match xs with *)
+(*     | Nil'         => fxs *)
+(*     | Cons' fz fzs => consM fz (fzs >>= fun zs => appM' zs fxs) *)
+(*     end. *)
 
-  Global Instance shareable__List A `(sa : Shareable A) : Shareable (List A) :=
-    {
-      shareArgs := fun xs =>
-                     let fix aux xs :=
-                         let shr fp := Get >>= fun '(i,j) =>
-                                       Put (i + 1, j) >>= fun _ =>
-                                       pure (BeginShare (i,j) >>= fun _ =>
-                                             Put (i, j + 1) >>= fun _ =>
-                                             fp >>= fun x =>
-                                             aux x >>= fun x' =>
-                                             EndShare (i,j) >>= fun _ =>
-                                             pure x')
-                         in
-                         match xs with
-                         | Nil'       => @nilM A
-                         | Cons' y ys => Share y >>= fun sy => shr ys >>= fun sys => consM sy sys
-                         end
-                     in aux xs
-    }.
+(*   Definition appM A (fxs fys : Prog (List A)) : Prog (List A) := *)
+(*     fxs >>= fun xs => appM' xs fys. *)
 
-  Fixpoint nf'__List A B `{Normalform A B} (xs : List A) : Prog (List B) :=
-    match xs with
-    | Nil'   => nilM
-    | Cons' sx sxs => nf sx >>= fun x =>
-                     sxs >>= fun xs =>
-                     nf'__List xs >>= fun xs' =>
-                     consM (pure x) (pure xs')
-    end.
+(*   Definition shareArgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) := *)
+(*     match xs with *)
+(*     | Nil'       => @nilM A *)
+(*     | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys *)
+(*     end. *)
 
-  Definition nf__List A B `{Normalform A B}  (stxs : Prog (List A)) : Prog (List B) :=
-    stxs >>= fun xs => nf'__List xs.
+(*   Global Instance shareable__List A `(sa : Shareable A) : Shareable (List A) := *)
+(*     { *)
+(*       shareArgs := fun xs => *)
+(*                      let fix aux xs := *)
+(*                          let shr fp := Get >>= fun '(i,j) => *)
+(*                                        Put (i + 1, j) >>= fun _ => *)
+(*                                        pure (BeginShare (i,j) >>= fun _ => *)
+(*                                              Put (i, j + 1) >>= fun _ => *)
+(*                                              fp >>= fun x => *)
+(*                                              aux x >>= fun x' => *)
+(*                                              EndShare (i,j) >>= fun _ => *)
+(*                                              pure x') *)
+(*                          in *)
+(*                          match xs with *)
+(*                          | Nil'       => @nilM A *)
+(*                          | Cons' y ys => Share y >>= fun sy => shr ys >>= fun sys => consM sy sys *)
+(*                          end *)
+(*                      in aux xs *)
+(*     }. *)
 
- Lemma nf_impure__List A B nf__AB : forall s (pf : _ -> Prog (List A)),
-      @nf__List A B nf__AB (impure (ext s pf)) = impure (ext s (fun p => nf__List (pf p))).
-  Proof. trivial. Qed.
+(*   Fixpoint nf'__List A B `{Normalform A B} (xs : List A) : Prog (List B) := *)
+(*     match xs with *)
+(*     | Nil'   => nilM *)
+(*     | Cons' sx sxs => nf sx >>= fun x => *)
+(*                      sxs >>= fun xs => *)
+(*                      nf'__List xs >>= fun xs' => *)
+(*                      consM (pure x) (pure xs') *)
+(*     end. *)
 
-  Global Instance normalform__List A B {nf__AB : Normalform A B} : Normalform (List A) (List B) :=
-    {
-      nf := fun x => nf__List x;
-      nf_impure := nf_impure__List nf__AB
-    }.
+(*   Definition nf__List A B `{Normalform A B}  (stxs : Prog (List A)) : Prog (List B) := *)
+(*     stxs >>= fun xs => nf'__List xs. *)
 
-  Fixpoint lengthM A (xs : List A) : Prog nat :=
-    match xs with
-    | Nil'        => pure 0
-    | Cons' _ fxs =>
-      let m := match fxs with
-               | pure xs => lengthM xs
-               | impure (ext (inl (sget _)) pf) =>
-                 pf (pget (42, 42)) >>= fun xs => lengthM xs
-               | impure (ext (inl (sput s'))   pf) =>
-                 pf (pput s') >>= fun xs => lengthM xs
-               | impure (ext (inr (inr sfail)) _)  => pure 0
-               | impure (ext (inr (inr (schoice mid))) pf) =>
-                 (pf true >>= fun xs => lengthM xs) >>= fun x =>
-                                                          (pf false >>= fun xs => lengthM xs) >>= fun y => pure (max x y)
-               | impure (ext (inr (inl (sbsharing n)))  pf) =>
-                 pf (pbsharing n) >>= fun xs => lengthM xs
-               | impure (ext (inr (inl (sesharing n)))  pf) =>
-                 pf (pesharing n) >>= fun xs => lengthM xs
-               end
-      in m >>= fun i => pure (i + 1)
-    end.
+(*  Lemma nf_impure__List A B nf__AB : forall s (pf : _ -> Prog (List A)), *)
+(*       @nf__List A B nf__AB (impure (ext s pf)) = impure (ext s (fun p => nf__List (pf p))). *)
+(*   Proof. trivial. Qed. *)
 
-  Fixpoint convert (xs : list nat) : Prog (List nat) :=
-    match xs with
-    | nil => nilM
-    | cons x xs => consM (pure x) (convert xs)
-    end.
+(*   Global Instance normalform__List A B {nf__AB : Normalform A B} : Normalform (List A) (List B) := *)
+(*     { *)
+(*       nf := fun x => nf__List x; *)
+(*       nf_impure := nf_impure__List nf__AB *)
+(*     }. *)
+
+(*   Fixpoint lengthM A (xs : List A) : Prog nat := *)
+(*     match xs with *)
+(*     | Nil'        => pure 0 *)
+(*     | Cons' _ fxs => *)
+(*       let m := match fxs with *)
+(*                | pure xs => lengthM xs *)
+(*                | impure (ext (inl (sget _)) pf) => *)
+(*                  pf (pget (42, 42)) >>= fun xs => lengthM xs *)
+(*                | impure (ext (inl (sput s'))   pf) => *)
+(*                  pf (pput s') >>= fun xs => lengthM xs *)
+(*                | impure (ext (inr (inr sfail)) _)  => pure 0 *)
+(*                | impure (ext (inr (inr (schoice mid))) pf) => *)
+(*                  (pf true >>= fun xs => lengthM xs) >>= fun x => *)
+(*                                                           (pf false >>= fun xs => lengthM xs) >>= fun y => pure (max x y) *)
+(*                | impure (ext (inr (inl (sbsharing n)))  pf) => *)
+(*                  pf (pbsharing n) >>= fun xs => lengthM xs *)
+(*                | impure (ext (inr (inl (sesharing n)))  pf) => *)
+(*                  pf (pesharing n) >>= fun xs => lengthM xs *)
+(*                end *)
+(*       in m >>= fun i => pure (i + 1) *)
+(*     end. *)
+
+(*   Fixpoint convert (xs : list nat) : Prog (List nat) := *)
+(*     match xs with *)
+(*     | nil => nilM *)
+(*     | cons x xs => consM (pure x) (convert xs) *)
+(*     end. *)
 End List.

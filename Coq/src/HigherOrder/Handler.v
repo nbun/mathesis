@@ -43,8 +43,8 @@ Fixpoint nameChoices  A (next : nat) (scope : nat * nat) (fs : Prog__SC A)
   | pure x => pure x
   | impure (ext (inl (ssharing m X)) pf pfx) =>
     let s : @Shape _ C__Sharing := ssharing m X
-    in nameChoices 1 m (pfx (pshared s)) >>=
-                   fun x => nameChoices next scope (pf (pcont s x))
+    in nameChoices 1 m (pfx tt) >>=
+                   fun x => nameChoices next scope (pf x)
   | impure (ext (inr sfail)        pf _) => Fail__C
   | impure (ext (inr (schoice _))  pf _) =>
     let l := nameChoices (next + 1) scope (pf true) in
@@ -57,8 +57,8 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
   | pure x => pure x
   | impure (ext (inl (ssharing n X))  pf pfx) =>
     let s : @Shape _ C__Sharing := ssharing n X
-    in nameChoices 1 n (pfx (pshared s)) >>=
-                   fun x => runSharing (pf (pcont s x))
+    in nameChoices 1 n (pfx tt) >>=
+                   fun x => runSharing (pf x)
   | impure (ext (inr sfail)         _ _)  => Fail__C
   | impure (ext (inr (schoice mid)) pf _) =>
     Choice__C mid (runSharing (pf true)) (runSharing (pf false))
