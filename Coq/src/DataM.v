@@ -216,9 +216,9 @@ Section List.
                  (pf true >>= fun xs => lengthM xs) >>= fun x =>
                                                           (pf false >>= fun xs => lengthM xs) >>= fun y => pure (max x y)
                | impure (ext (inr (inl (sbsharing n)))  pf) =>
-                 pf (pbsharing n) >>= fun xs => lengthM xs
+                 pf tt >>= fun xs => lengthM xs
                | impure (ext (inr (inl (sesharing n)))  pf) =>
-                 pf (pesharing n) >>= fun xs => lengthM xs
+                 pf tt >>= fun xs => lengthM xs
                end
       in m >>= fun i => pure (i + 1)
     end.

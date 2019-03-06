@@ -259,27 +259,20 @@ Section Sharing.
   | sbsharing : (nat * nat) -> Shape__Sharing
   | sesharing : (nat * nat) -> Shape__Sharing.
 
-  Inductive Pos__Sharing : Shape__Sharing -> Type :=
-  | pbsharing : forall (n : (nat * nat)), Pos__Sharing (sbsharing n)
-  | pesharing : forall (n : (nat * nat)), Pos__Sharing (sesharing n).
+  Definition Pos__Sharing : Shape__Sharing -> Type := fun _ => unit.
 
-  Definition Ext__Sharing A := Ext Shape__Sharing Pos__Sharing A.
+  Definition Ext__Sharing := Ext Shape__Sharing Pos__Sharing.
 
   Definition to__Sharing A (e: Ext__Sharing A) : Sharing A :=
     match e with
-    | ext (sbsharing n) fp => cbsharing n (fp (pbsharing n))
-    | ext (sesharing n) fp => cesharing n (fp (pesharing n))
+    | ext (sbsharing n) fp => cbsharing n (fp tt)
+    | ext (sesharing n) fp => cesharing n (fp tt)
     end.
 
   Definition from__Sharing A (z : Sharing A) : Ext__Sharing A :=
     match z with
-    | cbsharing n a => ext (sbsharing n)
-                          (fun p : Pos__Sharing (sbsharing n)
-                           => match p with pbsharing _ => a end)
-    | cesharing n a => ext (sesharing n)
-                          (fun p : Pos__Sharing (sesharing n)
-                           => match p with pesharing _ => a end)
-
+    | cbsharing n a => ext (sbsharing n) (fun _ => a)
+    | cesharing n a => ext (sesharing n) (fun _ => a)
     end.
 
   Lemma to_from__Sharing : forall A (ox : Sharing A), to__Sharing (from__Sharing ox) = ox.
@@ -292,12 +285,11 @@ Section Sharing.
   Proof.
     intros A [s pf].
     destruct s;
-      (simpl;
-       f_equal;
-       apply functional_extensionality;
-       intros p';
-       dependent destruction p';
-       reflexivity).
+      simpl;
+      f_equal;
+      extensionality p';
+      destruct p';
+      reflexivity.
   Qed.
      
   Instance C__Sharing : Container Sharing :=

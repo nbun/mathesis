@@ -38,11 +38,11 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
       match fs with
       | pure x => pure x
       | impure (ext (inl (sbsharing n)) pf) =>
-        nameChoices 1 n (cons n scopes) (pf (pbsharing n))
+        nameChoices 1 n (cons n scopes) (pf tt)
       | impure (ext (inl (sesharing n)) pf) =>
         match scopes with
-        | cons _ (cons j js) as ks => nameChoices next j ks (pf (pesharing n)) 
-        | _                        => runSharing (pf (pesharing n))
+        | cons _ (cons j js) as ks => nameChoices next j ks (pf tt) 
+        | _                        => runSharing (pf tt)
         end
       | impure (ext (inr sfail)        pf) => Fail__C
       | impure (ext (inr (schoice _))  pf) =>
@@ -53,8 +53,8 @@ Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Cho
   in match fs with
      | pure x => pure x
      | impure (ext (inl (sbsharing n))  pf) =>
-       nameChoices 1 n (cons n nil) (pf (pbsharing n))
-     | impure (ext (inl (sesharing n))  pf) => runSharing (pf (pesharing n))
+       nameChoices 1 n (cons n nil) (pf tt)
+     | impure (ext (inl (sesharing n))  pf) => runSharing (pf tt)
      | impure (ext (inr s) pf) => impure (cmap (@runSharing A) (ext s pf))
      end.
 
