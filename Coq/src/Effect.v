@@ -14,19 +14,11 @@ Definition Put (n : nat * nat) : Prog unit :=
 
 Definition BeginShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sbsharing n))
-  in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
+  in impure (ext s (fun _ => pure tt)).
 
 Definition EndShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sesharing n))
-  in impure (ext s (fun p : @Pos _ NDShare s => pure tt)).
-
-Definition BeginShare__SC A (n : nat * nat) (fp : Prog__SC A) : Prog__SC A :=
-  let s : @Shape _ NDShare__SC := inl (sbsharing n)
-  in impure (ext s (fun p : @Pos _ NDShare__SC s => fp)).
-
-Definition EndShare__SC A (n : nat * nat) (fp : Prog__SC A) : Prog__SC A :=
-  let s : @Shape _ NDShare__SC := inl (sesharing n)
-  in impure (ext s (fun p : @Pos _ NDShare__SC s => fp)).
+  in impure (ext s (fun _ => pure tt)).
 
 Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
   Get >>= fun '(i,j) =>
