@@ -32,7 +32,7 @@ Fixpoint runState A (n : nat * nat) (fc : Prog A) : Free (C__Comb C__Sharing C__
 Definition tripl A B C (p : A * B) (c : C) : A * B * C :=
   let '(a,b) := p in (a,b,c).
 
-Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Choice A :=
+Fixpoint runSharing A (fs : Prog__SC A) : Free C__Choice A :=
   let fix nameChoices (next : nat) (scope : nat * nat) (scopes : list (nat * nat)) (fs : Prog__SC A)
   : Free C__Choice A  :=
       match fs with

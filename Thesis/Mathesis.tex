@@ -2185,6 +2185,7 @@ The parameter \cinl{F} is replaced by the container that represents \cinl{F}.
 Instead of writing \cinl{F (Free F A)} as the first argument of \cinl{impure}, we can now use the extension of the container \cinl{C__F} applied to \cinl{Free C__F A}.
 
 \subsection{Infrastructure}
+\label{subsec:infrastructure}
 
 With the \cinl{Free} data type defined, we can begin implementing the remaining infrastructure. 
 In the Haskell implementation, various type classes and language extensions were used to make working with effects as comfortable as possible.
@@ -2456,11 +2457,92 @@ Since the position function is parameterized over a shape, both must be compatib
 
 \section{Sharing}
 \label{sec:lawsOfSharing}
-\begin{itemize}
-\item Laws of sharing
-\end{itemize}
+For the implementation of the sharing effect in Coq, we first the implement explicit scoping tag approach.
+Although the first-order handler of this approach has downsides that are discussed later in the section, it supports the same functionality as the Haskell implementation.
+The higher-order approach would be suited much better in this regard.
+Unfortunately, other problems arise from the higher-order definition and limit the applicability of the approach.
+This is discussed in more detail in \autoref{sec:coqHO}.
 
-\section{Extra}
+We begin with the definition of the sharing container.
+Similar to the Haskell implementation, the sharing functor has two constructors that open and close a scope.
+Each constructor has an ID and an argument that later represents the remaining program.
+
+\begin{minted}{Coq}
+Inductive Sharing (A : Type) :=
+| cbsharing : (nat * nat) -> A -> Sharing A
+| cesharing : (nat * nat) -> A -> Sharing A.
+\end{minted}
+
+The corresponding container is easily defined according to the scheme presented in \autoref{subsec:infrastructure}.
+The ID is stored in each constructors' shape and the argument of \cinl{A} means that each shape has one position.
+Thus, the position function returns \cinl{unit} for both shapes.
+
+\begin{minted}{Coq}
+Inductive Shape__Sharing :=
+| sbsharing : (nat * nat) -> Shape__Sharing
+| sesharing : (nat * nat) -> Shape__Sharing.
+
+Definition Pos__Sharing : Shape__Sharing -> Type := fun _ => unit.
+\end{minted}
+
+Similar to the Haskell implementation, the type classes \cinl{Shareable} an \cinl{Normalform} allow deep sharing and normalization of effectful expressions.
+The normal form instance for lists requires inlining the \cinl{Share} operator because the termination checker does not accept the definition otherwise but the other definitions are similar to the Haskell implementation.
+Combined with smart constructors for \cinl{begin} and \cinl{end}, we can implement the \cinl{Share} operator as follows.
+Since Haskell's \hinl{do} notation is too complex for Coq's notation mechanism, we use explicit calls of bind instead.
+
+\begin{minted}{Coq}
+Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
+  Get >>= fun '(i,j) =>
+  Put (i + 1, j) >>= fun _ =>
+  pure (BeginShare (i,j) >>= fun _ =>
+        Put (i, j + 1) >>= fun _ =>
+        fp >>= fun x =>
+        shareArgs x >>= fun x' =>
+        EndShare (i,j) >>= fun _ =>
+        pure x').
+\end{minted}
+
+The only remaining part of the sharing effect is the handler.
+In the Haskell, the handler is implemented as a mutually recursive pair of functions that handle sharing inside and outside of a sharing scope.
+Since Coq loads definitions sequentially, mutual recursion poses a problem when checking the function for termination.
+Adding one function as an higher-order argument to the other does not convince Coq that the function terminates.
+However, defining the "inside-scope" handler as a local definition using \cinl{let fix} works.
+To keep the definition readable, the functions are discussed separately here.
+
+\begin{minted}{Coq}
+Fixpoint runSharing A (p: Prog__SC A) : Free C__Choice A :=
+  match p with
+  | pure x    => pure x
+  | impure op =>
+    match op with
+    | ext (inl (sbsharing n))  pf => nameChoices 1 n [n] (pf tt)
+    | ext (inl (sesharing n))  pf => runSharing (pf tt) (* error *)
+    | ext (inr s) pf => impure (cmap (@runSharing A) (ext s pf))
+    end
+  end.
+\end{minted}
+
+The handler is largely the same as in Haskell with the exception of an additional argument \cinl{n} for \cinl{nameChoices}.
+This value represents the head of the list of scopes, which is the following argument.
+Since Coq only accepts total functions, the case of an empty scope context -- which can never occur because the inner handler is called with a non-empty scope and because it returns as soon as the last scope has been closed -- would need to be handled cumbersomely.
+Thus, the invariant of a non-empty list is enforced by a separate head element.
+
+There is, however, an issue with the rule for \cinl{sesharing}.
+Since the shape represents an ending tag in the outside-scope handler, an error is thrown in the corresponding rule of the Haskell implementation.
+Although it is impossible to construct a faulty program by only using the \cinl{Share} operator and not the scope tags individually, these cases need to be handled.
+There are two options: Firstly, the return type could be made optional, so that error cases return no result.
+This is, however, not an ideal solution because it would entail that we always have to reason about optional values in proofs.
+A more practical approach is to ignore mismatched tags and to continue handling the remaining program that is associated with the tag.
+While this approach is still not ideal, it is the most practical solution to this problem.
+
+The function \cinl{nameChoices} has the same issue where a closing tag with an ID different than the current scope might occur.
+This situation is handled the same way as in \cinl{runSharing}.
+When a choice is encountered, an ID is assigned based on the current scope and scope counter, as seen in the Haskell implementation.
+
+An alternative solution to the problem handling mismatched tags is the higher-order approach described in \autoref{subsec:HOscopesyntax}, which is discussed in the next section.
+
+\section{Modelling Effects using Higher-Order Containers}
+\label{sec:coqHO}
 \subsection{Higher-Order Containers}
 In \autoref{subsec:HOscopesyntax}, the higher-order approach of modelling effect signatures not as a functor, but as as higher-order functor of type \hinl{(* -> *) -> * -> *} was discussed.
 Similar to the first-order data type for \hinl{Prog}, the following higher-order version fails due to non-strictly positive occurrence of \cinl{Free}.
