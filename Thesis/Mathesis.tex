@@ -2411,17 +2411,48 @@ Beginning with \cinl{NDShare}, the first handler \cinl{runState} handles the sta
 Then, handlers for sharing and non-determinism handle the respective effects and a choice tree is returned.
 The tree is then transformed into a list via depth-first search according to the algorithm presented in \autoref{subsec:effectHandlers}.
 
-Since the Coq implementation does not have view patterns and pattern synonyms to simplify pattern matching 
+The differences between the Haskell and Coq implementation of handlers is shown using the example of the state effect handler.
+The state handler was defined in \autoref{subsec:effectHandlers} as follows.
+
+\begin{minted}{Haskell}
+runState :: Functor f => s -> Prog (State s + f) a -> Prog f (s, a)
+runState s (Return a) = return (s, a)
+runState s (Get    k) = runState s (k s)
+runState s (Put s' p) = runState s' p
+runState s (Other op) = Op (fmap (runState s) op)
+\end{minted}
+
+Since Coq does not support language extensions like view patterns and pattern synonyms to simplify pattern matching, handlers are defined by matching plain \cinl{Prog} terms.
+The Coq signature of the state effect handler describes the first step shown in \autoref{fig:effectStackHandling}, that is, the state effect is handled and a program that contains sharing and non-determinism is returned.
+Since the state \hinl{s} of \hinl{(s,a)} was never used in the Haskell implementation, it is omitted in the Coq version.
 
 \begin{minted}{Coq}
-Fixpoint runState A (n : nat * nat) (fc : Prog A) : Prog__SC A :=
-  match fc with
+Fixpoint runState A (st : nat * nat) (p : Prog A) : Prog__SC A :=
+  match p with
   | pure x => pure x
-  | impure (ext (inl sget)      pf) => runState n (pf n)
-  | impure (ext (inl (sput s')) pf) => runState s' (pf tt)
-  | impure (ext (inr s) pf) => impure (cmap (runState n) (ext s pf))
+  | impure (ext (inl sget)       pf) => runState n (pf st)
+  | impure (ext (inl (sput st')) pf) => runState st' (pf tt)
+  | impure (ext (inr s) pf) => impure (cmap (runState st) (ext s pf))
   end.
 \end{minted}
+
+The constructors \hinl{Return} and \hinl{Op} correspond to \cinl{pure} and \cinl{impure}, respectively.
+While the \hinl{Op} constructor was hidden in the pattern in Haskell, we now have to explicitly match for it.
+Whereas in Haskell, the function \hinl{project} was used to unwrap the \hinl{Inl} and \hinl{Inr} constructors of \hinl{:+:}, the corresponding constructors are now determined by the effect stack and thus, can be matched explicitly.
+In the combination tree, the state effect was the left argument.
+Therefore, \cinl{inl s} matches both shapes \cinl{s} of the state container.
+Similarly, \cinl{inr s} works the same as the \hinl{Other} pattern in Haskell.
+In fact, the definition does not differ between both implementations.
+
+The right-hand sides of the rules are slightly different in the Coq implementation due to the container structure.
+Since the program argument is not part of the shape but stored in the position function, it is retrieved by applying \cinl{pf} to \cinl{s}.
+This represents the continuation in the Haskell implementation, which is also applied to the current state.
+For \cinl{sput}, the new state is set for the recursive call and \cinl{pf tt} returns the remaining program.
+
+The last rule covers all other effect shapes in the right branch of the combination container, that is, sharing and non-determinism.
+Since effects are represented as containers, we need to use \cinl{cmap} instead of \cinl{fmap}.
+Furthermore, the \cinl{inr} wrapper is removed from the shape because \cinl{cmap} handles the sharing effect inside all programs that are stored by the position function.
+Since the position function is parameterized over a shape, both must be compatible.
 
 \section{Sharing}
 \label{sec:lawsOfSharing}
