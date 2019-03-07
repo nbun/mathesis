@@ -20,7 +20,7 @@ Section PermSort.
   Fixpoint perm' (xs : List nat) : Prog (List nat) :=
     match xs with
     | Nil' _ => nilM
-    | Cons' mx mxs => mxs >>= fun mxs' => insert mx (perm' mxs')
+    | Cons' mx mxs => insert mx (mxs >>= perm')
     end.
 
   Definition perm (mxs : Prog (List nat)) : Prog (List nat) :=
