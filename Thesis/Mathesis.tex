@@ -2539,7 +2539,112 @@ The function \cinl{nameChoices} has the same issue where a closing tag with an I
 This situation is handled the same way as in \cinl{runSharing}.
 When a choice is encountered, an ID is assigned based on the current scope and scope counter, as seen in the Haskell implementation.
 
-An alternative solution to the problem of handling mismatched tags is the higher-order approach discussed in the next section.
+An alternative solution to the problem of handling mismatched tags is the higher-order approach discussed in \autoref{sec:coqHO}.
+First, however, a few examples that demonstrate the functionality of the Coq implementation are discussed in the next section.
+
+\section{Examples}
+Coq is a strict language without native support for non-determinism.
+Although the latter is also true for Haskell, non-strictness is part of Haskell's evaluation strategy.
+Thus, examples that feature non-strict non-determinism are far more interesting in Coq because the non-strictness can be attributed solely to the model.
+For this reason, the first example is the function \hinl{recList}, which negates the head of a list and then adds either the original tail \hinl{ys} of the list of the list returned by a recursive call of \hinl{recList} applied to \hinl{ys}.
+This function can be defined in Curry as follows. 
+
+\begin{minted}{Haskell}
+recList :: [Bool] -> [Bool]
+recList xs = case xs of
+               []     -> []
+               y : ys -> not y : (ys ? recList ys)
+\end{minted}
+
+To translate this function to the Haskell model, we use the lifted list type and replace pattern matching with bind.
+
+\begin{minted}{Haskell}
+recList :: (Sharing m, MonadPlus m) 
+        => m (List m Bool) -> m (List m Bool)
+recList fxs = fxs >>= \xs ->
+  case xs of
+    Nil         -> nil
+    Cons fy fys -> cons (notM fy) (fys `mplus` recList fys)
+\end{minted}
+
+One could expect that the same definition -- apart from syntactical differences -- works in Coq.
+Unfortunately, this is not the case.
+The termination check throws an error because it is not obvious that \hinl{fys} is a structurally smaller than \hinl{fxs}.
+A technique proposed by \citet{christiansen2018oneMonad} works by splitting a recursive function into two definitions, where one is recursive but takes plain values instead of \cinl{Prog} arguments and the other is a simple definition that contains the first call of bind.
+
+\begin{minted}{Coq}
+Fixpoint recList' (xs : List bool) : Prog (List bool) :=
+  match xs with
+  | Nil' => nilM
+  | Cons' fy fys => consM (notM fy)
+                         (fys ? fys >>= fun zs => recList' zs)
+  end.
+
+Definition recList (fxs : Prog (List bool)) : Prog (List bool) :=
+  fxs >>= fun xs => recList' xs.
+\end{minted}
+
+This adapted definition entails that the recursive call of \hinl{recList'} cannot work with the argument \cinl{fys} directly, but instead needs to be called as an argument of bind.
+However, since there is pattern matching over the function's argument, Coq accepts the new definition.
+
+To test non-strict evaluation of non-determinism in the Coq model, we consider the expression \hinl{recList [True, False]}.
+Evaluating the expression by itself is not very interesting because the expression is fully evaluated.
+When the result is only partially demanded, for example with \cinl{head}, the interplay of non-strictness and non-determinism becomes visible.
+In the following, a few examples with \hinl{T} and \hinl{F} as Boolean constructors are evaluated Curry and Coq.
+
+We begin with an example that shows that non-strictness is preserved in the Coq model.
+The following shows the application of \cinl{head} to \cinl{recList [T, F]}.
+
+\begin{minted}{Haskell}
+  head $ recList [T, F]
+= head $ not T : ([F] ? recList [F])
+= F
+\end{minted}
+
+Since \hinl{head} does not evaluate the tail of its list argument, no non-determinism is introduced and only the negation of the first element is returned.
+In Coq, the expression evaluates to the same result.
+Because the term is simple enough, it is not necessary to handle the program as it can be viewed as a \cinl{Prog} value.
+
+\begin{minted}{Coq}
+Compute (headM (recList (consM T (consM F nilM)))).
+     = pure F
+     : Prog bool
+\end{minted}
+
+The next example shows how non-determinism is only introduced as demanded.
+Instead of applying \hinl{head} to the expression directly, \hinl{tail} is applied first.
+
+\begin{minted}{Haskell}
+  head $ tail (recList [T, F])
+= head $ tail (not T : ([F] ? recList [F]))
+= head $ [F] ? recList [F]
+= head [F] ? head (recList [F])
+= F ? head (not F : ([] ? recList []))
+= F ? T
+\end{minted}
+
+The expression now evaluates to two results due to the choice introduced by evaluating \hinl{recList} once.
+The Coq \cinl{Prog} term quickly grows in size, so it is handled and thus represented as a list of results.
+
+\begin{minted}{Coq}
+Compute handle (headM (tailM (recList (consM T (consM F nilM))))).
+     = [F; T]
+     : list bool
+\end{minted}
+
+Again, the Coq implementation yields the correct result.
+The position of bind in \cinl{recList'} is essential for preserving non-strictness.
+If bind was moved to the root of the expression, the tail of the list would be evaluated even if only the head is demanded.
+For example, the following expression would not return the value expected value, but fail instead, because \cinl{Fail} is evaluated.
+
+\begin{minted}{Coq}
+Compute handle (headM (recList (consM T Fail))).
+     = [F]
+     : list bool
+\end{minted}
+
+For this reason, it is necessary to move calls of bind as close as possible to the position where the value is needed.
+This is especially important if there are \cinl{case} or \cinl{if} branches where the bound value is not needed.
 
 \section{Modelling Effects using Higher-Order Containers}
 \label{sec:coqHO}
