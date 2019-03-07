@@ -223,7 +223,7 @@ Section List.
       in m >>= fun i => pure (i + 1)
     end.
 
-  Fixpoint convert (xs : list nat) : Prog (List nat) :=
+  Fixpoint convert A (xs : list A) : Prog (List A) :=
     match xs with
     | nil => nilM
     | cons x xs => consM (pure x) (convert xs)
