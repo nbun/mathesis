@@ -2680,12 +2680,38 @@ Class HContainer (H : (Type -> Type) -> Type -> Type) :=
 \end{minted}
 
 The extension of such a higher-order container needs to be adapted, too.
-Reconsidering higher-order functor data types, such as choice, the type variables \hinl{m} and \hinl{a}
+Similar to higher-order functor data types, such as choice, the additional type variable \hinl{m :: * -> *} needs to be represented in the container.
+Thus, it is added as a parameter to the container extension.
+Since higher-order data types like choice have arguments of type \hinl{m a}, it seems appropriate to adapt the type of the position function to return values of type \cinl{F A}.
 
 \begin{minted}{Coq}
 Inductive Ext Shape (Pos : Shape -> Type) (F : Type -> Type) A := 
   ext : forall s, (Pos s -> F A) -> Ext Shape Pos F A.
 \end{minted}
+
+With the adapted higher-order container, we can now represent higher-order with a version of \cinl{Free} that works with higher-order containers.
+For the additional functor argument, we can use \cinl{Free C}, similar to the Haskell implementation.
+
+\begin{minted}{Coq}
+Variable H : (Type -> Type) -> Type -> Type.
+
+Inductive Free (C : HContainer H) A :=
+| pure   : A -> Free C A
+| impure : Ext Shape Pos (Free C) A -> Free C A.
+\end{minted}
+
+With the adapted definition of \cinl{Free}, it is possible to define containers for the effects non-determinism, state and combination.
+The containers look almost identical to the original definitions because whenever the argument \cinl{A} occurred in the first-order data type, we can now use \cinl{F A} in the higher-order definition.
+This also applies to the definition of containers.
+However, one effect is missing from the above list: sharing.
+Since the sharing effect can be defined without explicit scope delimiters in the higher-order implementation, we need to rethink its container.
+In the Haskell implementation, the definition of the higher-order sharing functor is as follows.
+
+\begin{minted}{Haskell}
+data HShare m a = forall x. Share' (Int, Int) (m x) (x -> m a)
+\end{minted}
+
+
 
 \chapter{Curry Programs modelled in Coq}
 \begin{itemize}
@@ -2693,31 +2719,6 @@ Inductive Ext Shape (Pos : Shape -> Type) (F : Type -> Type) A :=
 \end{itemize}
 
 \chapter{Conclusion}
-
-\begin{minted}[escapeinside=||]{Coq}
-
-  Class Container|$_\text{\texttt{Asd}}$| F :=
-  {
-    Shape : Type;
-    Pos : Shape -> Type;
-    to : forall A, Ext Shape Pos A -> F A;
-    from : forall A, F A -> Ext Shape Pos A;
-    to_from : forall A (fx : F A), to (from fx) = fx;
-    from_to : forall A (e : Ext Shape Pos A), from (to e) = e
-  }.
-
-  Definition join (M: Type → Type) `(Monad M) A (mmx : M (M A)) : M A ≔ bind _ mmx (fun x ⇒ x).
-
-End MonadClass.
-Arguments join {_} {_} {_}.
-
-Section MonadInstance.
-
-  Variable F : Type → Type.
-  Variable C__F : Container F.
-
-
-\end{minted}
 
 
 % Literatur
