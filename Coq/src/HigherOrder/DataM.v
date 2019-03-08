@@ -114,15 +114,33 @@ End Pair.
 
 Section List.
 
-  Fail Inductive List A :=
+  Inductive List A :=
   | Nil' : List A
-  | Cons' : Prog A -> Prog (List A) -> List A.
+  | Cons' {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
 
-(*   Arguments Nil' {_}. *)
 
-(*   Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) := *)
-(*     pure (Cons' fx fxs). *)
+  Fail Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
+    pure (@Cons' A (List A) fx fxs (fun xs => xs)).
 
+
+  (* Fixpoint test A (n : nat) (xs : list A) {struct n} : List A := *)
+  (*   match n with *)
+  (*   | 0 => Nil' A *)
+  (*   | S n => match xs with *)
+  (*           | nil => Nil' A *)
+  (*           | cons x xs => Cons' (pure x) (pure xs) (test n) *)
+  (*           end *)
+  (*   end. *)
+
+  (* Fixpoint test2 A (n : nat) (xs : Prog (List A)) : Prog (list (Prog A)) := *)
+  (*   match n with *)
+  (*   | 0 => pure nil *)
+  (*   | S n => xs >>= fun ys => *)
+  (*                    match ys with *)
+  (*                    | Nil' _ => pure nil *)
+  (*                    | Cons' x xs c => (xs >>= fun y => test2 n (pure (c y))) >>= fun z => pure (cons x z) *)
+  (*                    end *)
+  (*   end. *)
 (*   Definition nilM {A} : Prog (List A) := pure (@Nil' A). *)
 
 (*   Definition headM A (fxs : Prog (List A)) : Prog A := *)
