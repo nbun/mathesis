@@ -2711,6 +2711,69 @@ In the Haskell implementation, the definition of the higher-order sharing functo
 data HShare m a = forall x. Share' (Int, Int) (m x) (x -> m a)
 \end{minted}
 
+Compared to the other effects, the argument \hinl{m x} is difficult to represent because the position function usually only handles values of type \hinl{m a}.
+Thus, the corresponding container would need to store the ID, a value of type \hinl{m x} and the type \hinl{x} in its single shape.
+The position function returns the type that is stored inside the shape, because for each \hinl{x}, the function argument \hinl{x -> m a} returns a value of type \hinl{m a}.
+
+\begin{minted}{Coq}
+Inductive Shape__Sharing (F : Type -> Type) :=
+| ssharing : forall X, nat * nat -> F X -> Shape__Sharing F.
+
+Definition Pos__Sharing F (s : Shape__Sharing F) : Type :=
+  let '(@ssharing _ X _ _) := s in X.
+\end{minted}
+
+This definition is isomorphic to the original data type but it does not fit the container class because the shape -- and consequently the position function -- need to be parameterized over the functor \hinl{m} in order to store a value of type \hinl{m x}.
+Although the container can be adapted to allow another parameter for \cinl{Shape} and \cinl{Pos}, this approach ultimately fails when defining \cinl{Free}.
+The additional functor argument is instantiated with \cinl{Free C}, just like the regular functor argument \cinl{Ext}.
+However, this moves \cinl{Free} to a possibly non-strictly positive position and thus, is not accepted by Coq.
+
+\subsection{Indexed Containers}
+The search\footnote{Thanks to Li-yao Xia for referring to indexed containers as a solution to this problem on stackoverflow.com, \url{https://stackoverflow.com/a/54892792/11112994}} for a container definition that is powerful enough to represent the sharing effect while preserving strict positivity leads to the concept of \textit{indexed containers}, introduced by \citet{2009altenkirchindexed}. 
+The main difference between ordinary and indexed containers is an additional context function \cinl{Ctx} that determines the return type of the position function.
+Instead of the fixed type \hinl{F A}, the parameter \cinl{A} is determined by the context function.
+The context thus becomes part of the container, as shown below.
+
+\begin{minted}{Coq}
+Class HContainer :=
+  {
+    Shape   : Type;
+    Pos     : Shape -> Type;
+    Ctx     : forall s : Shape, Pos s -> Type -> Type
+  }.
+\end{minted}
+
+The definition of \cinl{Ext} is adapted by adding a position parameter to the position function and replacing \cinl{A} with \cinl{Ctx s p A}.
+Since the context function has \cinl{A} as a parameter, higher-order functors where \hinl{m} occurs only as \hinl{m a} can be represented before by defining \cinl{Ctx} as a constant function that returns \cinl{A}.
+ 
+\begin{minted}{Coq}
+Inductive Ext (C : HContainer) (F : Type -> Type) A :=
+  ext : forall s, (forall p : Pos s, F (Ctx s p A)) -> Ext C F A.
+\end{minted}
+
+The new definition of the position function means that we no longer have to store a value of type \cinl{F X} as part of the shape.
+Therefore, the shape does not need to be parameterized over \cinl{F}.
+The type \cinl{X} is still part of the shape, nevertheless, since the sharing effect makes use of the context function and the type returned by \cinl{Ctx} needs to be part of one of its arguments.
+
+\begin{minted}{Coq}
+Inductive Shape__Sharing :=
+| ssharing : nat * nat -> Type -> Shape__Sharing.
+\end{minted}
+
+\begin{minted}{Coq}
+Inductive Pos__Sharing (s : Shape__Sharing) : Type :=
+| pshared : Pos__Sharing s
+| pcont   : shapeType s -> Pos__Sharing s.
+\end{minted}
+
+\begin{minted}{Coq}
+Definition Ctx__Sharing (s : Shape__Sharing) (p : Pos__Sharing s) : Type -> Type :=
+  match p with
+  | pshared _ => fun _ => shapeType s
+  | pcont _ _ => fun A => A
+  end.
+\end{minted}
+
 
 
 \chapter{Curry Programs modelled in Coq}
