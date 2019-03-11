@@ -2382,6 +2382,7 @@ Definition Fail A : Prog A :=
 \end{minted}
 
 \subsection{Effect Stack and Handlers}
+\label{subsec:effectstack}
 
 With the definitions of effect and combination containers, smart constructors and the effect stack from the previous subsection, we can now discuss handlers.
 \autoref{fig:effectStackHandling} visualizes the effect stack and how handlers remove effects one by one.
@@ -2828,7 +2829,68 @@ The previous subsections have shown that both the naive higher-order container d
 Whereas the naive version can reuse the first-order definition of \cinl{cmap} but does not work with \cinl{Free}, indexed containers harmonize with \cinl{Free} but \cinl{cmap} cannot be defined.
 Based on this observation, a combination of both container definitions would be ideal.
 
-A binary container as defined by \citet{ghani2007higherDimensional} consists of two 
+A bi-container, as defined by \citet{ghani2007higherDimensional}, consists of two containers that use the same shape but have different \cinl{Pos} and position functions.
+Applied to the topic of higher-order containers, this means that we split \cinl{Pos} into two functions: The first function behaves like the naive higher-order \cinl{Pos} function and the second one is used in conjunction with the context.
+The definition of a higher-order container is adapted as follows.
+
+\begin{minted}{Coq}
+Class HContainer :=
+  {
+    Shape   : Type;
+    Pos     : Shape -> Type;
+    PosX    : Shape -> Type;
+    Ctx     : forall s : Shape, PosX s -> Type;
+  }.
+\end{minted}
+
+A container extension now has two position functions.
+The first one handles values of type \cinl{F A}, whereas the second one returns values of a type that is determined by the context.
+Since \cinl{F A} is handled by the first function, the context no longer needs the parameter \cinl{A}.
+
+\begin{minted}{Coq}
+Inductive Ext (C : HContainer) (F : Type -> Type) A :=
+  ext : forall s, 
+    (Pos s -> F A) -> (forall p : PosX s, F (Ctx s p)) -> Ext C F A.
+\end{minted}
+
+This definition allows us to define \cinl{cmap} similar to the first-order version.
+The first position function returns only values of type \cinl{F A} and therefore can be mapped over, while the second position function does not contain \cinl{A} and thus, does not need to be changed.
+In addition, the shape and \cinl{Pos} functions still do not need additional arguments.
+Hence, the indexed bi-container definition works with \cinl{Free}.
+
+With the new approach of higher-order containers, we can define the sharing effect one last time.
+The shape remains the same as before with an ID and type argument.
+For \cinl{Pos} and \cinl{PosX}, the constructors of the inductive data type are split.
+Whereas \cinl{pcont} with its argument of type \cinl{shapeType s} is represented directly by the same type in \cinl{Pos__Sharing}, the single position of \cinl{pshared} is now handled by \cinl{PosX__Sharing} as follows.
+
+\begin{minted}{Coq}
+Definition Pos__Sharing (s : Shape__Sharing) := shapeType s.
+
+Definition PosX__Sharing : Shape__Sharing -> Type := fun _ => unit.
+
+Definition Ctx__Sharing (s : Shape__Sharing) : PosX__Sharing s -> Type :=
+  fun _ => shapeType s.
+\end{minted}
+
+The context no longer distinguishes between positions and always returns the type that is stored in the shape argument, since the case of \cinl{A} as a return type is now handled by the other position function.
+Converting between container extension and original data type is straight-forward.
+The former direction calls the position functions with appropriate arguments to retrieve the values of the original constructor, while the latter one positions these values inside the position functions.
+
+Now that we are finally able to represent all effects as higher-order containers and can use these containers with \cinl{Free} and bind for \cinl{Free}-based programs, we are able to adapt the remainder of the code base.
+For the most part, the differences between first-order and higher-order are negligible and can be implemented by adding the additional position function of \cinl{ext} to patterns and expressions.
+
+The adapted code works flawlessly for programs with primitive result types and result types that contain the lifted pair data type.
+There is, however, a problem when it comes to lifted, recursive data types like lists.
+In the following, \cinl{Prog} is defined as \cinl{Free NDShare} where \cinl{NDShare} is the effect stack defined in \autoref{subsec:effectstack}.
+
+\begin{minted}{Coq}
+Inductive List A :=
+| Nil  : List A
+| Cons : Prog A -> Prog (List A) -> List A.
+\end{minted}
+
+Coq does not accept this definition due to non-strict occurrence of \cinl{List} in the second constructor.
+\todo{but why?}
 
 \chapter{Curry Programs modelled in Coq}
 \begin{itemize}
