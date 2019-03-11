@@ -18,7 +18,7 @@ Class HContainer (H : (Type -> Type) -> Type -> Type) :=
   {
     Shape   : Type;
     Pos     : Shape -> Type;
-    PosX   : Shape -> Type;
+    PosX    : Shape -> Type;
     Ctx     : forall s : Shape, PosX s -> Type;
     to      : forall F A, Ext Shape Pos PosX Ctx F A -> H F A;
     from    : forall F A, H F A -> Ext Shape Pos PosX Ctx F A;
