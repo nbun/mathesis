@@ -28,16 +28,10 @@ Section MonadInstance.
   Variable H : (Type -> Type) -> Type -> Type.
   Variable C__H : HContainer H.
 
-  Definition cmap A B F (f : F A -> F B) (x : Ext Shape Pos PosX Ctx F A) : Ext Shape Pos PosX Ctx F B.
-    destruct x.
-    apply ext with (s0 := s).
-    - intros.
-      apply f.
-      apply f0.
-      apply X.
-    - intros.
-      apply f1.
-  Defined.
+  Definition cmap A B F (f : F A -> F B) (x : Ext Shape Pos PosX Ctx F A) : Ext Shape Pos PosX Ctx F B :=
+    match x with
+    | ext s pf pfx => ext s (fun p : Pos s => f (pf p)) (fun p : PosX s => pfx p)
+    end.
 
   Section fbind.
 
