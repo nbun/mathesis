@@ -142,25 +142,52 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 
 \chapter{Preliminaries}
 
-\section{Coq}
-\label{sec:coqIntro}
-\begin{itemize}
-\item Introduce the necessary Coq concepts to understand the paper
-\end{itemize}
-
-\section{Haskell}
-\begin{itemize}
-\item Introduce the necessary Haskell concepts to understand the paper
-\end{itemize}
-\subsection{Monad and MonadPlus}
-
 \section{Curry}
-\begin{itemize}
-\item Introduce the necessary Curry concepts to understand the paper
-\end{itemize}
+Curry \citep{hanus2016curry} is a functional logic programming language based on Haskell.
+Its syntax is therefore largely based on Haskell's and many features like pattern matching, polymorphism, higher-order functions and type classes are supported in Curry, too.
+Besides its functional part, Curry has logical aspects known from languages like Prolog.
+These include free variables and non-determinism, that is, unknown values and multiple values as the result of evaluating the same expression.
+
+Curry programs can be executed using one of many compilers.
+Most notable are KiCS2\footnote{\url{https://www-ps.informatik.uni-kiel.de/kics2/}} and PAKCS\footnote{\url{https://www-ps.informatik.uni-kiel.de/~mh/pakcs/}}, which compile Curry code into Haskell and Prolog programs, respectively.
+
+In the following, the three core properties that make up call-time choice are discussed.
+
 \subsection{Non-strictness}
+Usually when the evaluation of a subexpression fails, the whole expression fails, too.
+This so called strict semantics is the idea behind the evaluation strategy of most modern languages.
+Certain aspects of strict languages like conditional branching need to be evaluated non-strictly because otherwise loops would never terminate.
+However, it is also possible to give the whole language a non-strict semantics, as evidenced by Haskell and Curry.
+This means that an expression may have a value although some subexpressions are not evaluated yet.
+Consequently, non-strictness allows defining conceptually infinite data structures like a list of powers of two.
+
+\begin{minted}{Haskell}
+evens :: [Int]
+evens = 1 : map (2*) evens
+\end{minted}
+
+Although this list is infinite and cannot be evaluated wholly, non-strictness allows us to evaluate only the parts that are demanded by the surrounding expressions.
+
+\begin{minted}{Haskell}
+λ> take 4 evens
+[1,2,4,8]
+\end{minted}
+
+\begin{minted}{Haskell}
+  take 2 evens
+= take 2 (1 : map (2*) evens)
+= 1 : take 1 (map (2*) evens)
+= 1 : take 1 (map (2*) (1 : (map (2*) evens)))
+= 1 : take 1 (2 * 1 : map (2*) (map (2*) evens))
+= 1 : 2 : take 0 (map (2*) (map (2*) (1 : map (2*) evens)))
+= 1 : 2 : []
+= [1, 2]
+\end{minted}
 \subsection{Sharing}
 \subsection{Non-determinism}
+
+\section{Coq}
+\label{sec:coqIntro}
 
 \section{Modelling Curry Programs using Monadic Code Transformation}
 \begin{itemize}
