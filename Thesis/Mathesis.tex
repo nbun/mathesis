@@ -2884,13 +2884,35 @@ There is, however, a problem when it comes to lifted, recursive data types like 
 In the following, \cinl{Prog} is defined as \cinl{Free NDShare} where \cinl{NDShare} is the effect stack defined in \autoref{subsec:effectstack}.
 
 \begin{minted}{Coq}
-Inductive List A :=
+Fail Inductive List A :=
 | Nil  : List A
 | Cons : Prog A -> Prog (List A) -> List A.
 \end{minted}
 
 Coq does not accept this definition due to non-strict occurrence of \cinl{List} in the second constructor.
-\todo{but why?}
+Unfortunately, it is not obvious why this definition is rejected by Coq.
+For each part of the definitions of \cinl{Free} and \cinl{Ext}, there is a constellation where \cinl{List} can be defined without errors.
+The non-strictly positive occurrence error can also be evidence for \textit{truly nested} data types like the type \hinl{Bush} introduced by \citet{bird1998nested}.
+
+\begin{minted}{Haskell}
+data Bush a = NilB | ConsB (a, Bush (Bush a))
+\end{minted}
+
+Such nested self-applications are not allowed in Coq, which might be why the definition of \cinl{List} fails.
+
+It is possible to circumvent this error by defining the data type using continuation passing style, that is, the list argument is encoded in a function that returns the list's tail after being applied to some value.
+
+\begin{minted}{Coq}
+Inductive List A :=
+| Nil' : List A
+| Cons' {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
+\end{minted}
+
+While this definition is accepted by Coq, we do not gain much because we cannot define other crucial functions due to inconsistent universes and other error related to Coq's type hierarchy.
+
+In conclusion, the higher-order approach is an elegant solution the problem of mismatched syntax delimiters and can be implemented in Coq using indexed bi-containers.
+Although it is ultimately not possible to define recursive data type definitions with the resulting \cinl{Prog} data type, it is not clear whether there is a fundamental issue with the approach or if Coq's termination check is too restrictive in this case.
+Nevertheless, the examples that do not feature recursive data types inspire confidence that the higher-order implementation of call-time choice is Coq works correctly, just like the fully functional first-order version.
 
 \chapter{Curry Programs modelled in Coq}
 \begin{itemize}
