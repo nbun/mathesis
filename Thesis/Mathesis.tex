@@ -159,32 +159,126 @@ This so called strict semantics is the idea behind the evaluation strategy of mo
 Certain aspects of strict languages like conditional branching need to be evaluated non-strictly because otherwise loops would never terminate.
 However, it is also possible to give the whole language a non-strict semantics, as evidenced by Haskell and Curry.
 This means that an expression may have a value although some subexpressions are not evaluated yet.
-Consequently, non-strictness allows defining conceptually infinite data structures like a list of powers of two.
+Consequently, non-strictness allows defining conceptually infinite data structures like a list of all powers of two.
 
 \begin{minted}{Haskell}
-evens :: [Int]
-evens = 1 : map (2*) evens
+pow2s :: [Int]
+pow2s = 1 : map (2*) pow2s
 \end{minted}
 
 Although this list is infinite and cannot be evaluated wholly, non-strictness allows us to evaluate only the parts that are demanded by the surrounding expressions.
 
 \begin{minted}{Haskell}
-λ> take 4 evens
+λ> take 4 pow2s
 [1,2,4,8]
 \end{minted}
 
+Non-strict semantics can be implemented using an outermost evaluation strategy.
+This means that the reducible term closest to the root of the expression is evaluated first.
+For example, \hinl{take 2 pow2s} is evaluated using an outermost strategy as follows.
+
 \begin{minted}{Haskell}
-  take 2 evens
-= take 2 (1 : map (2*) evens)
-= 1 : take 1 (map (2*) evens)
-= 1 : take 1 (map (2*) (1 : (map (2*) evens)))
-= 1 : take 1 (2 * 1 : map (2*) (map (2*) evens))
-= 1 : 2 : take 0 (map (2*) (map (2*) (1 : map (2*) evens)))
+  take 2 pow2s
+= take 2 (1 : map (2*) pow2s)
+= 1 : take 1 (map (2*) pow2s)
+= 1 : take 1 (map (2*) (1 : (map (2*) pow2s)))
+= 1 : take 1 (2 * 1 : map (2*) (map (2*) pow2s))
+= 1 : 2 : take 0 (map (2*) (map (2*) (1 : map (2*) pow2s)))
 = 1 : 2 : []
 = [1, 2]
 \end{minted}
+
+The example shows the concept of alternating production and consumption of data.
+When \hinl{take} cannot consume a list element because its second argument is not in head normal form, that is, the root expression is not a constructor or lambda abstraction, \hinl{pow2s} is evaluated to produce the demanded list element.
+This process repeats for the second element.
+When the first argument of \hinl{take} reaches zero, the list argument is not evaluated further and the empty list is returned.
+Consequently, it does not matter if a function has an argument which evaluation would fail, as long as the value is not evaluated by the function.
+For example, \hinl{const 42 (head [])} has the value \hinl{42} in Curry and Haskell.
+
+\subsection{Non-Determinism}
+Evaluating expressions in Haskell is deterministic, that is, an expression evaluates to exactly one result.
+Since it is possible to define functions with overlapping patterns, Haskell uses only the first matching rule to determine the result of a computation.
+In Curry, however, this restriction is not present.
+If multiple patterns match an expression, the computation becomes non-deterministic and each rule returns a result.
+The most simple but very useful non-deterministic function is the choice operator, which is defined as follows.
+
+\begin{minted}{Haskell}
+(?) :: a -> a -> a
+x ? _ = x
+_ ? y = y
+\end{minted}
+
+Both rules match for any input, so \hinl{0 ? 1} yields both \hinl{0} and \hinl{1} as results.
+
+Non-deterministic functions do not differ from deterministic ones in regard to the type system because there is no special syntax to denote this property.
+Although this requires inspecting the definition of a function to determine whether it is non-deterministic, we can freely combine deterministic and non-deterministic functions.
+When a deterministic function is applied to a non-deterministic argument, the function becomes non-deterministic itself.
+
+\begin{minted}{Haskell}
+λ> even (0 ? 1)
+True
+False
+\end{minted}
+
+However, this effect is limited by non-strictness.
+If a function does not evaluate the non-determinism contained in one of its arguments, the function remains deterministic.
+For example, \hinl{const 42 (0 ? 1)} only yields \hinl{42}.
+
+Non-determinism is not limited to one or more values as the result of evaluating an expression.
+Failure and no values are also valid results of non-deterministic computations.
+There are two kinds of failures in Curry: silent failures as part of a non-deterministic computation and top-level failures.
+The former is shown in the following example.
+
+\begin{minted}{Haskell}
+λ> head ([] ? [1])
+1
+\end{minted}
+
+The choice operator in the argument of \hinl{head} makes the function non-deterministic.
+Whereas the first choice branch fails, the second one succeeds and returns the value \hinl{1}.
+Although one computation failed, this is not apparent from the result, unless the failure happens at top-level.
+In this case, Curry uses the symbol \hinl{!} as a representation of a failed computation.
+
+\begin{minted}{Haskell}
+λ> head []
+!
+\end{minted}
+
+However, it is also possible that all choice branches fail.
+In this case, the expression does not yield a failure but, instead, there is no result.
+
+\begin{minted}{Haskell}
+λ> head ([] ? [])
+λ>
+\end{minted}
+
 \subsection{Sharing}
-\subsection{Non-determinism}
+The last aspect of call-time choice is sharing, that is, computing the result of an expression only once if it is used multiple times.
+When a variable is introduced via a pattern or local binding, each occurrence of the variable in an expression acts as a pointer to the same computation.
+Due to referential transparency, it does not make a difference if or how many times an expression is recomputed.
+Thus, sharing does not affect the semantics in Haskell.
+In Curry, however, non-determinism can occur in shared expressions, for example as follows.
+
+\begin{minted}{Haskell}
+double :: Int -> Int
+double x = x + x
+\end{minted}
+
+When \hinl{double} is called with a non-deterministic argument, there are two possible options: Firstly, the choices in both occurrences of \hinl{x} can behave independently of each other, which is called run-time choice.
+Secondly, there is call-time choice.
+Conceptually, call-time choice means that the decision of which branches are taken in a non-deterministic argument are determined at the time the function is called.
+Of course this does not mean that the argument is evaluated before the function is called.
+Instead, sharing introduced by the pattern variable of the function means that whenever a decision is made in the shared variable, the same decision must be made in all occurrences of the variable.
+Consequently, sharing due to pattern variables can be transformed into local bindings with sharing.
+
+\begin{minted}[escapeinside=<>]{Haskell}
+  double (0 ? 1) 
+<$=$> let x = 0 ? 1 in x + x 
+<$\neq$> (0 ? 1) + (0 ? 1)
+\end{minted}
+
+However, replacing the occurrences of the variable with the shared expression gives the function call different semantics because the choices become independent of each other.
+Whereas both expression with shared non-determinism return inly \hinl{0} and \hinl{2} because the decisions are made uniformly, the last expression evaluates to \hinl{0}, \hinl{1}, \hinl{1} and \cinl{2} since both terms of the sum can be \hinl{0} and \cinl{1}, independent of each other.
 
 \section{Coq}
 \label{sec:coqIntro}
