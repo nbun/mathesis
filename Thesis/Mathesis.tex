@@ -2703,7 +2703,7 @@ recList fxs = fxs >>= \xs ->
 One could expect that the same definition -- apart from syntactical differences -- works in Coq.
 Unfortunately, this is not the case.
 The termination check throws an error because it is not obvious that \hinl{fys} is a structurally smaller than \hinl{fxs}.
-A technique proposed by \citet{christiansen2018oneMonad} works by splitting a recursive function into two definitions, where one is recursive but takes plain values instead of \cinl{Prog} arguments and the other is a simple definition that contains the first call of bind.
+A technique proposed by \citet{dylus2019oneMonad} works by splitting a recursive function into two definitions, where one is recursive but takes plain values instead of \cinl{Prog} arguments and the other is a simple definition that contains the first call of bind.
 
 \begin{minted}{Coq}
 Fixpoint recList' (xs : List bool) : Prog (List bool) :=
