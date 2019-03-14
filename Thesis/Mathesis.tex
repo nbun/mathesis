@@ -24,7 +24,7 @@
 \usepackage{fontspec}
 
 \setmonofont{Fira Code Regular}
-\setmainfont{XCharter Roman}
+\setmainfont[ItalicFont={XCharter Italic}]{XCharter Roman}
 \newfontfamily{\fallbackfont}{STIX}[Scale=MatchLowercase]
 \DeclareTextFontCommand{\textfallback}{\fallbackfont}
 
@@ -279,10 +279,64 @@ Consequently, sharing due to pattern variables can be transformed into local bin
 \end{minted}
 
 However, replacing the occurrences of the variable with the shared expression gives the function call different semantics because the choices become independent of each other.
-Whereas both expression with shared non-determinism return inly \hinl{0} and \hinl{2} because the decisions are made uniformly, the last expression evaluates to \hinl{0}, \hinl{1}, \hinl{1} and \cinl{2} since both terms of the sum can be \hinl{0} and \cinl{1}, independent of each other.
+Whereas both expression with shared non-determinism return only \hinl{0} and \hinl{2} because the decisions are made uniformly, the last expression evaluates to \hinl{0}, \hinl{1}, \hinl{1} and \cinl{2} since both terms of the sum can be \hinl{0} and \cinl{1}, independent of each other.
 
 \section{Coq}
 \label{sec:coqIntro}
+
+Coq is an interactive proof assistant created by \citet{coq2019}.
+At its core, Coq consists of the functional, dependently typed specification language \textit{Gallina} and the proof tactic language L$_\text{tac}$.
+Gallina programs are structured as sentences of \textit{The Vernacular} commands where each sentence begins with a capital letter and ends with a dot.
+Sentences are processed sequentially, that is, from top to bottom of the file.
+
+The most actively developed tools for programming in Coq are CoqIDE, a standalone editor developed together with the language, and the Emacs plugin Proof General\footnote{https://proofgeneral.github.io/} or its extension Company-Coq\footnote{https://github.com/cpitclaudel/company-coq}.
+The latter is shown in the following screenshot.
+The interface is split into two main parts: The left-hand side shows the program and current progress, where loaded sentences are colored in light blue.
+
+\begin{center}
+\includegraphics[width=\textwidth]{img/coq.png}
+\end{center}
+
+The lower right-hand side region of the screen shows errors and other messages, while the upper part is used proofs.
+The proof context, that is, all variables that have been introduced so far, is shown at the top.
+Separated by a line, the current goal follows below the context.
+
+In the following, an introduction to the syntax and concepts of Coq is given.
+
+\subsection{Data Types}
+Constructor-based data types are defined using the keyword \cinl{Inductive} followed by the name of the type and a list of arguments.
+After a colon, the type of the definition follows.
+For inductive definitions like ordinary lists, this type is \cinl{Type}.
+However, since Coq is dependently typed, it is also possible to have values as part of the type.
+For example, the following definition represents a list data type that encodes the list's length in the type using Peano numbers.
+
+\begin{minted}{Coq}
+Inductive list (A : Type) : nat -> Type :=
+| nil  : list A 0
+| cons : forall n, A -> list A n -> list A (S n).
+\end{minted}
+
+The constructor \cinl{nil} is a list of length zero, whereas \cinl{cons} has an explicit argument \cinl{n} introduced by \cinl{forall} that represents the length of the list's tail.
+Since the tail has length $n$ and an element is added, the whole list has $n + 1$ elements.
+Using this inductive definition of lists, we can write a singleton list of Boolean values as \cinl{cons bool 0 true (nil bool)}.
+
+
+By default, all arguments -- including type variables -- need to be specified when using polymorphic data types.
+However, the command \cinl{Set Implicit Arguments} can be used to enable Coq's ability to infer values that can be derived directly from other arguments.
+Now we can write the same expression as \cinl{cons true (nil bool)} because the type \cinl{A} can be inferred from the first argument and \cinl{n} is the same as for \cinl{nil}, which is always zero.
+The type argument of \cinl{nil} cannot be inferred yet because no other argument of \cinl{nil} holds information about \cinl{A}.
+Nevertheless, the type argument is determined from the context of \cinl{nil}, where \cinl{A} is defined as \cinl{bool} by the first argument of \cinl{cons}.
+Such contextual inference of values can be enabled with the command \cinl{Set Contextual Implicit}.
+Now we can use the list type without any extra arguments and the length is inferred correctly.
+
+\begin{minted}{Coq}
+Check cons true (cons false nil).
+     : list bool 2
+\end{minted}
+
+In some situations, the type inference is not able to gather all required information.
+Thus, it is possible to explicitly pass implicit parameters by adding \cinl{@} in front of the function or constructor name.
+
 
 \begin{itemize}
 \item Data Types
