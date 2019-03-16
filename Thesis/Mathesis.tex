@@ -337,10 +337,64 @@ Check cons true (cons false nil).
 In some situations, the type inference is not able to gather all required information.
 Thus, it is possible to explicitly pass implicit parameters by adding \cinl{@} in front of the function or constructor name.
 
+\subsection{Functions}
+
+Based on data types, we can define functions that process data.
+The keyword \cinl{Definition} is predominantly used to define values, types and non-recursive functions.
+Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows provably terminating definitions.
+Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for functions of the former kind.
+As an example of a simple non-recursive function, we define the function \cinl{length} for our list type.
+
+\begin{minted}{Coq}
+Definition length (A : Type) (n : nat) (xs : list A n) : nat := n.
+\end{minted}
+
+Similar to data types, all occurring type variables need to be introduced explicitly.
+In this case, the length parameter encoded in the list type is also a parameter of the function and the result of the function.
+Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
+Since there is no \hinl{ghci}-like REPL for Coq, we can ask Coq to compute the value of an expression using the command \cinl{Compute} as part of the program.
+
+\begin{minted}{Coq}
+Compute length (cons true (cons true nil)).
+     = 2 : nat
+\end{minted}
+
+When we enable explicit arguments for \cinl{length} and supply a value for \cinl{n} that does not match the length of the list, Coq yields a type error.
+
+\begin{minted}{Coq}
+Compute @length bool 2 (cons true nil).
+     Error: The term "cons true nil" has type "list bool 1"
+            while it is expected to have type "list bool 2".
+\end{minted}
+
+As an example of a recursive function, we define the append function for lists.
+Again, there is a type argument and two natural numbers that represent the lengths of the respective lists.
+The encoded length argument allows us to express the invariant that appending two lists of length $n$ and $m$ yields a list with $n + m$ elements.
+
+\begin{minted}{Coq}
+Fixpoint app (A : Type) (n m : nat) (xs : list A n) (ys : list A m) 
+    : list A (n + m) :=
+  match xs with
+  | nil       => ys
+  | cons z zs => cons z (app zs ys)
+  end.
+\end{minted}
+
+Pattern matching in Coq is done using the \cinl{match} construct.
+All functions must be total and thus, if an argument is matched, the patterns must be exhaustive.
+Consequently, it is not possible to define a function \cinl{head} for ordinary lists that returns the head of a list without a wrapper like \cinl{option}, which corresponds to \hinl{Maybe} in Haskell.
+However, for the dependently typed lists, it is possible to ensure that the function is only applied to non-empty lists.
+
+\begin{minted}{Coq}
+Definition head (A : Type) (n : nat) (xs : list A (S n)) : A :=
+  match xs with
+  | cons x _ => x
+  end.
+\end{minted}
+
+The added \cinl{S} pattern in the length argument of the list allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the definition is accepted.
 
 \begin{itemize}
-\item Data Types
-\item (Recursive) Functions
 \item Type classes /instances 
 \item Proofs (intros/destruct/reflexivity/simpl)
 \item Sections and Variables
