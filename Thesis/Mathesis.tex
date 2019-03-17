@@ -308,30 +308,30 @@ Constructor-based data types are defined using the keyword \cinl{Inductive} foll
 After a colon, the type of the definition follows.
 For inductive definitions like ordinary lists, this type is \cinl{Type}.
 However, since Coq is dependently typed, it is also possible to have values as part of the type.
-For example, the following definition represents a list data type that encodes the list's length in the type using Peano numbers.
+For example, the following definition represents a list data type -- also called vector -- that encodes the list's length in the type using Peano numbers.
 
 \begin{minted}{Coq}
-Inductive list (A : Type) : nat -> Type :=
-| nil  : list A 0
-| cons : forall n, A -> list A n -> list A (S n).
+Inductive vec (A : Type) : nat -> Type :=
+| vnil  : vec A 0
+| vcons : forall n, A -> vec A n -> vec A (S n).
 \end{minted}
 
-The constructor \cinl{nil} is a list of length zero, whereas \cinl{cons} has an explicit argument \cinl{n} introduced by \cinl{forall} that represents the length of the list's tail.
-Since the tail has length $n$ and an element is added, the whole list has $n + 1$ elements.
-Using this inductive definition of lists, we can write a singleton list of Boolean values as \cinl{cons bool 0 true (nil bool)}.
+The constructor \cinl{vnil} is a vector of length zero, whereas \cinl{vcons} has an explicit argument \cinl{n} introduced by \cinl{forall} that represents the length of the vector's tail.
+Since the tail has length $n$ and an element is added, the whole vector has $n + 1$ elements.
+Using this inductive definition of vectors, we can write a singleton vector of Boolean values as \cinl{vcons bool 0 true (vnil bool)}.
 
 
 By default, all arguments -- including type variables -- need to be specified when using polymorphic data types.
 However, the command \cinl{Set Implicit Arguments} can be used to enable Coq's ability to infer values that can be derived directly from other arguments.
-Now we can write the same expression as \cinl{cons true (nil bool)} because the type \cinl{A} can be inferred from the first argument and \cinl{n} is the same as for \cinl{nil}, which is always zero.
-The type argument of \cinl{nil} cannot be inferred yet because no other argument of \cinl{nil} holds information about \cinl{A}.
-Nevertheless, the type argument is determined from the context of \cinl{nil}, where \cinl{A} is defined as \cinl{bool} by the first argument of \cinl{cons}.
+Now we can write the same expression as \cinl{vcons true (vnil bool)} because the type \cinl{A} can be inferred from the first argument and \cinl{n} is the same as for \cinl{vnil}, which is always zero.
+The type argument of \cinl{vnil} cannot be inferred yet because no other argument of \cinl{vnil} holds information about \cinl{A}.
+Nevertheless, the type argument is determined from the context of \cinl{nil}, where \cinl{A} is defined as \cinl{bool} by the first argument of \cinl{vcons}.
 Such contextual inference of values can be enabled with the command \cinl{Set Contextual Implicit}.
-Now we can use the list type without any extra arguments and the length is inferred correctly.
+Now we can use the vector type without any extra arguments and the length is inferred correctly.
 
 \begin{minted}{Coq}
-Check cons true (cons false nil).
-     : list bool 2
+Check vcons true (vcons false vnil).
+     : vec bool 2
 \end{minted}
 
 In some situations, the type inference is not able to gather all required information.
@@ -343,64 +343,221 @@ Based on data types, we can define functions that process data.
 The keyword \cinl{Definition} is predominantly used to define values, types and non-recursive functions.
 Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows provably terminating definitions.
 Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for functions of the former kind.
-As an example of a simple non-recursive function, we define the function \cinl{length} for our list type.
+As an example of a simple non-recursive function, we define the function \cinl{vlength} for our vector type.
 
 \begin{minted}{Coq}
-Definition length (A : Type) (n : nat) (xs : list A n) : nat := n.
+Definition vlength (A : Type) (n : nat) (xs : vec A n) : nat := n.
 \end{minted}
 
 Similar to data types, all occurring type variables need to be introduced explicitly.
-In this case, the length parameter encoded in the list type is also a parameter of the function and the result of the function.
+In this case, the length parameter encoded in the vector type is also a parameter of the function and the result of the function.
 Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
 Since there is no \hinl{ghci}-like REPL for Coq, we can ask Coq to compute the value of an expression using the command \cinl{Compute} as part of the program.
 
 \begin{minted}{Coq}
-Compute length (cons true (cons true nil)).
+Compute vlength (vcons true (vcons true vnil)).
      = 2 : nat
 \end{minted}
 
-When we enable explicit arguments for \cinl{length} and supply a value for \cinl{n} that does not match the length of the list, Coq yields a type error.
+When we enable explicit arguments for \cinl{vlength} and supply a value for \cinl{n} that does not match the length of the vector, Coq yields a type error.
 
 \begin{minted}{Coq}
-Compute @length bool 2 (cons true nil).
-     Error: The term "cons true nil" has type "list bool 1"
-            while it is expected to have type "list bool 2".
+Compute @vlength bool 2 (vcons true vnil).
+     Error: The term "vcons true vnil" has type "vec bool 1"
+              while it is expected to have type "vec bool 2".
 \end{minted}
 
-As an example of a recursive function, we define the append function for lists.
-Again, there is a type argument and two natural numbers that represent the lengths of the respective lists.
-The encoded length argument allows us to express the invariant that appending two lists of length $n$ and $m$ yields a list with $n + m$ elements.
+As an example of a recursive function, we define the append function for vectors.
+Again, there is a type argument and two natural numbers that represent the lengths of the respective vectors.
+The encoded length argument allows us to express the invariant that appending two vectors of length $n$ and $m$ yields a vector with $n + m$ elements.
 
 \begin{minted}{Coq}
-Fixpoint app (A : Type) (n m : nat) (xs : list A n) (ys : list A m) 
-    : list A (n + m) :=
+Fixpoint vapp (A : Type) (n m : nat) (xs : vec A n) (ys : vec A m) 
+    : vec A (n + m) :=
   match xs with
-  | nil       => ys
-  | cons z zs => cons z (app zs ys)
+  | vnil       => ys
+  | vcons z zs => vcons z (vapp zs ys)
   end.
 \end{minted}
 
 Pattern matching in Coq is done using the \cinl{match} construct.
 All functions must be total and thus, if an argument is matched, the patterns must be exhaustive.
-Consequently, it is not possible to define a function \cinl{head} for ordinary lists that returns the head of a list without a wrapper like \cinl{option}, which corresponds to \hinl{Maybe} in Haskell.
-However, for the dependently typed lists, it is possible to ensure that the function is only applied to non-empty lists.
+Consequently, it is not possible to define a function \cinl{vhead} for ordinary lists that returns the head of a list without a wrapper like \cinl{option}, which corresponds to \hinl{Maybe} in Haskell.
+However, for dependently typed vetors, it is possible to ensure that the function is only applied to non-empty vectors.
 
 \begin{minted}{Coq}
-Definition head (A : Type) (n : nat) (xs : list A (S n)) : A :=
+Definition vhead (A : Type) (n : nat) (xs : vec A (S n)) : A :=
   match xs with
-  | cons x _ => x
+  | vcons x _ => x
   end.
 \end{minted}
 
-The added \cinl{S} pattern in the length argument of the list allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the definition is accepted.
+The added \cinl{S} pattern in the length argument of the vector allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the definition is accepted.
 
-\begin{itemize}
-\item Type classes /instances 
-\item Proofs (intros/destruct/reflexivity/simpl)
-\item Sections and Variables
-\item Type arguments and type inference
-\item Dependent types?
-\end{itemize}
+\subsection{Propositions and Proofs}
+
+The goal of a proof in Coq is to construct evidence that a certain proposition holds.
+Propositions have the type \cinl{Prop} and represent statements about Gallina structures.
+For example, $1 = 0$ is a proposition, although not a provable one.
+
+The term 'constructing evidence' is related to the \textit{Curry-Howard Correspondence}, which suggests that logical proofs and computational values are strongly connected.
+When we reason mathematically about a statement like $1 = 1$, we might argue that equality is a reflexive relation and thus, the statement must be true.
+We can do the same in Coq as follows.
+
+\begin{minted}{Coq}
+Lemma eq11 : 1 = 1.
+Proof. reflexivity. Qed.
+\end{minted}
+
+Tactics like \cinl{reflexivity} represent values that Coq constructs in the background when a proof is defined.
+The constructed value can be printed using \cinl{Print eq11}, which yields the following.
+
+\begin{minted}{Coq}
+eq11 = eq_refl
+     : 1 = 1
+\end{minted}
+
+When we talk about values in the context of proofs, the type operator \cinl{:} can be read as 'is a proof of', that is, \cinl{eq_refl} is a proof of \cinl{1 = 1}, in this case.
+In order to find out more about \cinl{eq_refl}, we can ask Coq for the definition of the equality operator using \cinl{Locate} and then \cinl{Print}.
+
+\begin{minted}{Coq}
+Locate "=".
+  Notation
+  "x = y" := eq x y : type_scope (default interpretation)
+
+Print eq.
+  Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x
+\end{minted}
+
+Now we know that \cinl{=} is a notation for the \textit{inductively defined proposition} \cinl{eq}.
+'Inductively defined' means that a proposition consists of multiple constructors whose definition is usually related to the inductive data type that the proposition reasons about.
+The constructor \cinl{eq_refl} matches values of all types and can be applied if its first argument \cinl{x} and second argument -- the argument of type \cinl{A} that follows -- are the same.
+Since this is the case in our example, the value \cinl{eq_refl} proves the proposition.
+
+Describing proofs as values is only one aspect of the Curry-Howard Correspondence.
+The other one is constructing values using proofs, which is the more important aspect in the context of this thesis.
+For example, a function \cinl{toList} that converts vectors into ordinary lists could be defined as regular recursive function as follows.
+
+\begin{minted}{Coq}
+Fixpoint toList A n (vxs : vec A n) : list A :=
+  match vxs with
+  | vnil => nil
+  | vcons x xs => cons x (toList xs)
+  end.
+\end{minted}
+
+While this definition is straight-forward, functions over dependent types are sometimes difficult to write directly.
+Alternatively, it is possible to use proof mode and its context information to construct the function.
+Replacing \cinl{:=} at the end of the line with a dot starts proof mode, which looks in this situation as follows.
+
+\begin{minted}{Coq}
+toList : forall (A : Type) (n : nat), vec A n -> list A
+A : Type
+n : nat
+vxs : vec A n
+============================
+list A
+\end{minted}
+
+The context contains the arguments of the function and the function itself, since it is defined as recursive.
+The goal is to construct a value of type \cinl{list A}.
+However, since the function is supposed to return the ordinary list that is equivalent to \cinl{vxs}, we need to do a case distinction just like on the function definition before.
+For this purpose, the tactic \cinl{destruct} is useful.
+Once we write \cinl{destruct vxs}, Coq presents two new subgoals that correspond to the constructors \cinl{vnil} and \cinl{vcons} of \cinl{vec}.
+
+\begin{minted}{Coq}
+toList : forall (A : Type) (n : nat), vec A n -> list A
+A : Type
+============================
+list A
+
+subgoal 2 (ID 37) is:
+ list A
+\end{minted}
+
+In the first case, we returned \cinl{nil} in the computational definition.
+Applying constructors in proof mode is done using \cinl{apply}, so \cinl{apply nil} solves this subgoal.
+In general, however, \cinl{apply} works by matching the goal against the conclusion $c$ of a constructor of type $p_1 \rightarrow \dots \rightarrow p_n \rightarrow c$ where $p$ represent premises.
+When the matching is successful, $n$ new subgoals that correspond to the premises are generated.
+While conclusion and premises are a logical view of such a constructor, it also matches the type of, for example, \cinl{vcons}.
+To be precise, in order to create a value of type \cinl{list A} -- the 'conclusion' of the constructor -- we need to supply an element and a remaining list.
+Whenever we need to supply a value, this is a 'premise' for which Coq creates a new subgoal.
+Consequently, when we go to the second subgoal of the proof and write \cinl{apply vcons}, two more subgoals appear.
+
+\begin{minted}{Coq}
+toList : forall (A : Type) (n : nat), vec A n -> list A
+A : Type
+n : nat
+y : A
+vys : vec A n
+============================
+A
+
+subgoal 2 (ID 41) is:
+ list A
+\end{minted}
+
+The context now contains the variables \cinl{y} and \cinl{ys} which correspond to the pattern variables introduced by \cinl{match} in the computational function.
+To solve the subgoals, we use \cinl{apply} combined with \cinl{y} for the first case and then again with \cinl{toList vys} for the second one.
+We conclude the proof using \cinl{Defined} and can now use the function like any other computational definition.
+
+In a similar manner, we can define a function \cinl{fromList} that transforms lists into vectors.
+Since both representations contain the same information, we can prove that the functions form an isomorphism, that is, the composing the functions behaves like the identity function in both directions.
+Isomorphisms are useful to represent a subset of data types that have certain properties in a more restricted but Coq-friendly way, as discussed later.
+
+The first isomorphism lemma looks as follows.
+The symbols \cinl{-}, \cinl{+} and \cinl{*} can be used to denote when multiple subgoals are generated by a tactic.
+Using \cinl{forall}, we state that the proposition should hold for every type \cinl{A} and all lists \cinl{xs} with elements of that type.
+In the proof, we begin by introducing the universally quantified variables with \cinl{intros}.
+Then, we do structural induction over \cinl{xs}.
+The \cinl{induction} tactic works like \cinl{destruct} in the sense that a subgoal for each constructor is generated.
+In addition, an induction hypothesis is added to the context in the case of \cinl{cons}.
+This allows us to use \cinl{rewrite}, which replaces the left-hand side of an equation with the right-hand side, to finish the proof.
+
+\begin{minted}{Coq}
+Lemma to_from : forall A (xs : list A), toList (fromList xs) = xs.
+Proof.
+  intros A xs.    (* toList (fromList xs) = xs *)
+  induction xs.
+  - reflexivity.  (* toList (fromList nil) = nil *)
+  - simpl.        (* cons a (toList (fromList xs)) = cons a xs *)
+    rewrite IHxs. (* cons a xs = cons a xs *)
+    reflexivity.
+Qed.
+\end{minted}
+
+Unfortunately, the second lemma cannot be defined as easily.
+The issue in the following definition is that \cinl{fromList} returns a vector whose length parameter is \cinl{length (toList vxs)} instead of \cinl{n}.
+
+\begin{minted}{Coq}
+Lemma from_to : 
+  forall A n (vxs : vec A n), fromList (toList vxs) = vxs.
+\end{minted}
+
+\citet{annenkov2018adventures} presents a solution that allows integrating the observation \cinl{n = length (tolist vs)} for \cinl{vs : vec A n} into the above lemma.
+Since the isomorphism proofs in \autoref{ch:callTimeChoiceCoq} do not require such techniques to succeed, this is not discussed further.
+Nevertheless, the proofs show that the transformation functions indeed form an isomorphism between lists and vectors.
+
+\subsection{Sections and Variables}
+Coq has a section mechanism that allows introducing local variables.
+Inside the section, such variables are always visible and can be omitted as function arguments.
+For example, the predefined version of \cinl{map} introduces local variables for the involved types and the function \cinl{f}, as shown in the following.
+
+\begin{minted}{Coq}
+Section Map.
+  Variables (A : Type) (B : Type).
+  Variable f : A -> B.
+
+  Fixpoint map (l:list A) : list B :=
+    match l with
+      | [] => []
+      | a :: t => (f a) :: (map t)
+    end.
+End Map.
+\end{minted}
+
+When the section is left, section variables are added as parameters to the types of all definitions within the section.
+Consequently, the function \cinl{map} behaves as expected outside the section while the definition inside the section is shorter and there are less potential obstacles for Coq's termination checker.
 
 \section{Modelling Curry Programs using Monadic Code Transformation}
 \begin{itemize}
