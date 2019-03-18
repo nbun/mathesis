@@ -304,9 +304,84 @@ Separated by a line, the current goal follows below the context.
 In the following, an introduction to the syntax and concepts of Coq is given.
 
 \subsection{Data Types}
-Constructor-based data types are defined using the keyword \cinl{Inductive} followed by the name of the type and a list of arguments.
+Constructor-based data types are defined using the keyword \cinl{Inductive}, which is followed by the name of the type and a list of type arguments.
 After a colon, the type of the definition follows.
-For inductive definitions like ordinary lists, this type is \cinl{Type}.
+For inductive definitions like \cinl{option}, this type is \cinl{Type}.
+
+\begin{minted}{Coq}
+Inductive option (A : Type) : Type := 
+| Some : A -> option A 
+| None : option A.
+\end{minted}
+
+The \cinl{option} type is the predefined equivalent to the \hinl{Maybe} type in Haskell.
+Constructors of inductive data types are defined by giving the full type.
+Based on this definition, we can define values of \cinl{option} like \cinl{Some nat 42} or \cinl{None bool}.
+
+By default, all arguments -- including type variables -- need to be specified when using polymorphic data types.
+However, the command \cinl{Set Implicit Arguments} can be used to enable Coq's ability to infer values that can be derived directly from other arguments.
+Now we can omit the type argument of \cinl{Some} because the type \cinl{A} can be inferred from the supplied value.
+
+Based on the \cinl{option} type, we can define a list type that has optional components as follows.
+\begin{minted}{Coq}
+Inductive List A : Type :=
+| Nil  : List A
+| Cons : option A -> option (List A) -> List A.
+\end{minted}
+
+Since \cinl{option} is applied to \cinl{List} in the second constructor, this kind of inductive definition is called \textit{nested}.
+Although we have enabled implicit arguments, we still have to give an explicit type argument to \cinl{Nil}, as shown in the following example.
+
+\begin{minted}{Coq}
+Check Cons (Some 42) (Some (Nil nat)).
+     : List nat
+\end{minted}
+
+The type argument of \cinl{Nil} cannot be inferred yet because no argument of \cinl{Nil} holds information about \cinl{A}.
+Nevertheless, the type argument can be inferred from the context of \cinl{None}, where \cinl{A} is defined as \cinl{nat} by the first argument of \cinl{Cons}.
+Such contextual inference of values can be enabled with the command \cinl{Set Contextual Implicit}.
+Now we can use \cinl{List} without explicit type arguments.
+
+In some situations, the type inference is not able to gather all required information.
+For example, defining \cinl{Cons None None} as \cinl{empty} leads to the error message 'Cannot infer the implicit parameter \cinl{A} of \cinl{Cons} whose type is \cinl{Type}'.
+Thus, it is possible to explicitly pass implicit parameters by adding \cinl{@} in front of the function or constructor name.
+\begin{minted}{Coq}
+Definition empty A := @Cons A None None.
+\end{minted}
+
+\subsection{Functions}
+
+Based on data types, we can define functions that process data.
+The keyword \cinl{Definition} is predominantly used to define values, types and non-recursive functions.
+Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows provably terminating definitions.
+Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for functions of the former kind.
+As an example of a simple non-recursive function, we define the function \cinl{head} for the \cinl{List} type.
+
+\begin{minted}{Coq}
+Definition head A (oxs : List A) : option A :=
+  match oxs with
+  | Nil => None
+  | Cons ox _ => ox
+  end.
+\end{minted}
+
+Similar to data types, all occurring type variables need to be introduced explicitly.
+Pattern matching in Coq is done using the \cinl{match} construct.
+All functions must be total and thus, if an argument is matched, the patterns must be exhaustive.
+Since the elements of \cinl{List} are optional by definition, the return type is, too.
+Therefore, it is possible to define \cinl{head} for \cinl{List}.
+A partial function like \cinl{head} for ordinary lists in Haskell cannot be defined in Coq.
+However, it is possible to define lists in a different way that circumvents this problem, as described in \autoref{subsec:dependent}.
+
+As an example of recursive functions, we define an append function over \cinl{List}.
+Similar to the situation we encounter later in chapter \autoref{ch:callTimeChoiceCoq}, the \cinl{List} arguments are optional themselves because optional components alone are not sufficient to model some aspects of call-time choice.
+
+
+
+
+\subsection{Dependent Types}
+\label{subsec:dependent}
+
 However, since Coq is dependently typed, it is also possible to have values as part of the type.
 For example, the following definition represents a list data type -- also called vector -- that encodes the list's length in the type using Peano numbers.
 
@@ -321,35 +396,17 @@ Since the tail has length $n$ and an element is added, the whole vector has $n +
 Using this inductive definition of vectors, we can write a singleton vector of Boolean values as \cinl{vcons bool 0 true (vnil bool)}.
 
 
-By default, all arguments -- including type variables -- need to be specified when using polymorphic data types.
-However, the command \cinl{Set Implicit Arguments} can be used to enable Coq's ability to infer values that can be derived directly from other arguments.
-Now we can write the same expression as \cinl{vcons true (vnil bool)} because the type \cinl{A} can be inferred from the first argument and \cinl{n} is the same as for \cinl{vnil}, which is always zero.
-The type argument of \cinl{vnil} cannot be inferred yet because no other argument of \cinl{vnil} holds information about \cinl{A}.
-Nevertheless, the type argument is determined from the context of \cinl{nil}, where \cinl{A} is defined as \cinl{bool} by the first argument of \cinl{vcons}.
-Such contextual inference of values can be enabled with the command \cinl{Set Contextual Implicit}.
-Now we can use the vector type without any extra arguments and the length is inferred correctly.
 
-\begin{minted}{Coq}
-Check vcons true (vcons false vnil).
-     : vec bool 2
-\end{minted}
-
-In some situations, the type inference is not able to gather all required information.
-Thus, it is possible to explicitly pass implicit parameters by adding \cinl{@} in front of the function or constructor name.
 
 \subsection{Functions}
 
-Based on data types, we can define functions that process data.
-The keyword \cinl{Definition} is predominantly used to define values, types and non-recursive functions.
-Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows provably terminating definitions.
-Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for functions of the former kind.
-As an example of a simple non-recursive function, we define the function \cinl{vlength} for our vector type.
+
 
 \begin{minted}{Coq}
 Definition vlength (A : Type) (n : nat) (xs : vec A n) : nat := n.
 \end{minted}
 
-Similar to data types, all occurring type variables need to be introduced explicitly.
+
 In this case, the length parameter encoded in the vector type is also a parameter of the function and the result of the function.
 Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
 Since there is no \hinl{ghci}-like REPL for Coq, we can ask Coq to compute the value of an expression using the command \cinl{Compute} as part of the program.
@@ -380,8 +437,7 @@ Fixpoint vapp (A : Type) (n m : nat) (xs : vec A n) (ys : vec A m)
   end.
 \end{minted}
 
-Pattern matching in Coq is done using the \cinl{match} construct.
-All functions must be total and thus, if an argument is matched, the patterns must be exhaustive.
+
 Consequently, it is not possible to define a function \cinl{vhead} for ordinary lists that returns the head of a list without a wrapper like \cinl{option}, which corresponds to \hinl{Maybe} in Haskell.
 However, for dependently typed vetors, it is possible to ensure that the function is only applied to non-empty vectors.
 
