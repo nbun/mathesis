@@ -51,13 +51,15 @@ Section Zero.
   Definition from__Zero F A (z: Zero F A) : Ext__Zero F A :=
     match z with end.
 
-  Lemma to_from__Zero : forall F A (ox : Zero F A), to__Zero (from__Zero ox) = ox.
+  Lemma to_from__Zero : forall F A (ox : Zero F A),
+      to__Zero (from__Zero ox) = ox.
   Proof.
     intros F A ox.
     destruct ox.
   Qed.
 
-  Lemma from_to__Zero : forall F A (e : Ext__Zero F A), from__Zero (to__Zero e) = e.
+  Lemma from_to__Zero : forall F A (e : Ext__Zero F A),
+      from__Zero (to__Zero e) = e.
   Proof.
     intros F A [s pf].
     destruct s.

@@ -119,8 +119,8 @@ Section List.
   | Cons' {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
 
 
-  Fail Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
-    pure (@Cons' A (List A) fx fxs (fun xs => xs)).
+  Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
+    pure (@Cons A (List A) fx fxs id).
 
 
   (* Fixpoint test A (n : nat) (xs : list A) {struct n} : List A := *)
