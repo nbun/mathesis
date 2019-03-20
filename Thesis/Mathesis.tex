@@ -304,6 +304,7 @@ Separated by a line, the current goal follows below the context.
 In the following, an introduction to the syntax and concepts of Coq is given.
 
 \subsection{Data Types}
+\label{subsec:coqdatatypes}
 Constructor-based data types are defined using the keyword \cinl{Inductive}, which is followed by the name of the type and a list of type arguments.
 After a colon, the type of the definition follows.
 For inductive definitions like \cinl{option}, this type is \cinl{Type}.
@@ -438,13 +439,13 @@ Another example of a recursive function that Coq does not accept due to the term
 Using the predefined \cinl{filter} function and boolean comparison operator \cinl{leb} as well as boolean negation, the function could look like this.
 
 \begin{minted}{Coq}
-Fail Fixpoint quicksort (xs : list nat) : list nat :=
+Fail Fixpoint quicksort (xs : list nat) {struct xs} : list nat :=
   match xs with
   | nil => nil
-  | cons y ys => 
-      quicksort (filter (fun x => Nat.leb x y) ys)
-      ++ [y]
-      ++ quicksort (filter (fun x => negb (Nat.leb x y)) ys)
+  | cons y ys =>
+    let le x := Nat.leb x y in
+    let gt x := negb (Nat.ltb x y)
+    in quicksort (filter le ys) ++ [y] ++ quicksort (filter gt ys)
   end.
 \end{minted}
 
@@ -472,6 +473,7 @@ Lemma eq11 : 1 = 1.
 Proof. reflexivity. Qed.
 \end{minted}
 
+Proofs in Coq start with the command \cinl{Proof} and end with \cinl{Qed}.
 Tactics like \cinl{reflexivity} represent values that Coq constructs in the background when a proof is defined.
 The constructed value can be printed using \cinl{Print eq11}, which yields the following.
 
@@ -497,77 +499,134 @@ Now we know that \cinl{=} is a notation for the \textit{inductively defined prop
 The constructor \cinl{eq_refl} matches values of all types and can be applied if its first argument \cinl{x} and second argument -- the argument of type \cinl{A} that follows -- are the same.
 Since this is the case in our example, the value \cinl{eq_refl} proves the proposition.
 
-Describing proofs as values is only one aspect of the Curry-Howard Correspondence.
-The other one is constructing values using proofs, which is the more important aspect in the context of this thesis.
-For example, a function \cinl{fromlist} that converts ordinary lists into lists with optional components as a regular recursive function as follows.
+Based on this first idea of Coq's proof logic, we can now return to the QuickSort example and discuss the termination proofs.
+Before we begin, we consider properties of \cinl{filter} that might be useful in the proofs.
+For example, when we filter a list \cinl{xs} with an arbitrary predicate \cinl{p}, the resulting list should always be smaller or at most equally long as \cinl{xs}.
 
 \begin{minted}{Coq}
-Fixpoint fromlist A (xs : list A) : List A :=
-  match xs with
-  | nil => Nil
-  | cons x xs => Cons (Some x) (Some (fromlist xs))
-  end.
+Lemma filter_length: forall (A : Type) (xs : list A) (p : A -> bool),
+  length (filter p xs) <= length xs.
+Proof.
+  intros A xs p.
+  induction xs; simpl.
+  - reflexivity.
+  - destruct (p a); simpl.
+    + apply le_n_S.
+      apply IHxs.
+    + apply le_S.
+      apply IHxs.
+Qed.
 \end{minted}
 
-While this definition is straight-forward, functions over dependent types, which are discussed in the next section, are sometimes difficult to write directly.
-Alternatively, it is possible to use proof mode and its context information to construct the function.
-Replacing \cinl{:=} at the end of the line with a dot starts proof mode, which looks in this situation as follows.
+When a tactic yields multiple subgoals, the symbols \cinl{-}, \cinl{+} and \cinl{*} can be used to structure the proof.
+We begin the proof with \cinl{intros A xs p}. 
+This command moves quantified variables from the goal to the context.
+Hence, the proof view now looks as follows.
 
 \begin{minted}{Coq}
-toList : forall (A : Type) (n : nat), vec A n -> list A
 A : Type
-n : nat
-vxs : vec A n
+xs : list A
+p : A -> bool
 ============================
-list A
+length (filter p xs) <= length xs
 \end{minted}
 
-The context contains the arguments of the function and the function itself, since it is defined as recursive.
-The goal is to construct a value of type \cinl{list A}.
-However, since the function is supposed to return the ordinary list that is equivalent to \cinl{vxs}, we need to do a case distinction just like on the function definition before.
-For this purpose, the tactic \cinl{destruct} is useful.
-Once we write \cinl{destruct vxs}, Coq presents two new subgoals that correspond to the constructors \cinl{vnil} and \cinl{vcons} of \cinl{vec}.
+To further advance the proof, we need more information about \cinl{xs} because both \cinl{length} and \cinl{filter} do pattern matching.
+For inductive data types, the tactic \cinl{destruct} does a case distinction over the constructors of the passed argument, where each constructor generates one new subgoal.
+For non-recursive data types like \cinl{bool}, this is sufficient.
+However, proofs over recursive data types like \cinl{list} usually require structural induction to be able to prove the property.
+Consequently, we use \cinl{induction xs} to distinguish empty lists and non-empty lists.
+When a semicolon is used instead of a dot between to tactics, the second tactic is applied to all subgoals that the first one generates.
+In this case, we want to apply the tactic \cinl{simpl} to both cases and thus, combine \cinl{induction xs} and \cinl{simpl} with a semicolon.
+The tactic \cinl{simpl} tries to reduce an expression while still maintaining readability.
+For example, \cinl{simpl} applies the definition of \cinl{filter} and \cinl{length} because the outermost constructor of \cinl{xs} has been determined by \cinl{induction}.
+In the following goal, \cinl{::} is an infix notation for the \cinl{cons} constructor.
 
 \begin{minted}{Coq}
-toList : forall (A : Type) (n : nat), vec A n -> list A
-A : Type
-============================
-list A
-
-subgoal 2 (ID 37) is:
- list A
+subgoal 1 (ID 63) is:
+  0 <= 0
+subgoal 2 (ID 64) is:
+ length (if p a then a :: filter p xs else filter p xs) <= S (length xs)
 \end{minted}
 
-In the first case, we returned \cinl{nil} in the computational definition.
-Applying constructors in proof mode is done using \cinl{apply}, so \cinl{apply nil} solves this subgoal.
-In general, however, \cinl{apply} works by matching the goal against the conclusion $c$ of a constructor of type $p_1 \rightarrow \dots \rightarrow p_n \rightarrow c$ where $p$ represent premises.
-When the matching is successful, $n$ new subgoals that correspond to the premises are generated.
-While conclusion and premises are a logical view of such a constructor, it also matches the type of, for example, \cinl{vcons}.
-To be precise, in order to create a value of type \cinl{list A} -- the 'conclusion' of the constructor -- we need to supply an element and a remaining list.
-Whenever we need to supply a value, this is a 'premise' for which Coq creates a new subgoal.
-Consequently, when we go to the second subgoal of the proof and write \cinl{apply vcons}, two more subgoals appear.
+For the first subgoal, which corresponds to the case \cinl{xs = nil}, the functions on both sides of the inequality have been reduced to \cinl{0}.
+Since \cinl{<=} is a reflexive relation, this goal is solved trivially.
+In the second subgoal, the definition of \cinl{filter} and \cinl{length} have been applied once.
+Additionally, the induction hypothesis created by the \cinl{induction} tactic is added to the context.
 
 \begin{minted}{Coq}
-toList : forall (A : Type) (n : nat), vec A n -> list A
 A : Type
-n : nat
-y : A
-vys : vec A n
+a : A
+xs : list A
+p : A -> bool
+IHxs : length (filter p xs) <= length xs
 ============================
-A
-
-subgoal 2 (ID 41) is:
- list A
+length (if p a then a :: filter p xs else filter p xs) <= S (length xs)
 \end{minted}
 
-The context now contains the variables \cinl{y} and \cinl{ys} which correspond to the pattern variables introduced by \cinl{match} in the computational function.
-To solve the subgoals, we use \cinl{apply} combined with \cinl{y} for the first case and then again with \cinl{toList vys} for the second one.
-We conclude the proof using \cinl{Defined} and can now use the function like any other computational definition.
+Again, we need to make a case distinction over the result of \cinl{p a} in order to advance the proof.
+Since \cinl{bool} is not a recursive type, the tactic \cinl{destruct} applied to \cinl{p a} is sufficient.
+In case of \cinl{p a = true}, the current goal is \cinl{ S (length (filter p xs)) <= S (length xs)}.
+When compared to the induction hypothesis \cinl{IHxs}, the only difference are the \cinl{S} constructors.
+Since they can be removed without affecting the inequality, we ask Coq if such a proposition already exists by means of \cinl{Search (S _ <= S _)}, where underscores represent a wildcard pattern.
+The result is the following lemma.
+
+\begin{minted}{Coq}
+le_n_S: forall n m : nat, n <= m -> S n <= S m
+\end{minted}
+
+The lemma can be applied with the tactic \cinl{apply}.
+In general, \cinl{apply} works by matching the goal against the conclusion $c$ of a lemma of type $p_1 \rightarrow \dots \rightarrow p_n \rightarrow c$ where $p$ represent premises.
+When the matching is successful, a new subgoal for each premise is generated.
+Thus, \cinl{apply} 'reasons backwards' in the sense that we replace the current goal with premises, which, if eventually proven, imply that the original goal must hold, too. 
+In this case, the only premise is \cinl{n <= m}.
+Therefore, the new goal is identical to the induction hypothesis, which can be applied with \cinl{apply}, too.
+
+For the second case that corresponds to \cinl{p a = false}, the reasoning is similar to the first case but with a slightly different lemma.
+This proves the helper lemma \cinl{filter_length} and allows us to finally do the termination proofs for Quicksort.
+
+Using the command \cinl{Next Obligation}, we can begin the first of two termination proofs, where each one corresponds to one recursive call.
+The proof context and goal now looks as follows.
+
+\begin{minted}{Coq}
+y : nat
+ys : list nat
+============================
+length (filter (fun x : nat => Nat.leb x y) ys) < S (length ys)
+\end{minted}
+
+In the proof context, we have an element \cinl{y} and a list \cinl{ys} of natural numbers.
+After simplifying the expression, the goal is to show that a filtered list is smaller than the length of the original list plus one.
+Using Coq's search, we find the following lemma that allows us to transform the current goal into an inequality over \cinl{<=}.
+
+\begin{minted}{Coq}
+Lt.le_lt_n_Sm: forall n m : nat, n <= m -> n < S m
+\end{minted}
+
+This leads to the following goal.
+
+\begin{minted}{Coq}
+length (filter (fun x : nat => Nat.leb x y) ys) <= length ys
+\end{minted}
+
+Coincidentally, the remaining goal can be proven directly using the helper lemma \cinl{filter_length}.
+
+The second termination proof is identical to the first one because helper lemma holds for any predicate, which is the only difference between both recursive calls.
+Finally, we have defined the function using \cinl{Program Fixpoint} and two termination proofs.
+Since there is no \hinl{ghci}-like REPL for Coq, we can ask Coq to compute the value of an expression using the command \cinl{Compute} as part of the program.
+
+\begin{minted}{Coq}
+Compute quicksort [23; 8; 15; 4; 42; 16].
+     = [4; 8; 15; 16; 23; 42]
+     : list nat
+\end{minted}
+
+In conclusion, we have seen two kinds of definitions that Coq's termination checker does not accept and two ways to bypass these restrictions.
 
 \subsection{Dependent Types}
 \label{subsec:dependent}
 
-However, since Coq is dependently typed, it is also possible to have values as part of the type.
+Since Coq is a dependently typed language, it is also possible to have values as part of the type.
 For example, the following definition represents a list data type -- also called vector -- that encodes the list's length in the type using Peano numbers.
 
 \begin{minted}{Coq}
@@ -577,17 +636,17 @@ Inductive vec (A : Type) : nat -> Type :=
 \end{minted}
 
 The constructor \cinl{vnil} is a vector of length zero, whereas \cinl{vcons} has an explicit argument \cinl{n} introduced by \cinl{forall} that represents the length of the vector's tail.
-Since the tail has length $n$ and an element is added, the whole vector has $n + 1$ elements.
+Since the tail has length $n$ and an element is added, the whole vector has $n + 1$ elements, represented by the successor constructor.
 Using this inductive definition of vectors, we can write a singleton vector of Boolean values as \cinl{vcons bool 0 true (vnil bool)}.
+When we enable Coq's inference capabilities as described in \autoref{subsec:coqdatatypes}, this value can be defined as \cinl{vcons true vnil}.
+As a non-recursive function over vectors, we define a length function as follows.
 
 \begin{minted}{Coq}
 Definition vlength (A : Type) (n : nat) (xs : vec A n) : nat := n.
 \end{minted}
 
-
 In this case, the length parameter encoded in the vector type is also a parameter of the function and the result of the function.
 Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
-Since there is no \hinl{ghci}-like REPL for Coq, we can ask Coq to compute the value of an expression using the command \cinl{Compute} as part of the program.
 
 \begin{minted}{Coq}
 Compute vlength (vcons true (vcons true vnil)).
@@ -615,18 +674,40 @@ Fixpoint vapp (A : Type) (n m : nat) (xs : vec A n) (ys : vec A m)
   end.
 \end{minted}
 
-
 Consequently, it is not possible to define a function \cinl{vhead} for ordinary lists that returns the head of a list without a wrapper like \cinl{option}, which corresponds to \hinl{Maybe} in Haskell.
 However, for dependently typed vetors, it is possible to ensure that the function is only applied to non-empty vectors.
+Functions over dependent types can be tricky to write directly in some situations.
+In the last subsection, the Curry-Howard correspondence and values as proofs were discussed.
+In the context of dependent types, the other direction, that is, proofs as values, are more interesting.
+Using Coq's proof mode, we are able to define computational functions with proof tactics as follows.
 
 \begin{minted}{Coq}
-Definition vhead (A : Type) (n : nat) (xs : vec A (S n)) : A :=
-  match xs with
-  | vcons x _ => x
-  end.
+Definition vhead (A : Type) (n : nat) (xs : vec A (S n)) : A.
+  dependent destruction xs.
+  apply a.
+Defined.
 \end{minted}
 
-The added \cinl{S} pattern in the length argument of the vector allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the definition is accepted.
+Instead of \cinl{:=} at the end of the function head, we end the definition with a dot.
+Then, the function is constructed as a proof.
+In a computational definition, we would use \cinl{match} to pattern match for the components of \cinl{xs}.
+The equivalent proof tactic is \cinl{destruct}, which we already used in the last subsection.
+For dependent types, however, there is a special tactic called \cinl{dependent destruction}, which considers information like the \cinl{S} pattern in the length argument of the vector.
+This allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the only generated subgoal is for \cinl{cons a _}.
+
+\begin{minted}{Coq}
+A : Type
+n : nat
+a : A
+xs : vlist A n
+============================
+A
+\end{minted}
+
+Coq now expects a value of the function's return type \cinl{A}.
+Since \cinl{a : A} is in the context, we can return \cinl{a} with \cinl{apply a}.
+When the proof is finished with \cinl{Defined}, the function behaves like any other defined function.
+Therefore, using proof mode is a viable option to define functions over dependent types.
 
 \subsection{Sections and Variables}
 Coq has a section mechanism that allows introducing local variables.
