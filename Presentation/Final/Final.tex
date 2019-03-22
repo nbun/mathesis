@@ -12,12 +12,6 @@
 \usepackage{appendixnumberbeamer}
 \usepackage{marvosym}
 
-\usemintedstyle[haskell]{trac, fontsize=\small}
-\usemintedstyle[coq]{fontsize=\footnotesize}
-\usemintedstyle[text]{fontsize=\footnotesize}
-\newcommand{\haskellinline}[1]{\mintinline{haskell}{#1}}
-\newcommand{\coqinline}[1]{\mintinline{coq}{#1}}
-
 \usetheme[progressbar=foot]{metropolis}
 %\setbeamertemplate{footline}[frame number]{}
 
@@ -29,6 +23,12 @@
 
 \usepackage[german]{babel}
 \usepackage[utf8]{inputenc}
+
+\usemintedstyle[haskell]{trac, fontsize=\small}
+\usemintedstyle[coq]{default, fontsize=\small}
+\usemintedstyle[text]{default, fontsize=\small}
+\newcommand{\haskellinline}[1]{\mintinline{haskell}{#1}}
+\newcommand{\coqinline}[1]{\mintinline{coq}{#1}}
 
 %\setbeamersize{text margin left=1.5em,text margin right=1.5em}
 
@@ -93,7 +93,7 @@ runND (Return a)   = [a]
 runND Fail         = []
 runND (Choice p q) = runND p ++ runND q
 \end{minted}
-$\rightarrow$ Der Handler bestimmt die \alert{Semantik} eines Effekts
+\MVRightArrow{} Der Handler bestimmt die \alert{Semantik} eines Effekts
 \end{frame}
 
 \begin{frame}[fragile]{Funktionen}
@@ -109,7 +109,7 @@ addM p1 p2 = do
   i2 <- p2
   return $ i1 + i2
 \end{minted}
-$\rightarrow$ \haskellinline{liftM} bei strikten Funktionen
+\MVRightArrow{} \haskellinline{liftM} bei strikten Funktionen
 \pause
 \begin{minted}{haskell}
 orM :: Prog sig Bool -> Prog sig Bool -> Prog sig Bool
@@ -117,7 +117,7 @@ orM p1 p2 = p1 >>= \b -> case b of
                            True  -> return True
                            False -> p2
 \end{minted}
-$\rightarrow$ Pattern Matching erfordert Bind
+\MVRightArrow{} Pattern Matching erfordert Bind
 \end{frame}
 
 \begin{frame}[fragile]{Beispielausdrücke}
@@ -163,7 +163,7 @@ Prelude> let x = 0 ? 1 in x + x
       |---- 2
 \end{minted}
 \end{itemize}
-$\rightarrow$ Sharing-Effekt vergibt \alert{IDs} für Choices
+\MVRightArrow{} Sharing-Effekt vergibt \alert{IDs} für Choices
 \end{frame}
 
 
@@ -176,7 +176,7 @@ data Share p = Share p
 
 \tikz[remember picture,overlay] \node[opacity=0.75,inner sep=0pt] at 
 	(4,0.93){\includegraphics[width=3em]{img/crossout.png}};\\
-Gegenbeispiel
+Gegenbeispiel:
 
 \begin{minted}{haskell}
 let x = coin in (x + coin) + (x + coin)
@@ -215,85 +215,119 @@ Richtige Implementierung
 
 \begin{frame}[fragile]{Sharing-Effekt -- Korrekte Implementierung}
 \begin{minted}{haskell}
-data Share p = BShare Int p | EShare Int p
-\end{minted}
-\end{frame}
-
-
-\begin{frame}[fragile]{Sharing-Effekt -- Problem}
-\begin{minted}{haskell}
-do fx <- share coin
-   addM fx fx
+data Share p = BShare ID p | EShare ID p
 \end{minted}
 
-\begin{minted}{haskell}
-do fx <- return $ do
-     i <- get
-     put (i + 1)
-     share' i coin
-   addM fx fx -- State Code wird dupliziert!
-\end{minted}
+\MVRightArrow{} Smartkonstruktor notwendig, um IDs zu generieren
 \pause
 \begin{minted}{haskell}
-do fx <- do -- State Code wird ausgewertet
-     i <- get
-     put (i + 1)
-     return (share' i coin)
-  addM fx fx
-\end{minted}
-$\rightarrow$ Zwei Programmebenen sind notwendig
-\end{frame}
-
-\begin{frame}[fragile]{Sharing-Effekt -- Nested Sharing}
-\alert{Nested Sharing}
-
-\begin{minipage}[t]{0.48\linewidth}
-\begin{minted}{haskell}
-let x = let y = coin
-        in y + y
-in x + x
-\end{minted}
-\end{minipage}
-\begin{minipage}[t]{0.48\linewidth}
-\begin{minted}{haskell}
+share :: Prog sig a -> Prog sig (Prog sig a)
 share p = do
-  i <- get
-  put (i * 2)
-  return . share' i $ do
-    put (i * 2 + 1)
-    p
+  (i, j) <- get -- State Effekt generiert ID
+  put (i + 1, j)
 \end{minted}
-\end{minipage}
-\vfill
-$\rightarrow$ Verschachtelte Aufrufe von \haskellinline{share} benötigen frische IDs
-\end{frame}
-
-\begin{frame}[fragile]{Sharing-Effekt -- Deep Sharing}
-\alert{Deep Sharing}
-
-Geliftete Datentypen erlauben Effekte in den Komponenten, z.B.
-  \haskellinline{data List m a = Nil | Cons (m a) (m (List m a))}
-
-\vfill
-\begin{minipage}[t]{0.48\linewidth}
+\pause\vspace{-10pt}
 \begin{minted}{haskell}
-let xs = [coin]
-in (xs, xs)
-\end{minted}
-\end{minipage}
-\begin{minipage}[t]{0.48\linewidth}
-\begin{minted}{haskell}
-share p = do
-  i <- get
-  put (i * 2)
-  return . share' i $ do
-    put (i * 2 + 1)
+  return $ do
+    begin (i,j)
+    put (i, j + 1) -- Nested Sharing
     x <- p
-    shareArgs share x
 \end{minted}
-\end{minipage}
+\pause\vspace{-10pt}
+\begin{minted}{haskell}
+    x' <- shareArgs share x -- Deep Sharing
+    end (i,j)
+    return x'
+\end{minted}
+\end{frame}
 
-$\rightarrow$ Rekursive \haskellinline{share} Aufrufe für Komponenten notwendig
+\begin{frame}{Coq}
+\begin{itemize}
+\item Interaktiver Beweisassistent mit funktionaler Spezifikationssprache
+\item Alle Definition müssen nachweislich terminieren
+\end{itemize}
+Interessante Aspekte im Vergleich zu Haskell:
+\begin{itemize}
+\item Modellierung von Nicht-Striktheit in strikter Sprache
+\item Beweise über Curry Programme
+\end{itemize}
+
+\tikz[remember picture,overlay] \node[opacity=0.2,inner sep=0pt] at (9.5,-1){\includegraphics{img/coq.png}};
+\end{frame}
+
+\begin{frame}[fragile]{Implementierung in Coq: Prog}
+\mintinline{haskell}{Prog} entspricht der Freien Monade \mintinline{haskell}{Free}
+\begin{minted}{coq}
+Inductive Free F A :=
+| pure : A -> Free F A
+| impure : F (Free F A) -> Free F A.
+\end{minted}
+\hspace{.39\linewidth}
+\scalebox{3}[3]{\MVArrowDown}
+\begin{minted}{coq}
+Non-strictly positive occurrence of "Free" in
+  "F (Free F A) -> Free F A".
+\end{minted}
+\vfill
+\MVRightArrow{} Alternative Darstellung von Funktoren möglich?
+\end{frame}
+
+\begin{frame}[fragile]{Darstellung von Funktoren als Container}
+\alert{Container} abstrahieren Datentypen, die (polymorphe) Werte enthalten
+\begin{minted}{coq}
+Class Container :=
+  {
+    Shape   : Type;
+    Pos     : Shape -> Type
+  }.
+
+Inductive Ext (C : Container) A := 
+  ext : forall s : Shape,
+          (Pos s -> A) -> Ext C A.
+\end{minted}
+
+Die \alert{Erweiterung eines Containers} ist isomorph zum ursprünglichen Datentyp
+\end{frame}
+
+\begin{frame}[fragile]{Funktoren als Container: Choice}
+\begin{minted}{coq}
+Inductive Choice (A : Type) :=
+| cfail   : Choice A
+| cchoice : option ID -> A -> A -> Choice A.
+
+Inductive ShapeChoice :=
+| sfail   : ShapeChoice
+| schoice : option ID -> ShapeChoice.
+
+Definition PosChoice (s: ShapeChoice) : Type :=
+  match s with
+  | sfail     => Void
+  | schoice _ => bool
+  end.
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Übersicht Coq Implementierung}
+\begin{itemize}
+\item Darstellung aller Effekte und des Kombinationsfunktors als Container
+\item Statischer Effekt-Stack und Handlerreihenfolge
+\item Implementierung des \texttt{begin/end} Ansatzes für Sharing
+\item Problematisch: Handling von ungültigen \texttt{begin/end} Tags
+\end{itemize}
+\MVRightArrow{} Higher-Order Ansatz
+\end{frame}
+
+\begin{frame}[fragile]{Higher-Order Implementierung}
+\begin{minted}{haskell}
+data HShare m a = forall x. Share ID (m x) (x -> m a)
+\end{minted}
+\begin{itemize}
+\item Datentypen haben zusätzliches Argument \texttt{m}
+\item \texttt{(m a)} $\hat{=}$ \texttt{p} in bisheriger Implementierung
+\item Effekt Scope durch direkte Programmargumente
+\item Coq Implementierung: Indizierte Bi-Container
+\item Rekursive Datentypen nicht darstellbar
+\end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Zusammenfassung und Ausblick}
@@ -302,18 +336,51 @@ Zusammenfassung
 \item Effekte können als Instanzen des Datentyps \haskellinline{Prog} modelliert werden
 \item Handler setzen Effekte im Programm um
 \item Call-Time Choice in Curry wird durch Nichtdeterminismus und Sharing modelliert
-\item Sharing kennzeichnet Choices geschickt mit IDs
+\item Coq: Darstellung von Funktoren als Container
 \end{itemize}
 \vfill
 Ausblick
 \begin{itemize}
-\item Drei Ansätze $\rightarrow$ Implementierung in Coq
-\item Beweisen der \textit{laws of sharing} für die Implementierung
-\item Beweise über Eigenschaften von konkreten Curry Programmen
+\item Ist es möglich, den Higher-Order Ansatz vollständig in Coq zu modellieren?
+\item Lassen sich andere Effekte, die von Sharing beeinflusst werden, ebenfalls darstellen?
 \end{itemize}
 \end{frame}
 
 \appendix
+
+
+\begin{frame}[fragile]{Sharing-Effekt -- Nested Sharing}
+\alert{Nested Sharing}
+
+Sharing kann beliebig tief verschachtelt auftreten
+\vfill
+Beispiel:
+\begin{minted}{haskell}
+let x = let y = coin
+        in y + y
+in x + x
+\end{minted}
+
+\MVRightArrow{} Verschachtelte Aufrufe von \haskellinline{share} benötigen frische IDs
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- Deep Sharing}
+\alert{Deep Sharing}
+
+Geliftete Datentypen erlauben Effekte in den Komponenten
+
+\begin{minted}{haskell}
+data List m a = Nil | Cons (m a) (m (List m a))
+\end{minted}
+\vfill
+Beispiel:
+\begin{minted}{haskell}
+let xs = [coin]
+in (xs, xs)
+\end{minted}
+
+\MVRightArrow{} Rekursive \haskellinline{share} Aufrufe für Komponenten notwendig
+\end{frame}
 \end{document}
 
 
