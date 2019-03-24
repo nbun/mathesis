@@ -39,6 +39,9 @@
 %framesep=10pt}
 \setmintedinline{style = bw, fontsize=\small}
 
+%\AfterEndEnvironment{minted}%
+%{\noindent}%
+
 % Für schönere Tabellen (optional)
 % \usepackage{booktabs}           % Netteres Tabellenlayout
 % \usepackage{multicol}           % Mehrspaltige Bereiche
@@ -140,8 +143,12 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 % Inhalt
 
 \chapter{Introduction}
+\todo{Definition effect}
 
 \chapter{Preliminaries}
+This chapter introduces the languages Curry and Coq as well as the modelling methods that are applied in the next chapters of the thesis.
+A sufficient understanding of functional programming languages like Haskell and the underlying concepts -- such as algebraic data types, polymorphism, type classes and monads -- is assumed.
+
 
 \section{Curry}
 Curry \citep{hanus2016curry} is a functional logic programming language based on Haskell.
@@ -924,24 +931,27 @@ Based on this idea of an operator that allows us to explicitly express sharing, 
 We first discuss a Haskell implementation, which is later formalized in Coq.
 
 \chapter{Call-Time Choice modelled in Haskell}
-Based on the ideas presented in the last chapter, we now want to model call-time choice, that is, non-strictness, sharing and non-determinism, in Haskell.
-We still use \hinl{MonadPlus} to parameterize our programs.
-However, instead of, for example, using the list instance to make non-determinism visible, we define an effect functor that can express many different effects, including non-determinism and sharing.
+The first model of call-time choice is implemented in Haskell due to the freedom and flexibility that Haskell's type system allows.
+Although the ultimate goal is to create the model in Coq, so that it can be formally reasoned about, Haskell is better suited when it comes to experimenting with different approaches.
+Based on the idea of an explicit sharing operator, we can now begin to model call-time choice, that is, non-strictness, sharing and non-determinism.
+
+Similar to the implementation of \citet{fischer2009purely}, we parametrise all definitions with \hinl{MonadPlus} instead of using a static monad.
+This allows us, for example, to define a test suite that works with any implementation just by adapting the imported module.
+Similarly, we do not restrict the implementation to the effects that make up call-time choice.
+Instead, we define an effect functor that can express many different effects, including non-determinism and sharing.
 This approach, as introduced by \citet{wu2014effect}, will also be the base of the Coq implementation shown in \autoref{ch:callTimeChoiceCoq}.
-\todo{Definition effect}
 
 For the implementation of call-time choice, we want to be able to express different effects within our programs.
 However, not every program contains effects.
-There are also \textit{pure} programs that have no side-effects besides the computation of a value.
+There are also \textit{pure} programs that have no side-effects and only compute a value.
 A data type that represents such programs could look as follows.
 
 \begin{minted}{Haskell}
 data Void a = Return a
 \end{minted}
 
-Here, \hinl{Void} means the absence of effects.
-
-If we consider programs that contain effects, also called \textit{impure}, like, non-determinism, a data type that represents such values could look like the following.
+Here \hinl{Void} means the absence of effects. Since the data type has only one constructor that always holds one value, this type represents purely computational programs.
+If we consider programs that contain effects, also called \textit{impure}, like non-determinism, a data type that represents non-deterministic programs could look like the following.
 
 \begin{minted}{Haskell}
 data ND a = Return a
@@ -949,17 +959,18 @@ data ND a = Return a
           | Choice (ND a) (ND a)
 \end{minted}
 
-This data type also has a constructor to model pure values but in addition, there are constructors that represent failed computations and the non-deterministic choice between two values.
-We could go on and list data types that model many more effects but the question is: Is it possible to create a data type that, if appropriately instantiated, behaves like the original effect functor?
-This would allow us to represent programs with many different effects using one compact data type.
+This data type also has a constructor to model pure values, but in addition, there are constructors that represent failed computations and the non-deterministic choice between two values.
+We could continue and define more independent data types that model different effects, but the question arises: Is it possible to create an abstract data type that models effectful programs, that is, if appropriately instantiated, behaves like the original effect functor?
+This would allow us to represent programs with many different effects by using one compact data type.
 
 Answering this question requires abstracting the concrete form of effect functors into a general program data type.
 As we saw in the examples above, we need a way to represent pure values in a program.
 Therefore, the first constructor of our new program data type should be \hinl{Return a} for the type \hinl{a}, that is, the result type of the program.
-To model effects like non-determinism, the program is parameterized over effect functors of type \hinl{* -> *} that represent, for example, \hinl{Fail} and \hinl{Choice}.
+
+To model effects like non-determinism, the program type needs to be parametrised over effect functors like \hinl{ND} of type \hinl{* -> *}.
 We call this argument \hinl{sig} because the signature of a program tells us which effects can occur.
 So far, programs are defined as \hinl{data Prog sig a = Return a}.
-In order do make use of the \hinl{sig} component, we need to add a constructor for impure operations.
+In order do make use of the \hinl{sig} argument, we need to add a constructor for impure operations.
 The \hinl{ND} data type shows us that effect functors can be defined recursively.
 Thus, the constructor for impure programs should be recursive, too, to be able to represent this structure.
 
@@ -969,19 +980,20 @@ data Prog sig a = Return a | Op (sig (Prog sig a))
 
 With this definition of \hinl{Prog}, we are able to represent the original functors by instantiating \hinl{sig} appropriately.
 For \hinl{Void}, we already have the \hinl{Return} constructor.
-Therefore, the data type we can use with \hinl{Prog} does not need a constructor anymore, that is, \hinl{data Void' a}.
+Therefore, the type that we apply \hinl{Prog} to does not need another \hinl{Return} constructor.
+Consequently, the type is empty, written as \hinl{data Void' a}.
+Applying \cinl{Prog} to \cinl{Void'} results in the following type.
 
 \begin{minted}{Haskell}
 VoidProg a = Return a
            | Op (Void' (VoidProg a)) -- Void' has no constructors!
 \end{minted}
 
-The type \hinl{Prog Void'} now resembles the original type  \hinl{Void} since the \hinl{Op} constructor  would require a value of type \hinl{Void'}, which we cannot  construct.
-\footnote{It is possible to use \hinl{undefined} to create an impure value of type \hinl{Prog Void' a}.
-Since this  is not possible in Coq, we do not consider this in the Haskell implementation.}
-Only \hinl{Return} can be used to define values, similar to the  original data type.
+The type \hinl{Prog Void'} now resembles the original type \hinl{Void}, since the \hinl{Op} constructor would require a value of type \hinl{Void'}, which we cannot construct.\footnote{It is possible to use \texttt{undefined} to create an impure value of type \texttt{Prog Void' a}.
+Since this is not possible in Coq, we do not consider this in the Haskell implementation.}
+Only \hinl{Return} can be used to define values, like in the  original data type.
 
-Similar to \hinl{Void'}, we can define a data type  \hinl{Choice} that represents \hinl{Choice} in combination with \hinl{Prog}.
+Similar to \hinl{Void'}, we can define a data type \hinl{ND} that represents \hinl{Choice} in combination with \hinl{Prog}.
 
 \label{min:ND}
 \begin{minted}{Haskell}
@@ -989,14 +1001,15 @@ data ND p = Fail | Choice p p
 \end{minted}
 
 Again, we can omit the \hinl{Return} constructor because it is  already part of the \hinl{Prog} data type.
-For the same reason,  the type variable \hinl{a} has been replaced with the variable \hinl{p}, since \hinl{ND} does not have values as arguments but rather programs that return values.
+For the same reason,  the type variable \hinl{a} has been replaced with the variable \hinl{p}, since \hinl{ND} does not have \textit{values} as arguments but rather \textit{programs that return values}.
+When we specialise \hinl{Prog} with \hinl{ND}, we can see that the argument of \hinl{ND} is the type for non-deterministic programs.
 
 \begin{minted}{Haskell}
 data NDProg a = Return a
               | Op (Choice (NDProg a))
 \end{minted}
 
-Since \hinl{Op} applies \hinl{sig} recursively,  this yields the following type, which is equivalent to the original data type.
+Inlining \hinl{ND} yields the following type, which is equivalent to the original data type.
 
 \begin{minted}{Haskell}
 data NDProg a = Return a
@@ -1005,70 +1018,78 @@ data NDProg a = Return a
 \end{minted}
 
 We have found a way to model effect functors as instances of the data type \hinl{Prog}, which essentially models a tree with leafs, represented by the \hinl{Return} constructor, and branches that have the form defined by \hinl{sig}.
-\todo{Tree structure visualization?}
+\todo{Tree structure visualization}
+A more detailed explanation of this concept follows in the next section.
 
-\section{Free Monads}
-\begin{itemize}
-\item What are free monads?
-\item Why do we use free monads?
-\end{itemize}
+\section{Free Monad}
 
 The data type \hinl{Prog} is better known as the \textit{free monad}.
-We saw in the previous chapter that \hinl{Free} can be used to model other data types.
-In addition, \hinl{Free} is a monad that can turn any functor into a monad.
-
-We consider, for example, the type \hinl{Free One} where \hinl{data One a = One}.
-Here \hinl{a} is a phantom type that we need because \hinl{Free} expects a functor.
-The monad instance for \hinl{Free} is as follows.
+One of its properties is that \hinl{Free} can turn any functor into a monad.
+This is very useful for modelling effectful programs because it allows us to combine syntax using the \hinl{do} notation.
 
 \begin{minted}{Haskell}
 data Free f a = Pure a | Impure (f (Free f a))
+\end{minted}
 
+As an example of a monad generated by \cinl{Free}, we consider the type \hinl{data One a = One}.
+Here \hinl{a} is a phantom type that we need because \hinl{Free} expects a functor argument.
+To understand how \cinl{Free} turns functors into monads, we have a look at the monad instance for \hinl{Free}.
+
+\begin{minted}{Haskell}
 instance (Functor f) => Monad (Free f) where
   return = Pure
-  Pure x >>= g = g x
+
+  Pure x    >>= g = g x
   Impure fx >>= g = Impure (fmap (>>= g) fx)
 \end{minted}
 
-Since \hinl{One} has only a single, non-recursive constructor \hinl{One}, the only possible impure value is \hinl{Impure One}, whereas the usual \hinl{Return} constructor remains.
-If bind encounters the value \hinl{One}, the function \hinl{g} is distributed deeper into the term structure using \hinl{fmap}.
-Since \hinl{fmap One = One}, it becomes apparent that the monad constructed by \hinl{Free One} is the \hinl{Maybe} monad.
-\todo{Visualization of fmap tree}
+Values are lifted into the \cinl{Free} monad using \cinl{Pure}.
+When bind encounters a pure value, the function \hinl{g} is applied to the argument of \hinl{Pure}.
+For impure values, the function \hinl{g} is distributed deeper into the term structure using \hinl{fmap}.
+In the case of \hinl{One}, there is only a single, non-recursive constructor \hinl{One} and thus, the only possible impure value is \hinl{Impure One}.
+Since \hinl{fmap One = One}, we apply the function argument of bind only to pure values and return \cinl{Impure One} otherwise.
+This reminds of the \hinl{Maybe} monad, whose bind definition and data type look are the same.
+Thus, the free monad generated by \hinl{Free One} is the \hinl{Maybe} monad.
+
 
 Since we want to model different effects in our program, the free monad makes writing programs easier by allowing monadic definitions without defining a separate monad instance for each effect.
-\todo{Find more reasons for using free monads}
-\todo{Stacking monads does not necessarily yield monads again}
-% https://homepages.inf.ed.ac.uk/slindley/papers/handlers.pdf
+Although this would be possible, \citet{kammar2013handlers} argue that this approach makes it necessary to write monad transformers to combine effects.
+This entails that the order of effects is static and requires explicit lift operations.
+Furthermore, it is not guaranteed that stacked monads yield a monad again.
+In our model, we can combine different effect functors into a new combination functor, which is then turned into a monad.
+Since this approach also allows effortlessly reordering the effect stack, \hinl{Free} is the core data structure of the effect model presented in the next section.
 
 \section{Modelling Effects}
-\begin{itemize}
-\item Explanation of the Prog/sig infrastructure
-\item ND and state effect implementation 
-\end{itemize}
-\todo{Split ND into choice and fail instead of one}
 In the previous sections the free monad and its ability to represent effect functors was discussed.
 The goal of this section is to explore the infrastructure that allows us to combine multiple effects, write effectful programs and compute the result of such programs.
 
 \subsection{Combining Effects}
 Firstly, we would like to combine multiple effects.
 For this purpose, we use the technique introduced by \citet{swierstra2008} to define a data type that combines the effect functors \hinl{sig1} and \hinl{sig2}.
-The infix notation simplifies combining multiple effects via nested applications of \hinl{:+:}.
+The infix notation \hinl{:+:} simplifies combining multiple effects via nested applications.
 
 \begin{minted}{Haskell}
 data (sig1 :+: sig2) a = Inl (sig1 a) | Inr (sig2 a)
 \end{minted}
 
-For example, the type \hinl{ND :+: One} is a functor that we can use with \hinl{Prog} to define programs that contain non-determinism and partiality as follows.
+For the purpose of demonstrating how effects are combined with \cinl{:+:}, we split the non-determinism data type \hinl{ND} into the separate effects \hinl{Choice} and \hinl{Fail}.
 
 \begin{minted}{Haskell}
-progNDOne :: Prog (ND :+: One) Int
-progNDOne = Op (Inl (Choice (Op (Inr One)) (Return 42)))
+data Choice p = Choice p p
+data Fail   p = Fail
 \end{minted}
 
-In the example \hinl{progNDOne} we define a program that represents the non-deterministic choice between a program whose value is absent and a program that returns \hinl{42}.
+Based on these definitions, the type \hinl{Choice :+: Fail} is a functor that we can use with \hinl{Prog} to define programs that contain choices and failed computations as follows.
+
+\begin{minted}{Haskell}
+progCF :: Prog (Choice :+: Fail) Int
+progCF = Op (Inl (Choice (Op (Inr Fail)) (Return 42)))
+\end{minted}
+
+In the example \hinl{progCF} we define a program that represents the non-deterministic choice between a program that failed and a program that returns \hinl{42}.
 The complexity of nesting constructors of \hinl{Prog} and \hinl{:+:} correctly increases quickly for bigger terms.
 Therefore, we define a type class that allows us to define such expressions more conveniently.
-The class is parameterized over two functors, one of which is a subtype -- regarding \hinl{:+:} -- of the other.
+The class is parametrised over two functors, one of which is a subtype regarding \hinl{:+:} of the other.
 
 \begin{minted}{Haskell}
 class (Functor sub, Functor sup) => sub :<: sup where
@@ -1076,7 +1097,7 @@ class (Functor sub, Functor sup) => sub :<: sup where
 \end{minted}
 
 We need a few instances of the class \hinl{:<:} to make it useful.
-The simplest case is \hinl{sig :<: sig} where want to inject a value of type \hinl{sig a} into the same type.
+The simplest case is \hinl{sig :<: sig}, where want to inject a value of type \hinl{sig a} into the same type.
 Since we do not need to modify the value in any way, \hinl{id} is used to define \hinl{inj}.
 
 \begin{minted}{Haskell}
@@ -1111,34 +1132,34 @@ inject = Op . inj
 \hinl{inject} can then be used as demonstrated in the following example.
 
 \begin{minted}{Haskell}
-λ> inject One :: Prog (One :+: ND) a
-Op (Inl One)
-λ> inject One :: Prog (ND :+: One) a
-Op (Inr One)
+λ> inject Fail :: Prog (Fail :+: Choice) a
+Op (Inl Fail)
+λ> inject Fail :: Prog (Choice :+: Fail) a
+Op (Inr Fail)
 \end{minted}
 
 The implementation of the function \hinl{inject} assumes that we can inject \hinl{sig1} into \hinl{sig2}.
 This is because \hinl{sig2} is the signature of the returned program and \hinl{sig1} is the type of the effect constructor that we want to inject.
 This restriction is justified because, for example, non-deterministic syntax should only appear in a program where \hinl{ND} is part of the signature.
-With this part of the infrastructure in place, we can redefine the example \hinl{progNDOne} without using \hinl{Inl} and \hinl{Inr} explicitly.
+With this part of the infrastructure in place, we can redefine the example \hinl{progCF} without using \hinl{Inl} and \hinl{Inr} explicitly.
 
 \begin{minted}{Haskell}
-progNDOne' :: Prog (ND :+: One) Int
-progNDOne' = inject (Choice (inject One) (Return 42))
+progCF' :: Prog (Choice :+: Fail) Int
+progCF' = inject (Choice (inject Fail) (Return 42))
 \end{minted}
 
 Deriving the appropriate instance of \hinl{:<:} when using \hinl{inject} is, however, not always unambiguous.
 The last two instances overlap in situations where \hinl{sig = sig1}.
-For example, the example \hinl{inject One :: Prog (One :+: One) a} yields different values with respect to the chosen constructor of \hinl{:<:}, depending on the instance.
+For example, the definition \hinl{fail = inject Fail :: Prog (Fail :+: Fail) a} yields different values with respect to the chosen constructor of \hinl{:<:}, depending on the instance.
 
 \begin{minted}{Haskell}
-λ> nothing
-Op (Inl One) -- second instance
-λ> nothing
-Op (Inr One) -- third instance
+λ> fail
+Op (Inl Fail) -- second instance
+λ> fail
+Op (Inr Fail) -- third instance
 \end{minted}
 
-This is because the type constraint of \hinl{inject}, in this case \hinl{One :<: (One :+: One)}, matches both the second and third instance.
+This is because the type constraint of \hinl{inject}, in this case \hinl{Fail :<: (Fail :+: Fail)}, matches both the second and third instance.
 Haskell does not accept overlapping instances by default, which is why we prioritize one instance via pragmas.
 In practice, the different term structure due to \hinl{Inl} and \hinl{Inr} does not influence the evaluation as long as we do not explicitly match for the constructors.
 This is ensured by an additional function \hinl{prj} of the type class \hinl{:<:}, which is discussed in the next section.
@@ -1155,7 +1176,7 @@ class (Functor sub, Functor sup) => sub <: sup where
 \end{minted}
 
 The function \hinl{prj} is a partial inverse to \hinl{inj}.
-This means that we can project values of a type \hinl{sup a} into a subtype \hinl{sub a}.
+This means that we project values of a type \hinl{sup a} into a subtype \hinl{sub a}.
 For this reason, the return type of the function is a \hinl{Maybe} type.
 Similar to \hinl{inj}, we have to define instances for the same cases as before.
 
@@ -1180,34 +1201,33 @@ project _      = Nothing
 
 Due to the recursive definition of the \hinl{Prog} data type, constructors like \hinl{Choice} have \hinl{Prog} arguments themselves.
 Thus, \hinl{sub} is applied to \hinl{Prog sup a} in the return type of the projection.
-We can only project effectful values because generally it is not clear which functor we should choose for \hinl{sub} when projecting a \hinl{Return} value.
+The pattern for \cinl{Return} is not matched because we can only project effectful values.
+Generally, it is not clear which functor we should choose for \hinl{sub} when projecting a \hinl{Return} value.
 
 Finally, we can now inject and project effectful values.
 Since \hinl{project} is a partial inverse of \hinl{inject}, the equation \hinl{project (inject x) = Just x} holds for values \hinl{x} of appropriate type, excluding failing computations.
-\todo{Does it hold?}
 This is demonstrated in the following example.
 
 \begin{minted}{Haskell}
-λ> type T = Maybe (ND (Prog (ND :+: One) Int))
+λ> type T = Maybe (Choice (Prog (Choice :+: Fail) Int))
 λ> project (inject (Choice (Return 42) (Return 43))) :: T
 Just (Choice (Return 42) (Return 43))
 \end{minted}
 
-Now that we can use \hinl{project} as an abstraction of the concrete term structure regarding \hinl{:<:}, we can write a first function that evaluates a non-deterministic, partial program.
+Now that we can use \hinl{project} as an abstraction of the concrete term structure regarding \hinl{:<:}, we can write a first function that evaluates a non-deterministic program.
 
 \begin{minted}{Haskell}
-evalNDOne :: Prog (ND :+: One) a -> [a]
-evalNDOne (Return x) = [x]
-evalNDOne p = case project p of
-               Just (Choice p1 p2) -> evalNDOne p1 ++ evalNDOne p2
-               Just Fail           -> []
-               Nothing             -> case project p of
-                                        Just One -> []
-                                        Nothing  -> []
+evalCF :: Prog (Choice :+: Fail) a -> [a]
+evalCF (Return x) = [x]
+evalCF p = case project p of
+             Just (Choice p1 p2) -> evalCF p1 ++ evalCF p2
+             Nothing             -> case project p of
+                                      Just Fail -> []
+                                      Nothing   -> []
 \end{minted}
 
-When \hinl{evalNDOne} encounters a value \hinl{Return x}, \hinl{x} is returned as a singleton list.
-For effectful programs, we can use \hinl{project} to distinguish between the constructors of \textit{one effect at a time}.
+When \hinl{evalCF} encounters a value \hinl{Return x}, \hinl{x} is returned as a singleton list.
+For effectful programs, we can use \hinl{project} to distinguish between the constructors of one effect at a time.
 The case patterns hold the necessary type information for \hinl{project}.
 When the projection returns \hinl{Nothing}, another effect can be matched in a nested case expression.
 Since we never need to explicitly match for \hinl{Inl} or \hinl{Inr}, overlapping patterns in the instances of \hinl{:<:} do not affect the evaluation of programs in our model.
@@ -1219,43 +1239,43 @@ Two language extensions, \hinl{PatternSynonyms} and \hinl{ViewPatterns}, allow u
 pattern PChoice p q <- (project -> Just (Choice p q))
 \end{minted}
 
-View patterns -- the right-hand side of the \hinl{<-}, make pattern-matching for certain cases more compact.
+View patterns -- the pattern that follows after the arrow pointing left -- make pattern-matching for certain cases more compact.
 A view pattern consists of a function on the left-hand side of \hinl{->}, that is applied to the value that the pattern is matched against, and a pattern on the right-hand side.
 The result of the function call is matched against this pattern and the variables inside the pattern can be used in the definition.
-The function \hinl{evalNDOne} can be defined using view patterns in the following way.
+The function \hinl{evalCD} can be defined using view patterns in the following way.
 
 \begin{minted}{Haskell}
-evalNDOne' :: Prog (ND :+: One) a -> [a]
-evalNDOne' (Return x) = [x]
-evalNDOne' (project -> Just (Choice p1 p2)) = evalNDOne' p1 ++ evalNDOne' p2
-evalNDOne' (project -> Just Fail          ) = []
-evalNDOne' (project -> Just One           ) = []
+evalCF' :: Prog (Choice :+: Fail) a -> [a]
+evalCF' (Return x) = [x]
+evalCF' (project -> Just (Choice p1 p2)) = evalCF' p1 ++ evalCF' p2
+evalCF' (project -> Just Fail          ) = []
 \end{minted}
 
 We cannot use \hinl{(project -> Nothing)} without type annotations as a pattern because this would result in overlapping instances.
 However, no effects other than those specified in the signature can occur within the program.
 Therefore, the \hinl{Nothing} pattern is not necessary.
 
-The second component of the pattern definition above is the option to define a synonym for more complex patterns.
+The second component of the pattern definition above is the ability to define a synonym for more complex patterns.
 In this case, we name the view patterns similar to the original constructors of the effects.
 While this is necessary for every effect constructor, it allows us to rewrite the definition in the following way.
 
 \begin{minted}{Haskell}
-evalNDOne'' :: Prog (ND :+: One) a -> [a]
-evalNDOne'' (Return    x) = [x]
-evalNDOne'' (PChoice p q) = evalNDOne'' p ++ evalNDOne'' q
-evalNDOne'' (PFail      ) = []
-evalNDOne'' (POne       ) = []
+evalCF'' :: Prog (ND :+: One) a -> [a]
+evalCF'' (Return    x) = [x]
+evalCF'' (PChoice p q) = evalCF'' p ++ evalCF'' q
+evalCF'' (PFail      ) = []
 \end{minted}
 
 Writing programs that evaluate effectful programs is now almost as convenient as simple pattern matching.
-Finally, a useful definition for working with programs that have the signature \hinl{f :+: g}, where want to match for \hinl{f} but not \hinl{g}, is as follows.
+
+As a last simplification, the following definition is useful for working with programs of the signature \hinl{f :+: g}, where want to match for \hinl{f} but not \hinl{g}.
 
 \begin{minted}{Haskell}
 pattern Other s = Op (Inr s)
 \end{minted}
 
 Since \hinl{:+:} is right-associative in nested applications, we can match for the left argument effect and conveniently match all remaining effects with \hinl{Other}.
+This is particularly useful for functions that handle effects, which are described in the next subsection.
 
 
 \subsection{Effect Handlers}
@@ -1264,7 +1284,7 @@ For each effect in a program's signature, a \textit{handler} is required.
 Handling an effect means transforming a program that contains a certain effect into a program where the effect's syntax does not occur anymore.
 However, the syntax is not just removed, but the effect's semantics is applied.
 The semantics of an effect is therefore given by its handler.
-In the following we discuss handlers for the effects non-determinism and state.
+In the following we discuss handlers for the effects non-determinism and state, as well as a 'handler' for \hinl{Void}.
 
 \paragraph{Void Effect}
 We begin with the data type for absence of effects, \hinl{Void}.
@@ -1289,10 +1309,11 @@ data ND p = Fail | Choice (Maybe ID) p p
 Not every non-deterministic choice in a program needs an ID, since IDs slow down the evaluation of choices considerably.
 Thus, IDs are optional and only assigned when necessary, that is, when choices are shared.
 
-In the last section, we already defined a function \hinl{evalNDOne} that handles the simple \hinl{ND} type without IDs by returning a list of results, where, for each choice, the result lists are concatenated.
+In the last section, we already defined a function \hinl{evalCF} that handles the simple \hinl{ND} type without IDs by returning a list of results.
+For each choice, the result lists were simply concatenated.
 For choices with IDs, however, this is not sufficient.
-We begin by transforming the program into a program that returns a tree data type which mirrors the non-determinism structure.
-\todo{Keep tree structure?}
+We begin by transforming the program into a program that returns a tree data type.
+\hinl{Tree} has the same structure as \hinl{ND} and is only used as an abstraction layer that allows us to define, for example, different search strategies independently from the non-determinism handler.
  
 \begin{minted}{Haskell}
 runND :: (Functor sig) => Prog (ND :+: sig) a -> Prog sig (Tree.Tree a)
@@ -1306,8 +1327,8 @@ runND (Other op) = Op (fmap runND op)
 \end{minted}
 
 Next, we need to memorize the decisions that were made while traversing the choice tree.
-For this reason, we define a data type \hinl{Decision} that indicates whether the left or right branch of a choice has been picked before for a particular choice ID.
-A \hinl{Memo} is maps IDs to decisions.
+For this reason, we define a data type \hinl{Decision} that indicates whether the left or right branch of a choice has been picked for a particular choice ID.
+A \hinl{Memo} maps IDs to decisions.
 
 \begin{minted}{Haskell}
 data Decision = L | R
@@ -1315,11 +1336,11 @@ type Memo = Map.Map ID Decision
 \end{minted}
 
 The depth-first traversal of the choice tree is implemented in the function \hinl{dfs}.
-The returned list of results is created similar to the approach in \hinl{evalNDOne}, except for the case where a choice has a non-empty ID.
-The ID could have appeared in a choice that is closer to the root node of the tree and thus, the choice could have already been decided.
+The returned list of results is created similar to the approach in \hinl{evalCF}, except for the case where a choice has a non-empty ID.
+The ID could have appeared before in a choice that is closer to the root node of the tree and thus, the choice could have already been decided.
 Therefore, we need to look up the ID in the \hinl{Memo}.
 If the choice has not been made yet, that is, \hinl{Nothing} is returned, the \hinl{Memo} is updated with \hinl{L} for the left branch and \hinl{R} for the right branch.
-The recursive calls then descend into the corresponding branch and will make the same decision for this ID if it occurs again.
+The recursive calls then descend into the corresponding branch and make the same decision for this ID, if it occurs again.
 If, on the other hand, a decision is returned by the \hinl{lookup} function, the branch of the recursive call is chosen according to the decision.
 
 \begin{minted}{Haskell}
@@ -1351,7 +1372,7 @@ data State s p = Get' -- ?
                | Put' -- ?
 \end{minted}
 
-Both constructors have an effect on a program, that is, a scope in which the effects are visible.
+Both constructors have an effect on the program, that is, a scope in which the effects are visible.
 Thus, both constructors need a program argument \hinl{p}.
 For \hinl{Put'}, we can simply add the arguments \hinl{s} for the new state and \hinl{p} for the program in which the new state is set.
 The constructor \hinl{Get'}, however, contains the program in a different form, namely a function \hinl{s -> p}.
@@ -1418,12 +1439,12 @@ put 42 >>= \_ -> get >>= \i -> return (i * 2)
 = inject $ Put' 42 (inject $ (Get' (\i -> return (i * 2))))
 \end{minted}
 
-\hinl{Op} as well as \hinl{Inl} and \hinl{Inr} constructors are replaced by \hinl{inject} in this example.
+\hinl{Op}, as well as \hinl{Inl} and \hinl{Inr} constructors, are replaced by \hinl{inject} in this example.
 The expression is transformed by applying the definitions of bind and \hinl{fmap}.
 In the last step, we simplify the expression by applying the left identity monad law, that is, \hinl{(>>= f) . return = f}.
 
 We can now see that the remaining program after \hinl{get}, that is, the \hinl{return} call, has been moved into the argument function of \hinl{Get'}.
-The function expects a state and replaces the variables, that were bound to the return value of \hinl{get} in the original program, with the state.
+The function expects a state and replaces the variables -- which were bound to the return value of \hinl{get} in the original program -- with the state.
 
 Now that we have seen the definition of stateful program syntax and how the state flows through the program via functions, we can define the handler for the state effect.
 Naturally, the handler needs to keep track of the current state, which is the first argument of the function.
@@ -1431,16 +1452,17 @@ Then, the function expects a program that contains state syntax.
 Finally, the return type is a program that returns a pair of the current state and a return value.
 
 \begin{minted}{Haskell}
-runState :: Functor sig => s -> Prog (State s :+: sig) a -> Prog sig (s, a)
+runState :: Functor sig 
+         => s -> Prog (State s :+: sig) a -> Prog sig (s, a)
 runState s (Return a) = return (s, a)
 runState s (Get    k) = runState s (k s)
 runState s (Put s' k) = runState s' k
 runState s (Other op) = Op (fmap (runState s) op)
 \end{minted}
 
-For pure values, the current state and the value inside the \hinl{Return} constructor is returned.
-When a \hinl{Get} is encountered, we apply the function argument, which expects a state, to the current state and do a recursive call with the resulting program.
-\hinl{Put} is handled by a recursive call where the old state is replaced by the new state while the program stays the same.
+For a pure value, the current state and the value inside the \hinl{Return} constructor is returned.
+When a \hinl{Get} constructor is encountered, we apply the function argument, which expects a state, to the current state and do a recursive call with the resulting program.
+\hinl{Put} is handled by a recursive call where the old state is replaced by the new state, while the program stays the same.
 Finally, other syntax is handled by using \hinl{fmap} to distribute the handler deeper into the term structure, similar to the other handlers we have seen.
 
 The example program \hinl{p} can now be handled by first calling the handler \hinl{runState} to handle the state effect, followed by \hinl{run} to extract the result from the program structure.
@@ -1527,21 +1549,19 @@ In the following, the result of evaluating each handler chain is presented as a 
 \vspace{0.32cm}
 
 As the name suggests, \hinl{treeGlobal}, that is, handling non-determinism first and state second, evaluates the program with a global state, where each non-deterministic branch shares the same state.
+Thus, the single state result is \hinl{4} because there are four values in the choice tree.
 Contrary to that, \hinl{treeLocal} creates an individual state for every non-deterministic branch by handling state syntax first.
-While the results are not influenced by the order of handlers in this case, this is not generally the case.
+Since each branch can only have one result, each branch has \hinl{1} as its final state.
+
+While the values at the leaves of the tree are not influenced by the order of handlers in this case, this is not generally the case.
 
 \section{Implementing Scoped Effects}
 \label{sec:sharing}
-\begin{itemize}
-\item How can we implement simple sharing as an effect?
-\item What about deep/nested sharing?
-\item Examples (exRecList, ...)
-\end{itemize}
 
 Although Haskell offers sharing as part of the language, we have seen in \autoref{sec:sharingComputations} that the built-in sharing mechanism does not always work as intended when combined with lifted data types.
 Thus, we need to model sharing as an effect using the tools that were presented in the previous section.
 There is, however, a difference between sharing and the other effects we have seen so far.
-Sharing is not an independent effect since it affects non-deterministic choices.
+Sharing is not an independent effect, since it affects non-deterministic choices.
 This means that, depending on the presence of sharing, some choice branches may not be explored.
 Therefore, sharing is a \textit{scoped} effect, that is, only a delimited part of the program is affected by the effect.
 
@@ -1550,16 +1570,16 @@ Firstly, syntax for explicitly marking the begin and end of a scope can be defin
 This leads to a more complicated handler because the begin and end tags can be mismatched in the program and one needs to keep track of the current scope environment.
 The second approach uses higher-order syntax, that is, the signature of a program is not just a functor but a function that takes a functor as an argument.
 This approach makes it possible to have the scoped program as an argument of the syntax constructor.
-In the following, an overview of a  -- initially promising but ultimately incorrect  -- hybrid approach and both options mentioned before is given.
+In the following, an overview of an  -- initially promising but ultimately incorrect  -- hybrid approach and both options mentioned before is given.
 
 \subsection{Hybrid Implementation}
 
 The idea of the hybrid implementation is a combination of the explicit scoping infrastructure and direct program arguments in the syntax definition that the higher-order implementation uses.
-In theory, this has the benefit of simple handlers and scoping via program arguments instead of explicit tags.
+At first glance, this has the benefit of simple handlers and scoping via program arguments instead of explicit tags.
 Therefore, it seemed worthwhile to explore this approach instead of following one of the options mentioned in the introduction of the section.
 
 Beginning with the definition of the sharing syntax data type, we follow the idea of the higher-order approach and define a single constructor \hinl{Share'} with a program argument that represents the shared program.
-Although \hinl{p} is supposed to be only the shared program, the monadic bind structure moves the program that follows the \hinl{Share'} constructor into the argument \hinl{p}
+Although \hinl{p} is supposed to be only the shared program, the monadic bind structure moves the program that follows the \hinl{Share'} constructor into the argument \hinl{p}.
 The same happened in \autoref{subsec:effectHandlers} for the program argument of the state effect constructor \hinl{put}.
 
 \begin{minted}{Haskell}
@@ -1575,14 +1595,17 @@ For the first implementation of \hinl{share}, this outer program layer is empty 
 
 In order to create an example that showcases the usage of \hinl{share} and the monadic structure, we need a few definitions.
 First, we define a non-deterministic coin that returns either \hinl{0} or \hinl{1} and a lifted addition function for programs that return integer results.
-Since \hinl{(+)} is a strict function in Haskell and Curry, we can mirror this behavior by binding both program arguments and then adding the results.
+Since \hinl{(+)} is a strict function in Haskell and Curry, we can mirror this behaviour by binding both program arguments and then adding the results.
 
 \begin{minted}{Haskell}
 coin :: (ND :<: sig) => Prog sig Int
 coin = choice (return 0) (return 1)
 
 addM :: (Functor sig) => Prog sig Int -> Prog sig Int -> Prog sig Int
-addM p q = p >>= \i -> q >>= \j -> return (i + j)
+addM p q = do
+  i <- p 
+  j <- q 
+  return (i + j)
 \end{minted}
 
 With these functions defined, we can now use the \hinl{share} operator to add a shared coin to an unshared coin, twice, as shown in the following example.
@@ -1599,12 +1622,12 @@ exAddSharedCoinTwice = share coin >>= \fx -> addM (addM fx coin)
 \begin{minipage}{.4 \linewidth}
 \begin{minted}[escapeinside=||, fontsize=\footnotesize]{Haskell}
 < ?|$_\texttt{1}$|
-  ├── ?|$_\texttt{2}$|
+  ├── ?|$_\texttt{\textcolor{red}{2}}$|
   │   ├── < ?|$_\texttt{1}$|
-  │   │     ├── ?|$_\texttt{2}$|
+  │   │     ├── ?|$_\texttt{\textcolor{red}{2}}$|
   │   │     │   ├── 0 > >
   │   │     │   └── 1 > >
-  .   .     └── ?|$_\texttt{2}$|
+  .   .     └── ?|$_\texttt{\textcolor{red}{2}}$|
   .   .         ├── 1 > >
   .   .         └── 2 > >
 \end{minted}
@@ -1627,16 +1650,14 @@ Hybrid implementation
   .     .           ├── 1
   .     .           └── 2
 \end{minted}
-\begin{center}
 Explicit scoping tags
-\end{center}
 \end{minipage}
 
 \vspace{0.32cm}
 
 The left-hand side tree is generated using the data type \hinl{Share} with a single constructor, while the right-hand side visualizes a data type with two constructors that explicitly delimit the scope.
 Subscript numbers represent the ID of a choice.
-Although this information is added by a sharing handler we have not defined yet, choice IDs are important in order to understand the consequences of the data type definitions for the sharing effect.
+Although this information is added by a sharing handler, whose functionality has not been discussed yet, the choice IDs are important in order to understand the consequences of the data type definitions for the sharing effect.
 
 Choice IDs are assigned inside a sharing scope.
 When a sharing scope is duplicated due to the monadic structure, the choices inside get the same IDs.
@@ -1653,18 +1674,18 @@ Indeed, the implementation with explicit \hinl{begin} and \hinl{end} tags closes
 The hybrid implementation, however, cannot stop assigning IDs to choices and thus assigns \hinl{2} to the choice.
 
 In the hybrid implementation, when a new scope is opened, the current scope is overwritten.
-For this example, this means that the next choice is labeled with \hinl{1} again, since each scope is associated with an initial state that is copied, too, when the sharing scope is duplicated.
+For this example, this means that the next choice is labelled with \hinl{1} again, since each scope is associated with an initial state that is copied, too, when the sharing scope is duplicated.
 Because there is only one sharing scope in the original program, all occurring scopes are duplicates that were created due to non-determinism.
-It is critical that copied sharing scopes behave identical because this ensures that the choices inside the scopes are named the same way, resulting in correct call-time choice behavior.
+It is critical that duplicated sharing scopes behave identical because this ensures that the choices inside the scopes are named the same way, resulting in correct call-time choice behaviour.
 In the example, however, this leads to a fatal flaw.
 Until now, assigning the ID \hinl{2} to the unshared choice below the root choice was unnecessary but not incorrect.
 As a consequence of the second sharing scope behaving identical to the first one, the second unshared choice also receives the ID \hinl{2}.
-Since we now have two equal IDs within a branch, this means that the second choice with the ID \hinl{2} is linked to the decision of the first choice with the ID \hinl{ID}, that is, the first unshared \hinl{coin} is linked to the second one.
+Since we now have two equal IDs within a branch, this means that the second choice with the ID \hinl{2} is linked to the decision of the first choice with the ID \hinl{2}, that is, the first unshared \hinl{coin} is linked to the second one.
 
 This was not intended in the original program and proves that the hybrid approach is unsuitable for modelling scoped effects and, consequently, sharing.
 Interestingly, this approach promisingly passed all example tests and algorithms in both Haskell and Coq.
 The flaw was only found while doing the finishing touches on the ID generation algorithm.
-This shows that the hybrid approach is not incorrect in its entirety but merely requires some refinement, as shown in the next subsection.
+This shows that the hybrid approach is not incorrect in its entirety, but merely requires different infrastructure, as shown in the next subsection.
 
 \subsection{Higher-Order Scope Syntax}
 \label{subsec:HOscopesyntax}
@@ -1692,12 +1713,12 @@ Applying \hinl{m} to \hinl{a} corresponds to the argument \hinl{p} we have seen 
 One advantage of splitting \hinl{p} is that it is now possible to apply \hinl{m} to different types, whereas we were limited to \hinl{p} before.
 \citet{wu2014effect} demonstrate that this can be useful, for example, when defining exceptions with \hinl{throw} and \hinl{catch} syntax.
 Syntax for \hinl{catch} usually consists of a program where exceptions may occur, a handler for said exceptions and the remaining program.
-This structure is very similar to the sharing effect since we would also like to pass the shared program as an argument to the sharing syntax.
-However, this was not possible with functor-based program type, as we have seen in the previous subsection.
-With higher-order programs, however, we can represent the shared program as an argument of type \hinl{m x} where \hinl{m} represents \hinl{Prog sig} and \hinl{x} the return value of the program.
-The remaining program is a continuation function \hinl{x -> m a}that takes the result of the shared program and substitutes the results of all matching calls of \hinl{share}, similar to how the current state is propagated in the program for the state effect.
+This structure is very similar to the sharing effect, since we would also like to pass the shared program as an argument to the sharing syntax.
+However, this was not possible with the functor-based program type, as we have seen in the previous subsection.
+With higher-order programs, however, we can represent the shared program as an argument of type \hinl{m x} where \hinl{m} represents \hinl{Prog sig} and \hinl{x} is the return value of the program.
+The remaining program is a continuation function \hinl{x -> m a} that takes the result of the shared program and substitutes the results of all matching calls of \hinl{share}, similar to how the current state is propagated in the program for the state effect.
 
-The purpose of {forall x} lies in adding an independent type variable using the language extension \hinl{ExistentialQuantification}.
+The purpose of \hinl{forall x} lies in adding an independent type variable using the language extension \hinl{ExistentialQuantification}.
 In this case, independence means that the variable does not occur on the left-hand side of the definition and thus can be different for two values of the same type.
 For example, the following data type has a regular type variable and one introduced by \hinl{forall}.
 
@@ -1709,10 +1730,11 @@ instance Functor Test where
 \end{minted}
 
 With this definition, \hinl{[Test 42 True, Test () False]} is a valid expression of type \hinl{Test Bool}.
-When we define a functor instance for \hinl{Test}, the argument \hinl{x} remains unmodified while \hinl{f} is applied to \hinl{a}.
+When we define a functor instance for \hinl{Test}, the argument \hinl{x} remains unmodified, while \hinl{f} turns values of type \hinl{a} into \hinl{b}.
 Although in a different form, this applies to the sharing data type as well.
-The call of \hinl{fmap}, or rather the higher-order equivalent \hinl{emap}, in the definition of bind is responsible for building the program structure and thus, appends the remaining program to the shared program in the case of the definition we used for the hybrid implementation.
-Since \hinl{emap} transforms a value of type \hinl{Share m a} into a \hinl{Share m b}, there is no way to leave one program argument (the shared program) unmodified while applying a function to the other.
+The call of \hinl{fmap}, or rather the higher-order equivalent \hinl{emap}, in the definition of bind is responsible for building the program structure.
+Thus, \hinl{fmap} appends the remaining program to the shared program, for example in the sharing data type we used for the hybrid implementation.
+Since \hinl{fmap} transforms a value of type \hinl{Share m a} into a \hinl{Share m b}, there is no way to leave one program argument (the shared program) unmodified while applying the function to the other.
 For this reason, the additional, independent type variable \hinl{x} is necessary in the definition of the sharing effect data type.
 
 One disadvantage of the higher-order approach is the more complicated infrastructure and effect handlers.
@@ -1724,7 +1746,7 @@ Therefore, we will pursue the explicit scoping syntax approach for the remainder
 \label{subsec:explicit}
 The previous subsections have demonstrated that program arguments do not correctly model scopes unless we use higher-order infrastructure.
 Thus, an alternative approach is needed.
-A well known syntactical structure for delimiting scopes are explicit scope tags in the form of \hinl{begin} and \hinl{end} or brackets.
+A well known syntactical structure for delimiting scopes are explicit scope tags in the form of \hinl{begin} and \hinl{end}.
 Following this idea, we split the sharing syntax into two parts.
 One constructor marks the beginning of the scope, while the other marks the ending of the scope.
 
@@ -1733,7 +1755,7 @@ data Share p = BShare' p | EShare' p
 \end{minted}
 
 Both constructor have programs arguments.
-\hinl{BShare'}s argument program contains the scoped program block followed by an \hinl{Eshare'} with the remaining program as an argument.
+\hinl{BShare'}s argument program contains the scoped program block, followed by an \hinl{Eshare'} with the remaining program as an argument.
 Similar to the state effect, our smart constructors use \hinl{return ()} as an initial program that is replaced by the actual program when the bind structure is evaluated.
 
 \begin{minted}{Haskell}
@@ -1859,7 +1881,7 @@ Again, we have two options.
 The state could be implemented on the level of the \textit{modelling} language or the \textit{modelled} language.
 The former would mean that all programs would need to be defined within the state monad, which is conceptually similar to the approach of user-defined IDs that are put into the program from the outside.
 
-The latter approach uses the state effect on the \hinl{Prog} level, which was discussed in \autoref{subsec:effectHandlers}.
+The latter approach uses the state effect, which was discussed in \autoref{subsec:effectHandlers},  on the \hinl{Prog} level.
 This means that \hinl{share} itself becomes a complex program instead of a simple smart constructor.
 In this case, the ID is generated within the program.
 
@@ -1905,6 +1927,7 @@ do fx <- return $ do
 Due to the left identity law for bind, \hinl{fx <- return $ ...} acts like a \hinl{let} binding where \hinl{fx} is bound to the program that follows \hinl{return}.
 This results in the state code being duplicated in the addition.
 Unfortunately, this is not the desired behavior, as the following visualization shows.
+Scope IDs are written next to the angled bracket that indicates whether the scope is opened or closed.
 
 \begin{minted}[escapeinside=||]{Haskell}
 <0 ? 
@@ -1916,14 +1939,16 @@ Unfortunately, this is not the desired behavior, as the following visualization 
              └── 1> 2
 \end{minted}
 
-When the state is initialized with \hinl{0}, the first scope receives the ID \hinl{0} and increments the state to \hinl{1} when the state code within the first occurrence of \hinl{fx} is executed.
+When the state is initialized with \hinl{0}, the first scope receives the ID \hinl{0} and then increments the state to \hinl{1} as part of the state code within the first occurrence of \hinl{fx}.
 Then, the second \hinl{fx} is evaluated and the same happens again.
 Thus, the ID of the following scope is \hinl{1} for both branches\footnote{In this example, the state handler runs before the non-determinism handler and thus, choice branches have a local state.}.
 Since the idea of the added state is to link scopes together, so that duplicated scopes receive the same ID, this approach has failed.
-Luckily, just a small modification is needed to fix the problem.
+Fortunately, just a small modification is needed to fix the problem.
+
 The problem of the current \hinl{share} implementation is that one part of the program -- the state code -- needs to be executed immediately, while the other part -- the shared program -- should only be evaluated if needed.
 In the current implementation of \hinl{share}, there is an empty, outer program layer that is evaluated by bind when using \hinl{share}.
 The reason for the nested program structure now becomes clear: The outer program layer contains the state code that is executed once when bind evaluates \hinl{share}.
+The inner program layer, on the other hand, contains the delimited, shared program that is only evaluated if needed.
 
 \begin{minted}{Haskell}
 do fx <- do -- state code is executed
@@ -1937,9 +1962,9 @@ do fx <- do -- state code is executed
    addM fx fx
 \end{minted}
 
-Consequently, all occurrences of the state, that is, the scope IDs, are defined before the shared program is evaluated.
+Consequently, the scope IDs are determined before the shared program is evaluated.
 Thus, it does not matter if or where in the program the result of \hinl{share} is evaluated.
-This is also reflected in the visualization of the example \hinl{addSharedCoin}.
+This is also reflected in the visualization of the example \hinl{addSharedCoin} when executed with the adapted definition of \hinl{share}.
 
 \begin{minted}{Haskell}
 <0 ? 
@@ -1951,17 +1976,15 @@ This is also reflected in the visualization of the example \hinl{addSharedCoin}.
              └── 0> 2
 \end{minted}
 
-\subsection{Sharing Infrastructure}
-
 \subsection{Nested Sharing}
 With the current definition of the \hinl{share} operator, simple sharing examples are modelled correctly.
 However, there are more complex scenarios that have not been considered yet.
-For example, calls of \hinl{share} within a shared expression, that is, nested sharing, leads to incorrect behavior.
-We consider the following example of adding the shared result of the addition of a shared coin.
+For example, calls of \hinl{share} within a shared expression, that is, nested sharing, leads to incorrect behaviour.
+We consider the following example of sharing and then adding the result of the addition of a shared coin.
 
 \begin{minted}{Haskell}
 exAddSharedCoinNested :: Prog (Share :+: ND) Int
-exAddSharedCoinNested = share (share coini >>= \fx -> addM fx fx) >>= 
+exAddSharedCoinNested = share (share coin >>= \fx -> addM fx fx) >>= 
                           \fy -> addM fy fy
 \end{minted}
 
@@ -1977,16 +2000,16 @@ Whereas the outer sharing scope correctly receives the ID \hinl{0} for both occu
       .         .               .         └── 2> 0> 1
 \end{minted}
 
-The scope with ID \hinl{0} originate from the outer call of \hinl{share}, while the inner scopes correspond to the nested call.
+The scope with ID \hinl{0} originates from the outer call of \hinl{share}, while the inner scopes correspond to the nested call.
 Both scopes with the ID \hinl{0} should behave identically, including the nested scopes.
 However, in the current implementation this is not the case.
-When \hinl{fy} is evaluated for the first time, the inner call to \hinl{share} receives the ID \hinl{1}, since state was incremented by the first call.
+When \hinl{fy} is evaluated for the first time, the inner call to \hinl{share} receives the ID \hinl{1}, since the state was incremented by the first call.
 The following scope with ID \hinl{0} is not affected by this because its ID was assigned together with the first scope.
 The second nested scope is not linked to the first one, however, because the state code of both scopes is executed separately.
 Thus, the increment operation from running the first nested \hinl{share} affects the second one and the ID \hinl{2} is assigned, although it should have been \hinl{1}.
 
 The problem is this example is therefore that the nested \hinl{share} calls are duplicated but the state is not.
-To solve this problem, we can add \hinl{put} to the program before \hinl{x <- p}, so that  nested calls of \hinl{share} in \hinl{p} behave identical if the scope program is duplicated.
+To solve this problem, we can add \hinl{put} syntax to the program before \hinl{x <- p}, so that  nested calls of \hinl{share} in \hinl{p} behave identical if the scoped program is duplicated.
 
 \begin{minted}{Haskell}
 share :: (Share :<: sig, State Int :<: sig) 
@@ -2025,7 +2048,7 @@ exAddSharedCoin4 =
   \fy -> share coin >>= \fz -> addM fy fz
 \end{minted}
 
-The tree shows the scope \hinl{1} wrapped around the duplicated, nested \hinl{share} scopes with ID \hinl{2}.
+The tree shows scope \hinl{1} wrapped around the duplicated, nested \hinl{share} scopes with ID \hinl{2}.
 After that, another scope with ID \hinl{2} follows, although this scope belongs to the shared coin \hinl{fz}.
 
 \begin{minted}{Haskell}
@@ -2037,8 +2060,8 @@ After that, another scope with ID \hinl{2} follows, although this scope belongs 
 \end{minted}
 
 This clash occurred because nested sharing and repeated sharing have the same namespace when \hinl{put (i + 1)} is used to set the scope state.
-In order to make the namespaces unique, one option is to have \hinl{put (i * 2)} in the outer program layer and \hinl{put (i * 2 + 1)} for the inner program layer.
-In the adapted syntax tree we can now see that the nested calls have the ID \hinl{2 * 1 + 1 = 3}, while the repeated call received the ID \hinl{2 * 1 = 2}.
+In order to make the namespaces unique, one option is to set the state to \hinl{(i * 2)} in the outer program layer and \hinl{(i * 2 + 1)} for the inner program layer.
+In the adapted syntax tree, we can now see that the nested calls have the ID \hinl{2 * 1 + 1 = 3}, while the repeated call received the ID \hinl{2 * 1 = 2}.
 Most importantly, the IDs of the nested scopes and the last scope are different now.
 
 \begin{minted}{Haskell}
@@ -2088,8 +2111,7 @@ For example, we consider the following transformation of a non-deterministic lis
 Beginning with a list that contains non-deterministic elements, we can move choices from the components to the root of the expression.
 In the end, only lists without effectful arguments remain.
 The same concept can be transferred to our model.
-Before running any handlers, effects need to be moved outside of the components, which is called normal form.
-\todo{normal form strictness?}
+Before running any handlers, effects need to be moved outside of the components, which is called normalization.
 This concept is formalized in the following type class.
 
 \begin{minted}{Haskell}
@@ -2139,13 +2161,13 @@ At the moment, complex data types like lists can only be shared wholly.
 This means that expressions like \hinl{let xs = [0?1] in xs ++ xs} correctly yield \hinl{[0,0]} and \hinl{[1,1]}, but \hinl{let xs = [0?1] in head xs + head xs} is evaluated to all four possible results instead of only \hinl{0} and \hinl{2}, as shown below.
 
 \begin{minted}{Haskell}
-<(1,1) (1,1)> ? 
-              ├── <(1,1) (1,1)> ? 
-              │                 ├── 0
-              │                 └── 1
-              └── <(1,1) (1,1)> ? 
-                                ├── 1
-                                └── 2
+<1 1> ? 
+      ├── <1 1> ? 
+      │         ├── 0
+      │         └── 1
+      └── <1 1> ? 
+                ├── 1
+                └── 2
 \end{minted}
 
 The sharing scopes are opened correctly but close immediately without including the choices.
@@ -2175,9 +2197,8 @@ class Shareable m a where
             -> a -> n a
 \end{minted}
 
-Although \hinl{shareArgs} is parameterized over a function that generalizes the type of the sharing operator, it is used only with \hinl{share} in this model.
+Although \hinl{shareArgs} is parametrized over a function that generalizes the type of the sharing operator, it is used only with \hinl{share} in this model.
 Similar to \hinl{share}, the function \hinl{shareArgs} adds a monad layer to its input.
-\todo{Why?}
 
 When it comes to instances for types like lifted lists, the implementation is straight-forward.
 The empty list does not need to be shared.
@@ -2195,11 +2216,12 @@ instance (Shareable m a) => Shareable m (List m a) where
 
 With the implementation of deep sharing by means of \hinl{shareArgs}, we can finally define a sharing operator that covers nested choices, repeated sharing, nested sharing and deep sharing.
 
-Nested choices, that is, multiple choices within one sharing scope, is implemented as part of the handler, which is discussed in the next section.
+Nested choices, that is, multiple choices within one sharing scope, are implemented as part of the handler, which is discussed in the next section.
 
-Repeated sharing required adding an ID and state code to distinguish different scopes.
+Repeated sharing requires adding an ID and state code to distinguish different scopes.
 IDs are also required to link duplicated sharing scopes, so that they behave identically.
-Nested sharing required adding a \hinl{put} statement to the sharing scope, so that nested calls of \hinl{share} have a defined state to work with.
+
+Nested sharing requires adding a \hinl{put} statement to the sharing scope, so that nested calls of \hinl{share} have a defined state to work with.
 In addition, it became clear that the namespace that supplies IDs for nested sharing needs to be distinct from the supply for repeated sharing, since the same IDs can otherwise be assigned unintentionally.
 
 Lastly, we added deep sharing by defining type classes for normalization and sharing of components.
@@ -2222,7 +2244,7 @@ instance (Share <: sig, State (Int, Int) <: sig, ND <: sig)
       return x'
 \end{minted}
 
-The ID supply is implemented using a state with two components which are incremented depending on the program layer.
+The ID supply is implemented using a state with two components, which are incremented depending on the program layer.
 The outer layer, which is responsible for repeated sharing, increments the first component, while the second component is incremented in the inner program layer, which affects nested sharing.
 
 We can observe the effect of \hinl{shareArgs} in the same example as before.
@@ -2263,7 +2285,7 @@ runShare (Other op)   = Op (fmap runShare op)
 
 Beginning with the top-level handler, there is not much of a difference to the first implementation of the handler in \autoref{subsec:explicit}.
 Although the structure is the same, the function \hinl{nameChoices} that handles the program inside the scope now has an additional argument of type \hinl{[Scope]}.
-A scope is a triple of integers where the first two digits represent the ID of a scope and the last digit is a counter.
+A scope is a triple of integers where the first two values represent the ID of a scope and the last one is a counter.
 The function \hinl{trip} is a smart constructor for constructing triples from an ID and an initial counter value.
 
 When a program inside a scope should be handled, the function \hinl{nameChoices} takes over.
@@ -2288,8 +2310,8 @@ nameChoices scopes@(i@(l,r,next):scps) prog =
 
 The ID of a scope is not enough to assign an ID to a choice because multiple choices can occur within the same scope.
 Thus, each scope has a counter that is incremented with the function \hinl{inc} when a choice has been assigned an ID, so that the next choice will receive an different ID.
-When a scope inside a scope is found, \hinl{nameChoices} continues handling the program but the ID the of the scope is added to the environment.
-Ending a scope is performed by the function \hinl{checkScopes} that is passed the ID of the ending tag, the scope environment and the remaining program.
+When a scope inside a scope is found, \hinl{nameChoices} continues handling the program but the ID of the scope is added to the environment.
+Ending a scope is performed by the function \hinl{checkScopes}, that is passed the ID of the ending tag, the scope environment and the remaining program.
 
 \begin{minted}{Haskell}
 checkScope :: (ND :<: sig)
@@ -2317,7 +2339,7 @@ If the tags do not match, this is an error.
 Thirdly, the environment can contain more than one open scopes.
 Similar to the previous case, the tag IDs are compared.
 This time, matching tags means that we are still inside a scope.
-The current scope is left by removing the head element of \hinl{scopes} and \hinl{nameChoices} handles the remaining program.
+The current scope is left by removing the head element of \hinl{scopes}, followed by a call of \hinl{nameChoices} to handle the remaining program.
 Here it becomes clear why we need to memorize a counter for each scope: When a nested scope interrupts handling the current scope, we must not begin counting from some initial value again after the nested scope is handled.
 Otherwise, the first choice of the scope and the first choice after the nested scope would receive the same ID.
 
@@ -2360,7 +2382,7 @@ Compared to 0.69 seconds for sorting a list of nine elements using the list mona
 \end{minted}
 
 However, there is one case where the explicit-sharing implementation is much faster.
-When the \hinl{isSorted} predicate is replaced by a constant function that returns \hinl{False}, lists of any length are "sorted" in constant time, while the list monad implementation still generates all permutations of the input list.
+When the \hinl{isSorted} predicate is replaced by a constant function that returns \hinl{False}, lists of any length are 'sorted' in constant time, while the list monad implementation still generates all permutations of the input list.
 Thus, the explicit-sharing implementation models non-strictness correctly.
 Since the resulting lists are indeed sorted, the issue of incoherent sharing mentioned in \autoref{sec:sharingComputations} does not affect this implementation, either.
 The higher-order implementation is faster than the implementation with explicit scoping tags, presumably because less pattern matching is occurring due to the single sharing constructor, but sorting a list of nine elements still takes just over two minutes.
@@ -2391,6 +2413,7 @@ This leads to one reason for the lacking performance of the implementation, whic
 runShare (BShare _ (EShare _ p)) = trace "empty scope" (runShare p)
 \end{minted}
 
+The added pattern only matches scopes where the \hinl{end} tag immediately follows the \hinl{begin} tag, that is, the scope is empty and has no effect.
 While computing the permutations of a four-element list, the output \hinl{empty scope} appears 32,010 times, while only 111 choices are assigned an ID.
 One big issue of the implementation is the creation of empty sharing scopes by \hinl{shareArgs}.
 Since deep sharing is not demand-driven, a lot of sharing scopes are created preemptively.
