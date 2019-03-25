@@ -82,6 +82,7 @@ data NDProg a = Return a
               | Fail
               | Choice (NDProg a) (NDProg a)
 \end{minted}
+\item \mintinline{haskell}{Prog} ist eine Monade
 \end{itemize}
 \end{frame}
 
@@ -133,7 +134,7 @@ True
 \end{minted}
 \pause
 \begin{minted}{haskell}
-λ> putStrLn . pretty . runND $ addM coin coin
+λ> putStrLn . pretty $ addM coin coin
 ?
 |---- ?
       |---- 0
@@ -165,7 +166,6 @@ Prelude> let x = 0 ? 1 in x + x
 \end{itemize}
 \MVRightArrow{} Sharing-Effekt vergibt \alert{IDs} für Choices
 \end{frame}
-
 
 \begin{frame}[fragile]{Sharing als Effekt mit Scope}
 \begin{minted}{haskell}
