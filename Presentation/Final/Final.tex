@@ -82,7 +82,7 @@ data NDProg a = Return a
               | Fail
               | Choice (NDProg a) (NDProg a)
 \end{minted}
-\item \mintinline{haskell}{Prog} ist eine \alert{Monade}
+\item \mintinline{haskell}{Prog F} ist eine \alert{Monade}, wenn \mintinline{haskell}{F} ein \alert{Funktor} ist
 \end{itemize}
 \end{frame}
 
