@@ -120,28 +120,32 @@ orM p1 p2 = p1 >>= \b -> case b of
 \end{minted}
 \MVRightArrow{} Pattern Matching erfordert Bind
 \end{frame}
-
 \begin{frame}[fragile]{Beispielausdrücke}
 \begin{minted}{haskell}
 λ> run $ addM (return 42) undefined
 *** Exception: Prelude.undefined
-
+\end{minted}
+\begin{minted}{haskell}
 λ> run $ orM (return True) undefined
 True
-
+\end{minted}
+\begin{minted}{haskell}
 λ> runND coin
 [0,1]
 \end{minted}
 \pause
 \begin{minted}{haskell}
 λ> putStrLn . pretty $ addM coin coin
+\end{minted}
+\vspace*{-3pt}
+\begin{minted}{text}
 ?
-|---- ?
-      |---- 0
-      |---- 1
-|---- ?
-      |---- 1
-      |---- 2
+├── ?
+│   ├── 0
+│   └── 1
+└── ?
+    ├── 1
+    └── 2
 \end{minted}
 \end{frame}
 
@@ -154,14 +158,14 @@ Prelude> let x = 0 ? 1 in x + x
 2
 \end{minted}
 \item \haskellinline{let} entspricht Sharing-Effekt
-\begin{minted}[escapeinside=<>]{haskell}
+\begin{minted}[escapeinside=<>]{text}
 ?<$_1$>
-|---- ?<$_1$>
-      |---- 0
-      |---- 1
-|---- ?<$_1$>
-      |---- 1
-      |---- 2
+├── ?<$_1$>
+│   ├── 0
+│   └── 1
+└── ?<$_1$>
+    ├── 1
+    └── 2
 \end{minted}
 \end{itemize}
 \MVRightArrow{} Sharing-Effekt vergibt \alert{IDs} für Choices
@@ -334,8 +338,13 @@ Definition PosChoice (s: ShapeChoice) : Type :=
 \end{frame}
 
 \begin{frame}[fragile]{Container Erweiterung für Choice}
-\begin{minted}[fontsize=\footnotesize]{coq}
-Definition fromChoice A (z : Choice A) : ExtChoice A :=
+\begin{minted}[fontsize=\footnotesize]{coq}     
+Instance CChoice : Container := {
+  Shape := ShapeChoice;
+  Pos   := PosChoice
+}.
+
+Definition fromChoice A (z : Choice A) : Ext CChoice A :=
   match z with
   | cfail _  => 
       ext sfail 
