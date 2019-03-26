@@ -12,7 +12,10 @@ Section Prim.
   
   Definition addM (fn1 fn2 : Prog nat) : Prog nat :=
     fn1 >>= fun n1 => fn2 >>= fun n2 => pure (n1 + n2).
-  
+
+  Definition evenM (fn : Prog nat) : Prog bool :=
+    fn >>= fun n => pure (Nat.even n).
+
   Definition orM (fn1 fn2 : Prog bool) : Prog bool :=
     fn1 >>= fun b => match b with
                   | true => pure true
@@ -29,6 +32,9 @@ Section Prim.
     {
       shareArgs := pure
     }.
+
+  Definition doubleM (fn : Prog nat) : Prog nat :=
+    Share fn >>= fun n => addM n n.
   
   Global Instance shareable__Bool : Shareable bool :=
     {

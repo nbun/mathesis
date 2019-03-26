@@ -153,12 +153,10 @@ Section Choice.
   Definition from__Choice A (z : Choice A) : Ext__Choice A :=
     match z with
     | cfail _     =>
-      let pf (p : Pos__Choice sfail) := match p with end
-      in ext sfail pf
+      ext sfail (fun p : Pos__Choice sfail => match p with end)
     | cchoice mid l r =>
       let s := schoice mid
-      in let pf (p : Pos__Choice s) := if p then l else r
-         in ext s pf
+      in ext s (fun p : Pos__Choice s => if p then l else r)
     end.
 
   Lemma to_from__Choice : forall A (ox : Choice A), to__Choice (from__Choice ox) = ox.
