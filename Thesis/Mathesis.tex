@@ -65,7 +65,7 @@
 \begin{titlepage}
 	\vspace*{3cm}
 	\centering
-	{\huge\bfseries Modelling Call-Time Choice as Effect using Scoped Free 
+	{\huge\bfseries Modeling Call-Time Choice as Effect using Scoped Free 
 	Monads\par}
 	\vspace{1cm}
 	\textbf{Niels Bunkenburg} \par 
@@ -143,10 +143,10 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 % Inhalt
 
 \chapter{Introduction}
-\todo{Definition effect}
+
 
 \chapter{Preliminaries}
-This chapter introduces the languages Curry and Coq as well as the modelling methods that are applied in the next chapters of the thesis.
+This chapter introduces the languages Curry and Coq as well as the modeling methods that are applied in the next chapters of the thesis.
 A sufficient understanding of functional programming languages like Haskell and the underlying concepts -- such as algebraic data types, polymorphism, type classes and monads -- is assumed.
 
 
@@ -439,7 +439,7 @@ Definition app A (oxs oys : option (List A)) : option (List A) :=
 These three definitions are all accepted by Coq and allow us to define recursive functions over nested inductive types.
 
 Another example of a recursive function that Coq's termination check does not accept is the Quicksort algorithm.
-Using the predefined \cinl{filter} function and boolean comparison operator \cinl{leb} as well as boolean negation, the function could look like this.
+Using the predefined \cinl{filter} function and Boolean comparison operator \cinl{leb} as well as Boolean negation, the function could look like this.
 
 \begin{minted}{Coq}
 Fail Fixpoint quicksort (xs : list nat) : list nat :=
@@ -737,9 +737,9 @@ End Map.
 When the section is left, section variables are added as parameters to the types of all definitions within the section.
 Consequently, the function \cinl{map} behaves as expected outside the section, while the definition inside the section is shorter and there are less potential obstacles for Coq's termination checker.
 
-\section{Modelling Curry Programs using Monadic Code Transformation}
+\section{Modeling Curry Programs using Monadic Code Transformation}
 
-Modelling Curry programs in a language like Haskell requires a transformation of non-deterministic code into a semantically equivalent, deterministic program.
+Modeling Curry programs in a language like Haskell requires a transformation of non-deterministic code into a semantically equivalent, deterministic program.
 First, we have a look at the direct representation of non-determinism used in the KiCS2 implementation as described by \citet{brassel2011kics2}.
 
 \subsection{KiCS2 Approach}
@@ -765,7 +765,7 @@ In the process, the decision for each choice is stored and then repeated accordi
 
 While this approach is useful when the host language supports laziness and sharing, another approach is necessary to model these effects when this is not the case.
 
-\subsection{Modelling Laziness and Sharing}
+\subsection{Modeling Laziness and Sharing}
 \label{subsec:monadicLifting}
 \citet{fischer2009purely} introduce a monadic representation of non-determinism that supports sharing and non-strict evaluation.
 Out of simplicity, the implementation idea is presented in Haskell, similar to the approach of the original authors, using the example of permutation sort.
@@ -928,15 +928,15 @@ sort' xs = do ys <- share (perm' xs)
               ys
 \end{minted}
 
-Based on this idea of an operator that allows us to explicitly express sharing, we can now begin modelling call-time choice.
+Based on this idea of an operator that allows us to explicitly express sharing, we can now begin modeling call-time choice.
 We first discuss a Haskell implementation, which is later formalized in Coq.
 
-\chapter{Call-Time Choice modelled in Haskell}
+\chapter{Call-Time Choice modeled in Haskell}
 The first model of call-time choice is implemented in Haskell due to the freedom and flexibility that Haskell's type system allows.
 Although the ultimate goal is to create the model in Coq, so that it can be formally reasoned about, Haskell is better suited when it comes to experimenting with different approaches.
 Based on the idea of an explicit sharing operator, we can now begin to model call-time choice, that is, non-strictness, sharing and non-determinism.
 
-Similar to the implementation of \citet{fischer2009purely}, we parametrise all definitions with \hinl{MonadPlus} instead of using a static monad.
+Similar to the implementation of \citet{fischer2009purely}, we parameterize all definitions with \hinl{MonadPlus} instead of using a static monad.
 This allows us, for example, to define a test suite that works with any implementation just by adapting the imported module.
 Similarly, we do not restrict the implementation to the effects that make up call-time choice.
 Instead, we define an effect functor that can express many different effects, including non-determinism and sharing.
@@ -968,7 +968,7 @@ Answering this question requires abstracting the concrete form of effect functor
 As we saw in the examples above, we need a way to represent pure values in a program.
 Therefore, the first constructor of our new program data type should be \hinl{Return a} for the type \hinl{a}, that is, the result type of the program.
 
-To model effects like non-determinism, the program type needs to be parametrised over effect functors like \hinl{ND} of type \hinl{* -> *}.
+To model effects like non-determinism, the program type needs to be parameterized over effect functors like \hinl{ND} of type \hinl{* -> *}.
 We call this argument \hinl{sig} because the signature of a program tells us which effects can occur.
 So far, programs are defined as \hinl{data Prog sig a = Return a}.
 In order do make use of the \hinl{sig} argument, we need to add a constructor for impure operations.
@@ -1026,7 +1026,7 @@ A more detailed explanation of this concept follows in the next section.
 
 The data type \hinl{Prog} is better known as the \textit{free monad}.
 One of its properties is that \hinl{Free} can turn any functor into a monad.
-This is very useful for modelling effectful programs because it allows us to combine syntax using the \hinl{do} notation.
+This is very useful for modeling effectful programs because it allows us to combine syntax using the \hinl{do} notation.
 
 \begin{minted}{Haskell}
 data Free f a = Pure a | Impure (f (Free f a))
@@ -1060,7 +1060,7 @@ Furthermore, it is not guaranteed that stacked monads yield a monad again.
 In our model, we can combine different effect functors into a new combination functor, which is then turned into a monad.
 Since this approach also allows effortlessly reordering the effect stack, \hinl{Free} is the core data structure of the effect model presented in the next section.
 
-\section{Modelling Effects}
+\section{Modeling Effects}
 In the previous sections the free monad and its ability to represent effect functors was discussed.
 The goal of this section is to explore the infrastructure that allows us to combine multiple effects, write effectful programs and compute the result of such programs.
 
@@ -1090,7 +1090,7 @@ progCF = Op (Inl (Choice (Op (Inr Fail)) (Return 42)))
 In the example \hinl{progCF} we define a program that represents the non-deterministic choice between a program that failed and a program that returns \hinl{42}.
 The complexity of nesting constructors of \hinl{Prog} and \hinl{:+:} correctly increases quickly for bigger terms.
 Therefore, we define a type class that allows us to define such expressions more conveniently.
-The class is parametrised over two functors, one of which is a subtype regarding \hinl{:+:} of the other.
+The class is parameterized over two functors, one of which is a subtype regarding \hinl{:+:} of the other.
 
 \begin{minted}{Haskell}
 class (Functor sub, Functor sup) => sub :<: sup where
@@ -1683,7 +1683,7 @@ Until now, assigning the ID \hinl{2} to the unshared choice below the root choic
 As a consequence of the second sharing scope behaving identical to the first one, the second unshared choice also receives the ID \hinl{2}.
 Since we now have two equal IDs within a branch, this means that the second choice with the ID \hinl{2} is linked to the decision of the first choice with the ID \hinl{2}, that is, the first unshared \hinl{coin} is linked to the second one.
 
-This was not intended in the original program and proves that the hybrid approach is unsuitable for modelling scoped effects and, consequently, sharing.
+This was not intended in the original program and proves that the hybrid approach is unsuitable for modeling scoped effects and, consequently, sharing.
 Interestingly, this approach promisingly passed all example tests and algorithms in both Haskell and Coq.
 The flaw was only found while doing the finishing touches on the ID generation algorithm.
 This shows that the hybrid approach is not incorrect in its entirety, but merely requires different infrastructure, as shown in the next subsection.
@@ -1806,7 +1806,7 @@ bshare (Other op) = Op (fmap bshare op)
 The case of mismatched scoping tags, that is, an \hinl{Eshare} occurring before a \hinl{BShare} has opened a scope, can be handled in Haskell with a run-time error.
 In Coq, however, this is not possible.
 We could wrap the return type of the function in \hinl{Maybe} to represent mismatched tags, but this makes proofs more cumbersome due to the added case distinction.
-A solution to this problem is discussed in the next chapter about modelling call-time choice in Coq.
+A solution to this problem is discussed in the next chapter about modeling call-time choice in Coq.
 
 The second part of the handler handles the scoped program and thus should modify choices in such a way that the program behaves as expected regarding call-time choice.
 
@@ -1879,14 +1879,14 @@ Since it is good practice to hide such implementation-specific details from the 
 
 In order to generate an ID for a sharing scope, we need a state that the ID is derived from.
 Again, we have two options.
-The state could be implemented on the level of the \textit{modelling} language or the \textit{modelled} language.
+The state could be implemented on the level of the \textit{modeling} language or the \textit{modeled} language.
 The former would mean that all programs would need to be defined within the state monad, which is conceptually similar to the approach of user-defined IDs that are put into the program from the outside.
 
 The latter approach uses the state effect, which was discussed in \autoref{subsec:effectHandlers},  on the \hinl{Prog} level.
 This means that \hinl{share} itself becomes a complex program instead of a simple smart constructor.
 In this case, the ID is generated within the program.
 
-Generally, using the \hinl{Prog} state effect is preferable because it does not require adapting the whole infrastructure to the state monad and it ties in elegantly with the theme of modelling effects.
+Generally, using the \hinl{Prog} state effect is preferable because it does not require adapting the whole infrastructure to the state monad and it ties in elegantly with the theme of modeling effects.
 
 \begin{minted}{Haskell}
 share :: (Share :<: sig, State Int :<: sig) 
@@ -1978,7 +1978,7 @@ This is also reflected in the visualization of the example \hinl{addSharedCoin} 
 \end{minted}
 
 \subsection{Nested Sharing}
-With the current definition of the \hinl{share} operator, simple sharing examples are modelled correctly.
+With the current definition of the \hinl{share} operator, simple sharing examples are modeled correctly.
 However, there are more complex scenarios that have not been considered yet.
 For example, calls of \hinl{share} within a shared expression, that is, nested sharing, leads to incorrect behaviour.
 We consider the following example of sharing and then adding the result of the addition of a shared coin.
@@ -2081,9 +2081,9 @@ This way, one component is incremented in the outer program layer and the other 
 
 \subsection{Deep Sharing}
 The implementation of \hinl{share} from the previous subsection supports nested sharing and top-level non-determinism.
-Modelling Curry's call-time choice also includes non-determinism that occurs in components of data types.
+Modeling Curry's call-time choice also includes non-determinism that occurs in components of data types.
 Therefore, when a value of a data type with non-deterministic components is shared, the individual components should be shared, too.
-Similarly to \autoref{subsec:monadicLifting}, data types need to be lifted so that effectful components can be modelled properly.
+Similarly to \autoref{subsec:monadicLifting}, data types need to be lifted so that effectful components can be modeled properly.
 Since \hinl{Prog sig} is a monad if \hinl{sig} is a functor, the same monadic transformation works here, too.
 We reconsider the following lifted list data type.
 
@@ -2198,7 +2198,7 @@ class Shareable m a where
             -> a -> n a
 \end{minted}
 
-Although \hinl{shareArgs} is parametrized over a function that generalizes the type of the sharing operator, it is used only with \hinl{share} in this model.
+Although \hinl{shareArgs} is parameterized over a function that generalizes the type of the sharing operator, it is used only with \hinl{share} in this model.
 Similar to \hinl{share}, the function \hinl{shareArgs} adds a monad layer to its input.
 
 When it comes to instances for types like lifted lists, the implementation is straight-forward.
@@ -2426,10 +2426,10 @@ In the following chapter, the current model is implemented in Coq.
 
 
 
-\chapter{Call-Time Choice modelled in Coq}
+\chapter{Call-Time Choice modeled in Coq}
 \label{ch:callTimeChoiceCoq}
 
-The goal of this chapter is to transfer the Haskell implementation of call-time choice modelled as effect to Coq.
+The goal of this chapter is to transfer the Haskell implementation of call-time choice modeled as effect to Coq.
 Before implementing a specific approach, the challenges that come with Coq's more restrictive specification language are discussed.
 We begin with the data structure \hinl{Prog}, that is, the free monad, which allows us to model programs with effects of type \hinl{sig} and results of type \hinl{a}.
 In Haskell, the data type looks as follows.
@@ -2506,7 +2506,7 @@ One approach to achieve this goal is described in the next section.
 \section{Containers}
 
 Containers, as introduced by \citet{Abbott2005containers}, are an abstraction of data types that store values, which includes functors.
-However, only strictly positive functors can be modelled as a container.
+However, only strictly positive functors can be modeled as a container.
 This allows us to define a version of \cinl{Free} that works with the corresponding containers instead of functors.
 Consequently, the strict positivity requirement is ensured by construction and Coq accepts the definition.
 In the following, we have a more detailed look at containers and how they relate to functors.
@@ -2563,8 +2563,8 @@ Class Container F :=
 
 To gain a better understanding of how functors are represented using containers, the following subsection describes the general scheme for translating a functor into an isomorphic container\footnote{As described in the container class, only the extension of a container is isomorphic to the original data type, not the container by itself. Thus, often the container extension is meant when talking about containers.}.
 
-\subsection{Modelling Functors as Containers}
-As an example of modelling a functor as a container, we consider the non-determinism effect described in \autoref{subsec:effectHandlers}.
+\subsection{Modeling Functors as Containers}
+As an example of modeling a functor as a container, we consider the non-determinism effect described in \autoref{subsec:effectHandlers}.
 The definition of the data type is simply translated from Haskell.
 
 \begin{minted}{Coq}
@@ -2747,7 +2747,7 @@ Finally, the container instance can be defined as follows.
 The isomorphism contains all necessary information about the container and its extension.
 Thus, Coq is able to infer the omitted definitions.
 
-\section{Modelling Effects}
+\section{Modeling Effects}
 
 In the previous section, a technique for representing functors as containers was presented.
 The initial motivation for this was the issue of non-strictly positive occurrence errors in the definition of \cinl{Free}.
@@ -2769,7 +2769,7 @@ Instead of writing \cinl{F (Free F A)} as the first argument of \cinl{impure}, w
 
 With the \cinl{Free} data type defined, we can begin implementing the remaining infrastructure. 
 In the Haskell implementation, various type classes and language extensions were used to make working with effects as convenient as possible.
-For the Coq implementation, the infrastructure is not implemented as generalized as before, but rather tailored to the purpose of modelling call-time choice.
+For the Coq implementation, the infrastructure is not implemented as generalized as before, but rather tailored to the purpose of modeling call-time choice.
 This means, for example, that handlers do not work with polymorphic signatures like \cinl{ND :+: sig}.
 
 \paragraph{Combining Effects}
@@ -3231,10 +3231,10 @@ This is especially important if there are \cinl{case} or \cinl{if} branches wher
 
 After this short demonstration of the call-time choice model in Coq, we want to explore an alternative to the explicit scoping tag approach in the next chapter.
 
-\section{Modelling Effects using Higher-Order Containers}
+\section{Modeling Effects using Higher-Order Containers}
 \label{sec:coqHO}
 
-The first-order approach of modelling effects shown in the previous sections allows representing scoped effects only with explicit scope delimiters.
+The first-order approach of modeling effects shown in the previous sections allows representing scoped effects only with explicit scope delimiters.
 In the last chapter, a higher-order approach was briefly discussed in \autoref{subsec:HOscopesyntax} as an alternative way to define scopes without explicit delimiters.
 Due to the more abstract definition and the function arguments in the term structure, it was not suitable for discussing the different aspects of the sharing implementation.
 However, with the prospect of avoiding mismatched scope tags being a tangible benefit, it seems worthwhile to pursue this approach in Coq.
@@ -3311,7 +3311,7 @@ Definition Pos__Sharing F (s : Shape__Sharing F) : Type :=
   let '(@ssharing _ X _ _) := s in X.
 \end{minted}
 
-This definition is isomorphic to the original data type, but it does not fit the container class, because the shape -- and consequently the position function -- need to be parametrized over the functor \hinl{m} in order to store a value of type \hinl{m x}.
+This definition is isomorphic to the original data type, but it does not fit the container class, because the shape -- and consequently the position function -- need to be parameterized over the functor \hinl{m} in order to store a value of type \hinl{m x}.
 Although the container can be adapted to allow another parameter for \cinl{Shape} and \cinl{Pos}, this approach ultimately fails when defining \cinl{Free}.
 The additional functor argument is instantiated with \cinl{Free C}, just like the regular functor argument \cinl{Ext}.
 However, this moves \cinl{Free} to a possibly non-strictly positive position and thus, is not accepted by Coq.
@@ -3340,7 +3340,7 @@ Inductive Ext (C : HContainer) (F : Type -> Type) A :=
 \end{minted}
 
 The new definition of the position function means that we no longer have to store a value of type \cinl{F X} as part of the shape.
-Therefore, the shape does not need to be parametrized over \cinl{F}.
+Therefore, the shape does not need to be parameterized over \cinl{F}.
 The type \cinl{X} is still part of the shape, nevertheless, since the sharing effect makes use of the context function, which can only return a type that is part of one of its arguments.
 
 \begin{minted}{Coq}
@@ -3372,7 +3372,7 @@ Definition Ctx__Sharing (s : Shape__Sharing) (p : Pos__Sharing s) : Type -> Type
 \end{minted}
 
 The above definition of the sharing container is isomorphic to the original data type.
-Furthermore, indexed containers do not require a parametrized shape or \cinl{Pos} function, which was the reason why the first definition of higher-order containers in \autoref{subsec-higherOrderContainers} failed.
+Furthermore, indexed containers do not require a parameterized shape or \cinl{Pos} function, which was the reason why the first definition of higher-order containers in \autoref{subsec-higherOrderContainers} failed.
 Consequently, we can use the same definition of \cinl{Free} as shown in the last subsection.
 
 Although we are now able to represent all necessary effects as containers and have a container definition that is strictly positive when used with \cinl{Free}, the higher-order implementation is still not as expressive as the first-order version.
@@ -3500,7 +3500,7 @@ In conclusion, the higher-order approach is an elegant solution to the problem o
 Although it is ultimately not possible to define recursive data type definitions with the resulting \cinl{Prog} data type, it is not clear whether there is a fundamental issue with the approach or if Coq's termination check is too restrictive in this case.
 Nevertheless, the examples that do not feature recursive data types inspire confidence that the higher-order implementation of call-time choice in Coq works correctly, just like the fully functional first-order version.
 
-\chapter{Curry Programs modelled in Coq}
+\chapter{Curry Programs modeled in Coq}
 \begin{itemize}
 \item Can we use the Coq model of call-time choice to prove properties about actual Curry programs?
 \end{itemize}
