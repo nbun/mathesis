@@ -82,7 +82,7 @@ data NDProg a = Return a
               | Fail
               | Choice (NDProg a) (NDProg a)
 \end{minted}
-\item \mintinline{haskell}{Prog} ist eine Monade
+\item \mintinline{haskell}{Prog} ist eine \alert{Monade}
 \end{itemize}
 \end{frame}
 
@@ -223,22 +223,48 @@ data Share p = BShare ID p | EShare ID p
 \begin{minted}{haskell}
 share :: Prog sig a -> Prog sig (Prog sig a)
 share p = do
-  (i, j) <- get -- State Effekt generiert ID
-  put (i + 1, j)
-\end{minted}
-\pause\vspace{-10pt}
-\begin{minted}{haskell}
+  i <- get
+  put (i + 1)
   return $ do
-    begin (i,j)
-    put (i, j + 1) -- Nested Sharing
+    begin i
     x <- p
+    end i
+    return x
 \end{minted}
-\pause\vspace{-10pt}
+\end{frame}
+
+
+\begin{frame}[fragile]{Sharing-Effekt -- Nested Sharing}
+\alert{Nested Sharing}
+
+Sharing kann beliebig tief verschachtelt auftreten
+\vfill
+Beispiel:
 \begin{minted}{haskell}
-    x' <- shareArgs share x -- Deep Sharing
-    end (i,j)
-    return x'
+let x = let y = coin
+        in y + y
+in x + x
 \end{minted}
+
+\MVRightArrow{} Verschachtelte Aufrufe von \haskellinline{share} benötigen frische IDs
+\end{frame}
+
+\begin{frame}[fragile]{Sharing-Effekt -- Deep Sharing}
+\alert{Deep Sharing}
+
+Geliftete Datentypen erlauben Effekte in den Komponenten
+
+\begin{minted}{haskell}
+data List m a = Nil | Cons (m a) (m (List m a))
+\end{minted}
+\vfill
+Beispiel:
+\begin{minted}{haskell}
+let xs = [coin]
+in (xs, xs)
+\end{minted}
+
+\MVRightArrow{} Rekursive \haskellinline{share} Aufrufe für Komponenten notwendig
 \end{frame}
 
 \begin{frame}{Coq}
@@ -307,6 +333,20 @@ Definition PosChoice (s: ShapeChoice) : Type :=
 \end{minted}
 \end{frame}
 
+\begin{frame}[fragile]{Container Erweiterung für Choice}
+\begin{minted}[fontsize=\footnotesize]{coq}
+Definition fromChoice A (z : Choice A) : ExtChoice A :=
+  match z with
+  | cfail _  => 
+      ext sfail 
+          (fun p : Void => match p with end)
+  | cchoice mid l r =>
+      ext (schoice mid) 
+          (fun p : bool => if p then l else r)
+  end.
+\end{minted}
+\end{frame}
+
 \begin{frame}[fragile]{Übersicht Coq Implementierung}
 \begin{itemize}
 \item Darstellung aller Effekte und des Kombinationsfunktors als Container
@@ -315,19 +355,6 @@ Definition PosChoice (s: ShapeChoice) : Type :=
 \item Problematisch: Handling von ungültigen \texttt{begin/end} Tags
 \end{itemize}
 \MVRightArrow{} Higher-Order Ansatz
-\end{frame}
-
-\begin{frame}[fragile]{Higher-Order Implementierung}
-\begin{minted}{haskell}
-data HShare m a = forall x. Share ID (m x) (x -> m a)
-\end{minted}
-\begin{itemize}
-\item Datentypen haben zusätzliches Argument \texttt{m}
-\item \texttt{(m a)} $\hat{=}$ \texttt{p} in bisheriger Implementierung
-\item Effekt Scope durch direkte Programmargumente
-\item Coq Implementierung: Indizierte Bi-Container
-\item Rekursive Datentypen nicht darstellbar
-\end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Zusammenfassung und Ausblick}
@@ -348,39 +375,32 @@ Ausblick
 
 \appendix
 
-
-\begin{frame}[fragile]{Sharing-Effekt -- Nested Sharing}
-\alert{Nested Sharing}
-
-Sharing kann beliebig tief verschachtelt auftreten
-\vfill
-Beispiel:
+\begin{frame}[fragile]{Higher-Order Implementierung}
 \begin{minted}{haskell}
-let x = let y = coin
-        in y + y
-in x + x
+data HShare m a = forall x. Share ID (m x) (x -> m a)
 \end{minted}
-
-\MVRightArrow{} Verschachtelte Aufrufe von \haskellinline{share} benötigen frische IDs
+\begin{itemize}
+\item Datentypen haben zusätzliches Argument \texttt{m}
+\item \texttt{(m a)} $\hat{=}$ \texttt{p} in bisheriger Implementierung
+\item Effekt Scope durch direkte Programmargumente
+\item Coq Implementierung: Indizierte Bi-Container
+\item Rekursive Datentypen nicht darstellbar
+\end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]{Sharing-Effekt -- Deep Sharing}
-\alert{Deep Sharing}
-
-Geliftete Datentypen erlauben Effekte in den Komponenten
-
+\begin{frame}[fragile]{Sharing Operator}
 \begin{minted}{haskell}
-data List m a = Nil | Cons (m a) (m (List m a))
+share :: Prog sig a -> Prog sig (Prog sig a)
+share p = do
+  (i, j) <- get
+  put (i + 1, j)
+  return $ do
+    begin (i,j)
+    put (i, j + 1)
+    x <- p
+    x' <- shareArgs share x
+    end (i,j)
+    return x'
 \end{minted}
-\vfill
-Beispiel:
-\begin{minted}{haskell}
-let xs = [coin]
-in (xs, xs)
-\end{minted}
-
-\MVRightArrow{} Rekursive \haskellinline{share} Aufrufe für Komponenten notwendig
 \end{frame}
 \end{document}
-
-
