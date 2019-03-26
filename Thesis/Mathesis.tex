@@ -131,7 +131,7 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 
 % Verzeichnisse
 \renewcommand{\contentsname}{Contents}
-\setcounter{tocdepth}{1}
+%\setcounter{tocdepth}{1}
 \tableofcontents   % Inhaltsverzeichnis
 %\listoffigures     % Abbildungsverzeichnis
 % \listoftables      % Tabellenverzeichnis
@@ -143,6 +143,34 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 % Inhalt
 
 \chapter{Introduction}
+
+Software verification is difficult.
+Each day, the amount of software that influences many aspects of our lives -- ranging from communication over socialization to transportation -- grows increasingly.
+The results of software that does not behave as intended begin with minor annoyances like a sluggishly responding website and end with catastrophic failures that cost human lives.
+
+Verification techniques like testing, static analysis and formal proofs an important part of finding programming errors and ensuring that software works as specified.
+Although there are no flight control computers running on a functional logic languages like Curry (yet), unique features like non-determinism make Curry an interesting object of software verification.
+
+Verifying the functional language Haskell in Coq, an interactive proof assistant, is an active field of research. \todo{citation needed}
+Due to its syntactic resemblance of Haskell, one might assume that Curry can be verified in Coq in a similar matter.
+However, some language aspects, that serve a purely performance-related purpose in Haskell, interact with Curry's non-determinism in a way that necessitates explicit consideration in the model.
+
+One approach of modeling a programming language in Coq is to translate definitions into equivalent Coq code whenever possible.
+Effects, that is, features of a language that surpass pure computation of values, are then modeled by means of other methods and integrated with the translated code.
+The result is a combination of native Coq code and modeled effects that, ideally, behaves identical to the original language and can be formally reasoned about.
+
+In the context of Curry, we are interested in \textit{call-time choice}, that is, the interaction between the effects non-determinism and sharing, in combination with non-strict evaluation.
+The technique chosen to represent this effect is a combination of representing syntax using the \textit{free monad} and effect handlers that describe the semantics of the effect.
+Since directly modeling Curry's call-time choice in Coq is complicated by some restrictions that Coq's proof system entails, the model is first implemented in Haskell and then transferred to Coq.
+
+\section{Goals}
+The goal of this thesis is to model Curry's call-time choice effect using free monads.
+This includes exploring how effects can be modeled in other languages, for example, how the KiCSS2 compiler represents non-determinism when compiling Curry code to Haskell or how an explicit sharing operator can be implemented.
+Based on the insights obtained in this process, we then want to extend a framework for modeling effects presented by \citet{wu2014effect} to model the call-time choice effect.
+Since call-time choice is combined from multiple effects, one of which is a \textit{scoped} effect, we want to investigate how such effects can be implemented.
+
+\section{Structure}
+
 
 
 \chapter{Preliminaries}
