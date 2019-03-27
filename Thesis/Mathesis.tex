@@ -151,9 +151,9 @@ The results of software that does not behave as intended begin with minor annoya
 Verification techniques like testing, static analysis and formal proofs an important part of finding programming errors and ensuring that software works as specified.
 Although there are no flight control computers running on a functional logic languages like Curry (yet), unique features like non-determinism make Curry an interesting object of software verification.
 
-Verifying the functional language Haskell in Coq, an interactive proof assistant, is an active field of research. \todo{citation needed}
+Verifying the functional language Haskell in Coq, an interactive proof assistant, is a topic of active research, for example by \citet{breitner2018ready}.
 Due to its syntactic resemblance of Haskell, one might assume that Curry can be verified in Coq in a similar matter.
-However, some language aspects, that serve a purely performance-related purpose in Haskell, interact with Curry's non-determinism in a way that necessitates explicit consideration in the model.
+However, some language aspects -- which serve a purely performance-related purpose in Haskell -- interact with Curry's non-determinism in a way that necessitates explicit consideration in the model.
 
 One approach of modeling a programming language in Coq is to translate definitions into equivalent Coq code whenever possible.
 Effects, that is, features of a language that surpass pure computation of values, are then modeled by means of other methods and integrated with the translated code.
@@ -164,16 +164,40 @@ The technique chosen to represent this effect is a combination of representing s
 Since directly modeling Curry's call-time choice in Coq is complicated by some restrictions that Coq's proof system entails, the model is first implemented in Haskell and then transferred to Coq.
 
 \section{Goals}
-The goal of this thesis is to model Curry's call-time choice effect using free monads.
-This includes exploring how effects can be modeled in other languages, for example, how the KiCSS2 compiler represents non-determinism when compiling Curry code to Haskell or how an explicit sharing operator can be implemented.
+
+The goal of this thesis is to model Curry's call-time choice effect using the effect handler approach.
+This includes exploring how effects can be modeled in other languages, for example, how the KiCSS2 compiler represents non-determinism when compiling Curry code to Haskell, or how an explicit sharing operator, as introduced by \citet{fischer2009purely}, can be implemented.
+
 Based on the insights obtained in this process, we then want to extend a framework for modeling effects presented by \citet{wu2014effect} to model the call-time choice effect.
 Since call-time choice is combined from multiple effects, one of which is a \textit{scoped} effect, we want to investigate how such effects can be implemented.
 
+Finally, when an adequate Haskell model is found, we want to transfer the implementation to Coq in order to verify that the model does not depend on Haskell's non-strictness or built-in sharing.
+Furthermore, the last goal of the thesis is to attempt proving the \texttt{laws of sharing} defined by \citet{fischer2009purely} for the Coq implementation.
+
 \section{Structure}
 
+The following chapters are structured as follows.
+Firstly, we begin with preliminaries in \autoref{ch:preliminaries} about the unique features of Curry and the language Coq.
+In addition, an overview of techniques that can be used to represent Curry's non-determinism in Haskell is given.
+
+In \autoref{ch:callTimeChoiceHaskell}, we then have a detailed look at effects and effect handlers, followed by an implementation of sharing as effect.
+We explore different approaches and incrementally develop an explicit sharing operator that models Curry's call-time choice semantics.
+The chapter is concluded with two exemplary algorithms that make use of non-determinism and sharing.
+
+\autoref{ch:callTimeChoiceCoq} begins with an explanation of the challenges that transferring the Haskell implementation to Coq poses.
+In the following section, a concept is introduced that allows us to represent effects in a different way that Coq accepts.
+We discuss the differences of the simplified Coq implementation, compared to Haskell, and how the implementation of the sharing effect can be transferred to Coq.
+As an intermediary section, we have look at how non-strict non-determinism works in Curry and the Coq model.
+Finally, a higher-order variation of the previous approach is discussed, together with its strengths and shortcomings.
+
+Second lastly, \autoref{ch:progsInCoq} proves things about stuff. \todo{Write chapter 5}
+
+The last chapter summarizes the approach and findings of the thesis.
+An overview of related work is given and future work is discussed.
 
 
 \chapter{Preliminaries}
+\label{ch:preliminaries}
 This chapter introduces the languages Curry and Coq as well as the modeling methods that are applied in the next chapters of the thesis.
 A sufficient understanding of functional programming languages like Haskell and the underlying concepts -- such as algebraic data types, polymorphism, type classes and monads -- is assumed.
 
@@ -960,6 +984,7 @@ Based on this idea of an operator that allows us to explicitly express sharing, 
 We first discuss a Haskell implementation, which is later formalized in Coq.
 
 \chapter{Call-Time Choice modeled in Haskell}
+\label{ch:callTimeChoiceHaskell}
 The first model of call-time choice is implemented in Haskell due to the freedom and flexibility that Haskell's type system allows.
 Although the ultimate goal is to create the model in Coq, so that it can be formally reasoned about, Haskell is better suited when it comes to experimenting with different approaches.
 Based on the idea of an explicit sharing operator, we can now begin to model call-time choice, that is, non-strictness, sharing and non-determinism.
@@ -3529,6 +3554,7 @@ Although it is ultimately not possible to define recursive data type definitions
 Nevertheless, the examples that do not feature recursive data types inspire confidence that the higher-order implementation of call-time choice in Coq works correctly, just like the fully functional first-order version.
 
 \chapter{Curry Programs modeled in Coq}
+\label{ch:progsInCoq}
 \begin{itemize}
 \item Can we use the Coq model of call-time choice to prove properties about actual Curry programs?
 \end{itemize}
