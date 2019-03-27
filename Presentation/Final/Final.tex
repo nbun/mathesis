@@ -34,7 +34,7 @@
 
 \title{Modellierung von Call-Time Choice als Effekt unter Verwendung von Freien Monaden}
 \subject{Modellierung von Call-Time Choice als Effekt unter Verwendung von Freien Monaden}
-\date{27. März 2018}
+\date{27. März 2019}
 \author{Niels Bunkenburg}
 \institute{ 
 	Arbeitsgruppe für Programmiersprachen und Übersetzerkonstruktion \par
@@ -122,11 +122,11 @@ orM p1 p2 = p1 >>= \b -> case b of
 \end{frame}
 \begin{frame}[fragile]{Beispielausdrücke}
 \begin{minted}{haskell}
-λ> run $ addM (return 42) undefined
-*** Exception: Prelude.undefined
+λ> run $ addM (return 42) Fail
+Fail
 \end{minted}
 \begin{minted}{haskell}
-λ> run $ orM (return True) undefined
+λ> run $ orM (return True) Fail
 True
 \end{minted}
 \begin{minted}{haskell}
