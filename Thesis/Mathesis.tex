@@ -3621,11 +3621,32 @@ Global Instance eq_Prog_Reflexive : Reflexive Eq_Prog  := eq_prog_refl.
 For the proofs of symmetry and transitivity, we use the same approach but with the tactic \cinl{symmetry} and \cinl{transitivity}, respectively.
 Since we have defined the proof as an instance of the \cinl{Reflexive} class, we can now use the tactic \cinl{reflexivity} whenever the goal is an \cinl{Eq_Prog} equality.
 
-\section{Induction Principle}
+\section{Induction Principles}
+
+When the tactic \cinl{induction} is applied in a proof, for example, when reasoning about lists, an induction hypothesis 'magically' appears, even for self-defined data types.
+This is, however, not as much magic as Coq automatically generating an \textit{induction principle}.
+Such a principle states under which conditions a proposition holds for a value of some type.
+For example, the induction hypothesis for lists can be viewed using the command \cinl{Check list_ind}, where the suffix \cinl{_ind} marks automatically generated induction hypotheses.
+
+\begin{minted}{Coq}
+list_ind : forall (A : Type) (P : list A -> Prop),
+             P nil ->
+             (forall (a : A) (l : list A), P l -> P (a :: l)) ->
+             forall l : list A, P l
+\end{minted}
+
+The induction principle for lists states that a proposition \cinl{P} over lists hold for all lists under two conditions.
+Firstly, the property needs to hold for the empty list.
+Secondly, if we have a list \cinl{a :: l}, the proposition must hold for \cinl{l}.
+
+When we do an induction proof for lists, Coq applies this principle and thus, generates two subgoals that corresponds to the premises of the principle.
+For the second subgoal, we need to prove \cinl{P (a :: l)} based on the assumption that \cinl{P l} is true.
+This assumption is the induction hypothesis that appears for the second subgoal of an induction proof over lists.
+
+The automatically generated induction principles are sufficient for many cases.
+However, there are situations in which the generated principle is too weak for the induction proof to succeed.
 
 \section{Laws of Sharing}
-
-
 
 \chapter{Conclusion}
 
