@@ -84,17 +84,17 @@ Section SharingLaws.
   Variable eqA_symm  : Symmetric eqA.
   Variable eqA_trans : Transitive eqA.
 
-  Theorem Lret : forall f (x : A), Eq_Prog eqA (pure x >>= f) (f x).
+  Theorem Lret : forall f (x : A), Eq_Prog (pure x >>= f) (f x).
   Proof. reflexivity. Qed.
   
-  Theorem Rret : forall (p : Prog A), Eq_Prog eqA (p >>= pure) p.
+  Theorem Rret : forall (p : Prog A), Eq_Prog (p >>= pure) p.
   Proof.
     intros p.
     rewrite bind_pure.
     reflexivity.
   Qed.
 
-  Theorem Bassc : forall (p : Prog A) (f g : A -> Prog A), Eq_Prog eqA ((p >>= f) >>= g) (p >>= fun x => f x >>= g).
+  Theorem Bassc : forall (p : Prog A) (f g : A -> Prog A), Eq_Prog ((p >>= f) >>= g) (p >>= fun x => f x >>= g).
   Proof.
     intros p f g.
     rewrite free_bind_assoc.
@@ -110,7 +110,7 @@ Section SharingLaws.
     inversion p.
   Qed.
 
-  Theorem Lzero : forall (f : A -> Prog A), Eq_Prog eqA (Fail >>= f) Fail.
+  Theorem Lzero : forall (f : A -> Prog A), Eq_Prog (Fail >>= f) Fail.
     intros f.
     rewrite Lzero'.
     reflexivity.
@@ -126,7 +126,7 @@ Section SharingLaws.
     destruct p; reflexivity.
   Qed.
 
-  Theorem Ldistr : forall p1 p2 (f : A -> Prog A), Eq_Prog eqA ((p1 ? p2) >>= f) ((p1 >>= f) ? (p2 >>= f)).
+  Theorem Ldistr : forall p1 p2 (f : A -> Prog A), Eq_Prog ((p1 ? p2) >>= f) ((p1 >>= f) ? (p2 >>= f)).
   Proof.
     intros p1 p2 f.
     rewrite Ldistr'.
@@ -134,7 +134,7 @@ Section SharingLaws.
   Qed.
 
   Theorem Fail__fstrict : forall (f' : A -> Prog A),
-      Eq_Prog eqA (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
+      Eq_Prog (Share Fail >>= fun fx => fx >>= f') (pure Fail >>= fun fx => fx >>= f').
   Proof. 
     intros f'.
     unfold Eq_Prog, handle, Search.collectVals.
@@ -147,7 +147,7 @@ Section SharingLaws.
   Arguments id / A x.
 
   Theorem Fail__id :
-    Eq_Prog eqA (Share Fail >>= id) (pure Fail >>= id).
+    Eq_Prog (Share Fail >>= id) (pure Fail >>= id).
   Proof.
     unfold Eq_Prog, handle, Search.collectVals, Fail.
     simpl.
@@ -179,7 +179,7 @@ Section SharingLaws.
   Qed.
 
   Theorem Fail__const : forall x,
-      Eq_Prog eqA (Share Fail >>= const x) (pure (@Fail A) >>= const x).
+      Eq_Prog (Share Fail >>= const x) (pure (@Fail A) >>= const x).
   Proof. 
     intros x. 
     unfold Eq_Prog, handle, Search.collectVals.  simpl.
@@ -206,12 +206,12 @@ Section SharingLaws.
 
   Theorem Share_Choice :
     forall (B : Type) `{Shareable B} id (f : Prog B -> Prog A) p1 p2,
-      Eq_Prog eqA (Share (Effect.Choice id p1 p2) >>= fun fx => f fx)
+      Eq_Prog (Share (Effect.Choice id p1 p2) >>= fun fx => f fx)
               ((Share p1 ? Share p2) >>= fun fx => f fx).
     Proof. Admitted.
 
   Theorem Choice__fstrict : forall (f' : A -> Prog A) p1 p2,
-      Eq_Prog eqA (Share (p1 ? p2) >>= fun fx => fx >>= f') ((Share p1 ? Share p2) >>= fun fx => fx >>= f').
+      Eq_Prog (Share (p1 ? p2) >>= fun fx => fx >>= f') ((Share p1 ? Share p2) >>= fun fx => fx >>= f').
   Proof.
     intros f' p1 p2.
     unfold Eq_Prog, handle, Search.collectVals.
@@ -224,7 +224,7 @@ Section SharingLaws.
       
 
   Theorem Choice__id : forall p1 p2,
-      Eq_Prog eqA (Share (p1 ? p2) >>= id) ((Share p1 ? Share p2) >>= id).
+      Eq_Prog (Share (p1 ? p2) >>= id) ((Share p1 ? Share p2) >>= id).
   Proof.
     intros.
     unfold Eq_Prog, handle, Search.collectVals, Fail.
@@ -245,57 +245,60 @@ Proof.
 Qed.
 
 
-Lemma test : forall x, Eq_Prog (fun b1 b2 => b1 = b2) (evenM (doubleM (pure x))) (pure true).
+Lemma test : forall x, Eq_Prog (evenM (doubleM (pure x))) (pure true).
   intros.
   unfold Eq_Prog, handle, Search.collectVals, Fail.
   simpl.
+  replace (Nat.even (x + x)) with true.
   constructor.
-  - apply double_even.
-  - constructor.
+  - symmetry. apply double_even.
 Qed.
 
-Require Import Setoid.
-Add Parametric Morphism (B : Type) `{Normalform B B} (eqB : B -> B -> Prop)
-    (eqB_refl : Reflexive eqB) (eqB_sym: Symmetric eqB) (eqB_trans : Transitive eqB)
-    (fx : Prog B) :
-  (Eq_Prog eqB fx) with signature (Eq_Prog eqB ==> (Basics.flip Basics.impl)) as morphFree.
-Proof.
-  intros x y HEqXY HEqFxY.
-    apply (eq_Prog_Transitive eqB_trans HEqFxY (eq_Prog_Symmetric eqB_sym HEqXY)).
-Qed.
+(* Require Import Setoid. *)
+(* Add Parametric Morphism (B : Type) `{Normalform B B} (eqB : B -> B -> Prop) *)
+(*     (eqB_refl : Reflexive eqB) (eqB_sym: Symmetric eqB) (eqB_trans : Transitive eqB) *)
+(*     (fx : Prog B) : *)
+(*   (Eq_Prog eqB fx) with signature (Eq_Prog eqB ==> (Basics.flip Basics.impl)) as morphFree. *)
+(* Proof. *)
+(*   intros x y HEqXY HEqFxY. *)
+(*     apply (eq_Prog_Transitive eqB_trans HEqFxY (eq_Prog_Symmetric eqB_sym HEqXY)). *)
+(* Qed. *)
 
-Add Parametric Morphism (B : Set) `{Normalform B B} (fx : Prog B) :
-  (Eq_Prog eq fx) with signature (Eq_Prog eq ==> (Basics.flip Basics.impl)) as morphFree2.
-Proof.
-  intros x y HEqXY HEqFxY.
-  etransitivity; try eassumption; try symmetry; try eassumption.
-Qed.
+(* Add Parametric Morphism (B : Set) `{Normalform B B} (fx : Prog B) : *)
+(*   (Eq_Prog eq fx) with signature (Eq_Prog eq ==> (Basics.flip Basics.impl)) as morphFree2. *)
+(* Proof. *)
+(*   intros x y HEqXY HEqFxY. *)
+(*   etransitivity; try eassumption; try symmetry; try eassumption. *)
+(* Qed. *)
 
-Lemma append_assoc : forall A (fxs fys fzs : Prog (List A)),
-    appM fxs (appM fys fzs) = appM (appM fxs fys) fzs.
-Proof.
-  intros.
-  induction fxs using Free_Share_Ind; try reflexivity.
-Admitted.
+(* Lemma append_assoc : forall A (fxs fys fzs : Prog (List A)), *)
+(*     appM fxs (appM fys fzs) = appM (appM fxs fys) fzs. *)
+(* Proof. *)
+(*   intros. *)
+(*   induction fxs using Free_Share_Ind; try reflexivity. *)
+(* Admitted. *)
 
-Lemma test2 : forall n, Eq_Prog eq (evenM (doubleM ()) (pure true).
-  intros.
-  induction p using Free_Share_Ind.
-  - apply test.
-  - contradiction H; reflexivity.
-  - unfold doubleM.
-    pose proof (Share_Choice _ _ _ _ _ id (fun n => addM n n) p1 p2).
-    setoid_rewrite Share_Choice.
-    
+(* Lemma test2 : forall n, Eq_Prog eq (evenM (doubleM ()) (pure true). *)
+(*   intros. *)
+(*   induction p using Free_Share_Ind. *)
+(*   - apply test. *)
+(*   - contradiction H; reflexivity. *)
+(*   - unfold doubleM. *)
+(*     pose proof (Share_Choice _ _ _ _ _ id (fun n => addM n n) p1 p2). *)
+(*     setoid_rewrite Share_Choice. *)
 
-Lemma test2 : forall p, p <> Fail -> Eq_Prog eq (evenM (doubleM p)) (pure true).
+Lemma test2 : forall p, p <> Fail -> Eq_Prog (evenM (doubleM p)) (pure true).
   intros.
   induction p using Free_Share_Ind.
   - apply test.
   - contradiction H; reflexivity.
   - unfold doubleM.
+    unfold evenM.
+    unfold Eq_Prog.
+    rewrite Share_Choice.
     pose proof (Share_Choice _ _ _ _ _ id (fun n => addM n n) p1 p2).
-    setoid_rewrite Share_Choice.
+    replace (fun n : Prog nat => addM n n) with (fun n : Prog nat => doubleM n).
+    rewrite Share_Choice.
     
 Qed.
 y
