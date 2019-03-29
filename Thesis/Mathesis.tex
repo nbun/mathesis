@@ -24,7 +24,6 @@
 \renewcommand\listfigurename{Listing of figures}
 \renewcommand\listtablename{Listing of tables}
 
-% Minted
 \usepackage{fontspec}
 
 \setmonofont{Fira Code Regular}
@@ -41,7 +40,7 @@
 \usemintedstyle[Coq]{default, encoding=utf8, fontsize=\small}
 \usemintedstyle[Text]{default, fontsize=\small}
 %framesep=10pt}
-\setmintedinline{style = bw, fontsize=\small}
+\setmintedinline{style = bw, fontsize=\small, breaklines}
 
 %\AfterEndEnvironment{minted}%
 %{\noindent}%
@@ -3643,12 +3642,158 @@ When we do an induction proof for lists, Coq applies this principle and thus, ge
 For the second subgoal, we need to prove \cinl{P (a :: l)} based on the assumption that \cinl{P l} is true.
 This assumption is the induction hypothesis that appears for the second subgoal of an induction proof over lists.
 
-The automatically generated induction principles are sufficient for many cases.
+The automatically generated induction principles are sufficient in many cases.
 However, there are situations in which the generated principle is too weak for the induction proof to succeed.
+For example, the induction principle for \cinl{Free} is as follows.
+
+\begin{minted}{Coq}
+Free_ind : forall (F : Type -> Type) (C__F : Container F) 
+  (A : Type) (P : Free C__F A -> Prop),
+      (forall a : A, P (pure a)) -> 
+      (forall e : Ext Shape Pos (Free C__F A), P (impure e)) -> 
+      forall f : Free C__F A, P f
+\end{minted}
+
+The generated induction principle does not have a premise for the \cinl{impure} constructor.
+Since the position function of the container extension maps positions to values of type \cinl{Free C__F A}, a premise which states that \cinl{P} must hold for all these values is missing.
+Consequently, this part of the induction principle is replaced with a stronger version that adds a premise for the programs that the position function yields.
+
+\begin{minted}{Coq}
+Variable Impure_rect : forall (s : Shape) (pf : Pos s -> Free C__F A),
+    (forall p, P (pf p)) -> P (impure (ext s pf)).
+\end{minted}
+
+When we try to prove properties about the \cinl{Prog = Free NDShare} type with this principle, we soon run into problems.
+For instance, one proof leads to the following subgoal.
+
+\begin{minted}{Coq}
+  collectVals (runChoice (runSharing (runState (1, 0) (nf x))))
+= collectVals (runChoice (runSharing (runState (0, 0) (nf x))))
+\end{minted}
+
+The initial ID of the state does not matter for the result, because the specific value of IDs makes no difference as long as the same choices are linked when they are shared.
+We define this property as the following lemma.
+
+\begin{minted}{Coq}
+Lemma State_ND_Independence : forall n m (p : Prog A),
+    runState n p = runState m p.
+\end{minted}
+
+The stronger induction principle is quantified over a shape \cinl{s}.
+Thus, when the principle is applied with \cinl{induction}, we need to do a case distinction over \cinl{s} for the corresponding subgoal.
+Since \cinl{NDShare} combines the effects state, sharing and non-determinism, \cinl{s} can be either one of the effects' shapes.
+This poses a problem, however.
+The lemma does not hold for the shape \cinl{sget} of the state effect, in particular.
+When \cinl{p = Get}, the result obviously depends on the initial state that \cinl{runState} is called with.
+
+As a solution to this problem, we define an induction principle for the \cinl{Prog} type that is based on the following axiom.
+
+\begin{minted}{Coq}
+Axiom Free_Share_dec :
+  forall (A : Type) (p : Prog A),
+    { exists x, p = pure x } +
+    { p = Fail } +
+    { exists id p1 p2, p = Effect.Choice id p1 p2}.
+\end{minted}
+
+\cinl{Free_Share_dec} states that a value \cinl{p : Prog A} is either a pure value, a failed computation or a non-deterministic choice.
+Hence, we limit inductive proofs to non-deterministic programs, because the state and sharing effect are already expressed in non-deterministic programs as choice IDs.
+
+Based on the assumption \cinl{Free_Share_dec}, we can define an induction principle for values of type \cinl{Prog} that only considers non-deterministic programs.
+This allows us to prove, for example, the lemma about independence of non-determinism from the initial state.
 
 \section{Laws of Sharing}
+\citet{fischer2009purely} define equational laws that an implementation of an explicit sharing operator should satisfy.
+These laws, adapted to the notations and constructors used in the Coq implementation, are as follows.
+
+\begin{minted}{Coq}
+pure x    >>= f    = f x                           (Lret)
+p         >>= pure = p                             (Rret)
+(p >>= f) >>= g    = p >>= fun x => f x >>= g      (Bassc)
+
+fail    >>= f = fail                               (Lzero)
+(p ? q) >>= f = (p >>= f) ? (q >>= f)              (Ldistr)
+
+share (p ? q) = share p ? share q                  (Choice)
+share fail    = pure fail                          (Fail)
+share (pure (c x1 ... xn)) =                       (HNF)
+  share x1 >>= fun y1 => ....
+  share xn >>= fun yn => pure (pure (c y1 ... yn))
+\end{minted}
+
+In the last case, \cinl{c} is a constructor with \cinl{n} non-deterministic components.
+
+The first three equations \cinl{Lret}, \cinl{Rret} and \cinl{Bassc} correspond to the monad laws and are easily proven proven because \cinl{Free} transforms containers into monads.
+First, the properties are defined for \cinl{Free} with an arbitrary container argument.
+
+\begin{minted}{Coq}
+Lemma bind_pure :
+  forall A (fA: Free C__F A), fA >>= (fun x => pure x) = fA.
+Proof.
+  induction fA using Free_Ind.
+  - reflexivity.
+  - simpl.
+    do 2 f_equal.
+    extensionality p.
+    apply H.
+Qed.
+\end{minted}
+
+In the proof, we make use of the custom induction principle for \cinl{Free}.
+Whereas the pure case is solved by \cinl{reflexivity}, the impure case begins by removing \cinl{impure} and \cinl{ext} constructors.
+Then, pointwise function equality of the position functions is shown by means of the induction hypothesis, which is applied in the last step.
+For this reason, it is not possible to show this property with the automatically generated induction principle.
+
+The proof of \cinl{Rret}, which is just a specialized version of the previous lemma, does not need additional reasoning, as shown in the following.
+
+\begin{minted}{Coq}
+Theorem Rret : forall (p : Prog A), Eq_Prog (p >>= pure) p.
+Proof.
+  intros p.
+  rewrite bind_pure.
+  reflexivity.
+Qed.
+\end{minted}
+
+The properties are defined using the equivalence relation \cinl{Eq_Prog} instead of the predefined equality relation.
+However, the laws hold for structural equality, too.
+
+\cinl{Lzero} and \cinl{Ldistr} are properties of \hinl{MonadPlus}.
+Since the Haskell implementation is generalized over instances of \cinl{MonadPlus}, instead of using \cinl{Prog} directly, this property translates to Coq as well.
+As an exemplary proof, \cinl{Lzero} can be shown by unfolding the definitions, removing equal constructors until the position functions remain and then showing pointwise function equality.
+Since the position functions inside \cinl{Fail} take arguments of type \cinl{Void}, of which there are no values, \cinl{contradiction} finishes the proof.
+
+\begin{minted}{Coq}
+Theorem Lzero : forall (f : A -> Prog B), Eq_Prog (Fail >>= f) Fail.
+  intros f.
+  unfold Eq_Prog, Fail.
+  simpl.
+  repeat f_equal.
+  extensionality p.
+  contradiction.
+Qed.
+\end{minted}
+
+The last three properties \cinl{Choice}, \cinl{Fail} and \cinl{HNF} are the actual laws of sharing, that is, equations that reason about the sharing operator.
+In order to be able to prove, for example, \cinl{Fail}, we need to modify the original proposition.
+Instead of proving \cinl{Eq_Prog (Share Fail) (pure Fail)}, we add a continuation function that gives us more information about the surrounding program.
+
+\begin{minted}{Coq}
+Theorem Fail__const : forall x,
+    Eq_Prog (Share Fail >>= const x) (pure (@Fail A) >>= const x).
+Proof. 
+  intros x. 
+  unfold Eq_Prog, handle, Search.collectVals.
+  simpl.
+  do 2 (rewrite nf_impure; simpl).
+  do 3 f_equal.
+  apply State_ND_Independence. 
+Qed.
+\end{minted}
+
 
 \chapter{Conclusion}
+Verifying Haskell Programs Using Constructive Type Theory”
 
 % Literatur
 \bibliographystyle{plainnat}
