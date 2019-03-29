@@ -87,9 +87,6 @@ Section exB.
   Example exFailed : Prog bool := share Fail >>= fun fx => const (pure true) fx.
   Example res_exFailed := [true].
   
-  Example exHead : Prog bool := headM (consM coin Fail).
-  Example res_exHead := [true; false].
-  
   Example exOrShareShare : Prog bool :=
     share coin >>=
           fun fx =>
@@ -140,7 +137,6 @@ Section exB.
                         (exShareConstOrL, res_exShareConstOrL);
                         (exShareConstOrR2, res_exShareConstOrR2);
                         (exFailed, res_exFailed);
-                        (exHead, res_exHead);
                         (exOrShareShare, res_exOrShareShare);
                         (exOrShareNested, res_exOrShareNested);
                         (exShareNestedChoiceOr, res_exShareNestedChoiceOr);
@@ -200,99 +196,6 @@ Section exPB.
   Proof. repeat econstructor. Qed.
 End exPB.
 
-Section exLB.
-  Arguments nilM {_}.
-  Arguments Nil' {_}.
-
-  Example exDupl : Prog (List bool) := dupl (headM (consM coin Fail)).
-  Example res_exDupl := [Cons' (pure true) (consM (pure true) nilM)
-                         ; Cons' (pure true) (consM (pure false) nilM)
-                         ; Cons' (pure false) (consM (pure true) nilM)
-                         ; Cons' (pure false) (consM (pure false) nilM)].
-
-  Example exDupl2 : Prog (List bool) := consM (headM (consM coin Fail))
-                                           (consM (headM (consM coin Fail)) nilM).
-  Example res_exDupl2 := [Cons' (pure true) (consM (pure true) nilM)
-                          ; Cons' (pure true) (consM (pure false) nilM)
-                          ; Cons' (pure false) (consM (pure true) nilM)
-                          ; Cons' (pure false) (consM (pure false) nilM)].
-
-  Example exDuplShare : Prog (List bool) := duplShare (headM (consM coin Fail)).
-  Example res_exDuplShare := [Cons' (pure true) (consM (pure true) nilM)
-                              ; Cons' (pure false) (consM (pure false) nilM)].
-
-  Example exShareNestedChoice2 : Prog (List bool) :=
-    share (pure true ? (pure false ? pure true)) >>=
-          fun fx => share coin >>= fun fy => consM fx (consM fy (consM fx (consM fy nilM))).
-
-  Example res_exShareNestedChoice2 :=
-    [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
-     ; Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM)))
-     ; Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))
-     ; Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))].
-
-  Example exOrShareNestedList : Prog (List bool) :=
-    share coin >>= fun fx =>
-                     consM fx (share coin >>= fun fy =>
-                                                consM fy (consM fx (consM fy nilM))).
-  Example res_exOrShareNestedList :=
-    [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-     ; Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM)))
-     ; Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM)))
-     ; Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
-
-  Definition exLBs := [(exDupl, res_exDupl)
-                       ; (exDupl2,  res_exDupl2)
-                       ; (exDuplShare, res_exDuplShare)
-                       ; (exShareNestedChoice2, res_exShareNestedChoice2)
-                       ; (exOrShareNestedList, res_exOrShareNestedList)].
-
-  Lemma tests__exLBs : Forall (fun '(p,r) => handle p = r) exLBs.
-  Proof. repeat econstructor. Qed.
-
-End exLB.
-              
-Section exLPB.
-
- Example exShareSingleton : Prog (Pair (List bool) (List bool)) :=
-   Share (consM (pure true ? pure false) nilM) >>= fun fx => pairM fx fx.
- Example res_exShareSingleton := [Pair' (pure (Cons' (pure true) nilM))
-                                        (pure (Cons' (pure true) nilM))
-                                  ; Pair' (pure (Cons' (pure false) nilM))
-                                          (pure (Cons' (pure false) nilM))].
-
-   Fixpoint recList' (n : nat) (xs : List bool) : Prog (List bool) :=
-     match n with
-     | 0 => Fail
-     | S n => match xs with
-             | Nil' _ => nilM
-             | Cons' fy fys =>
-               Share fys >>= fun fys' => consM (notM fy) (fys' ? fys' >>= fun zs => recList' n zs)
-             end
-     end.
-
-   
-   Definition recList (fxs : Prog (List bool)) : Prog (List bool) :=
-     fxs >>= fun xfps => lengthM xfps >>= fun fuel => recList' (fuel + 1) xfps.
-
-   Example exRecList : Prog (Pair (List bool) (List bool)) :=
-     Share (recList (consM (pure true) (consM (pure false) nilM))) >>= fun fx => pairM fx fx.
-   Example res_exRecList :=  [ Pair' (consM (pure false) (consM (pure false) nilM))
-                                     (consM (pure false) (consM (pure false) nilM))
-                             ; Pair' (consM (pure false) (consM (pure true) nilM))
-                                     (consM (pure false) (consM (pure true) nilM))
-                             ; Pair' (consM (pure false) (consM (pure true) nilM))
-                                     (consM (pure false) (consM (pure true) nilM))].
-   
-   Definition exLPBs := [(exShareSingleton, res_exShareSingleton)
-                         ; (exRecList, res_exRecList)].
-   
-  Lemma tests__exLPBs : Forall (fun '(p,r) => handle p = r) exLPBs.
-  Proof. repeat econstructor. Qed.
-End exLPB.
-
 Section Extra.
   Example exSkipIds : Prog bool :=
     Share coin >>= fun fx => const coin (const fx fx).
@@ -306,44 +209,5 @@ Section Extra.
   Example res_exShareInShare := [Pair' (pure true) (pure true)
                                  ; Pair' (pure false) (pure false)].
   Lemma lem_exShareInShare : handle exShareInShare = res_exShareInShare.
-  Proof. reflexivity. Qed.
-
-  Example exShareListInShare : Prog (Pair (List bool) (List bool)) :=
-    Share (Share (consM coin (consM coin nilM)) >>=
-                 fun fx => appM fx fx) >>= fun fy => pairM fy fy.
-  
-  Example res_exShareListInShare :=
-    [Pair' (consM (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM))))
-           (consM (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM))))
-     ; Pair' (consM (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM))))
-             (consM (pure true) (consM (pure false) (consM (pure true) (consM (pure false) nilM))))
-     ; Pair' (consM (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM))))
-             (consM (pure false) (consM (pure true) (consM (pure false) (consM (pure true) nilM))))
-     ; Pair' (consM (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM))))
-             (consM (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM))))].
-  Lemma lem_exShareListInShare : handle exShareListInShare = res_exShareListInShare.
-  Proof. reflexivity. Qed.
-
-  Example exSharePutPos : Prog (List bool) :=
-    Share (Share (consM coin nilM) >>= fun fx => appM fx fx) >>= fun fy => appM fy fy.
-  
-  Example res_exSharePutPos := [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-                                ; Cons'  (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
-  Lemma lem_exSharePutPos : handle exSharePutPos = res_exSharePutPos.
-  Proof. reflexivity. Qed.
-
-  Example exShareListInRepeatedShare : Prog (List bool) :=
-    Share (Share (consM coin nilM) >>= fun fx => appM fx fx) >>=
-          fun fy => Share coin >>= fun fz => Share coin >>= fun fa => consM fz (consM fa fy).
-  Example res_exShareListInRepeatedShare :=
-    [Cons' (pure true) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-     ; Cons' (pure true) (consM (pure true) (consM (pure false) (consM (pure false) nilM)))
-     ;  Cons' (pure true) (consM (pure false) (consM (pure true) (consM (pure true) nilM)))
-     ;  Cons' (pure true) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))
-     ;  Cons' (pure false) (consM (pure true) (consM (pure true) (consM (pure true) nilM)))
-     ;  Cons' (pure false) (consM (pure true) (consM (pure false) (consM (pure false) nilM)))
-     ;  Cons' (pure false) (consM (pure false) (consM (pure true) (consM (pure true) nilM)))
-     ;  Cons' (pure false) (consM (pure false) (consM (pure false) (consM (pure false) nilM)))].
-  Lemma lem_exShareListInRepeatedShare : handle exShareListInRepeatedShare = res_exShareListInRepeatedShare.
   Proof. reflexivity. Qed.
 End Extra.

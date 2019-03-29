@@ -21,3 +21,4 @@ src/HigherOrder/Base.v
 src/HigherOrder/Effect.v
 src/HigherOrder/Handler.v
 src/HigherOrder/DataM.v
+src/HigherOrder/Example.v

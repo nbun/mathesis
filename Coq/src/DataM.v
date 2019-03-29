@@ -48,10 +48,16 @@ Section Prim.
       nf__nat (impure (ext s pf)) = impure (ext s (fun p => nf__nat (pf p))).
   Proof. trivial. Qed.
 
+  Lemma nf_pure__nat : forall (x : nat),
+      nf__nat (pure x) = pure x.
+  Proof. trivial. Qed.
+
   Global Instance normalform__nat : Normalform nat nat :=
     {
       nf := nf__nat;
-      nf_impure := nf_impure__nat
+      nf_impure := nf_impure__nat;
+      nf' := pure;
+      nf_pure := nf_pure__nat
     }.
   
   Definition nf__bool (b : Prog bool) :=
@@ -61,10 +67,16 @@ Section Prim.
       nf__bool (impure (ext s pf)) = impure (ext s (fun p => nf__bool (pf p))).
   Proof. trivial. Qed.
 
+  Lemma nf_pure__bool : forall (x : bool),
+      nf__bool (pure x) = pure x.
+  Proof. trivial. Qed.
+
   Global Instance normalform__bool : Normalform bool bool :=
     {
       nf := nf__bool;
-      nf_impure := nf_impure__bool
+      nf_impure := nf_impure__bool;
+      nf' := pure;
+      nf_pure := nf_pure__bool
     }.
 End Prim.
 
@@ -100,20 +112,33 @@ Section Pair.
       shareArgs := @shareArgs__Pair A B sa sb
     }.
 
+  Definition nf'__Pair A B C D `{Normalform A C} `{Normalform B D} (p : Pair A B)
+    : Prog (Pair C D) :=
+    match p with
+    | Pair' sp1 sp2 =>
+      nf sp1 >>= fun b1 =>
+                   nf sp2 >>= fun b2 =>
+                                pairM (pure b1) (pure b2)
+    end.
+
   Definition nf__Pair A B C D `{Normalform A C} `{Normalform B D} (stp : Prog (Pair A B)) : Prog (Pair C D) :=
-    stp >>= fun '(Pair' sp1 sp2) =>
-              nf sp1 >>= fun b1 =>
-                           nf sp2 >>= fun b2 =>
-                                        pairM (pure b1) (pure b2).
+    stp >>= fun p => nf'__Pair p.
 
   Lemma nf_impure__Pair A B C D nf__AC nf__BD : forall s (pf : _ -> Prog (Pair A B)),
       @nf__Pair A B C D nf__AC nf__BD (impure (ext s pf)) = impure (ext s (fun p => nf__Pair (pf p))).
   Proof. trivial. Qed.
 
-  Global Instance normalform__Pair A B C D {nf__AC : Normalform A C} {nf__BD : Normalform B D} : Normalform (Pair A B) (Pair C D) :=
+  Lemma nf_pure__Pair  A B C D nf__AC nf__BD : forall (x : Pair A B),
+      @nf__Pair A B C D nf__AC nf__BD (pure x) = nf'__Pair x.
+  Proof. trivial. Qed.
+
+  Global Instance normalform__Pair A B C D {nf__AC : Normalform A C} {nf__BD : Normalform B D}
+    : Normalform (Pair A B) (Pair C D) :=
     {
       nf := fun x => nf__Pair x;
-      nf_impure := nf_impure__Pair nf__AC nf__BD
+      nf_impure := nf_impure__Pair nf__AC nf__BD;
+      nf' := fun x => nf'__Pair x;
+      nf_pure := nf_pure__Pair nf__AC nf__BD
     }.
 
 End Pair.
@@ -201,10 +226,16 @@ Section List.
       @nf__List A B nf__AB (impure (ext s pf)) = impure (ext s (fun p => nf__List (pf p))).
   Proof. trivial. Qed.
 
+  Lemma nf_pure__List A B nf__AB : forall (x : List A),
+      @nf__List A B nf__AB (pure x) = nf'__List x.
+  Proof. trivial. Qed.
+
   Global Instance normalform__List A B {nf__AB : Normalform A B} : Normalform (List A) (List B) :=
     {
       nf := fun x => nf__List x;
-      nf_impure := nf_impure__List nf__AB
+      nf_impure := nf_impure__List nf__AB;
+      nf' := fun x => nf'__List x;
+      nf_pure := nf_pure__List nf__AB
     }.
 
   Fixpoint lengthM A (xs : List A) : Prog nat :=
@@ -235,3 +266,27 @@ Section List.
     | cons x xs => consM (pure x) (convert xs)
     end.
 End List.
+
+Section Prog.
+  Definition nf'__Prog A B `{Normalform A B} (p : Prog A) : Prog (Prog B) :=
+    nf p >>= fun p' => pure (pure p').
+
+  Definition nf__Prog A B `{Normalform A B}  (pp : Prog (Prog A)) : Prog (Prog B) :=
+    pp >>= fun p => nf'__Prog p.
+
+ Lemma nf_impure__Prog A B nf__AB : forall s (pf : _ -> Prog (Prog A)),
+      @nf__Prog A B nf__AB (impure (ext s pf)) = impure (ext s (fun p => nf__Prog (pf p))).
+  Proof. trivial. Qed.
+
+  Lemma nf_pure__Prog A B nf__AB : forall (x : Prog A),
+      @nf__Prog A B nf__AB (pure x) = nf'__Prog x.
+  Proof. trivial. Qed.
+
+  Global Instance normalform__Prog A B {nf__AB : Normalform A B} : Normalform (Prog A) (Prog B) :=
+    {
+      nf := fun x => nf__Prog x;
+      nf_impure := nf_impure__Prog nf__AB;
+      nf' := fun x => nf'__Prog x;
+      nf_pure := nf_pure__Prog nf__AB
+    }.
+End Prog.

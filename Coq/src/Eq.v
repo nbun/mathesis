@@ -13,14 +13,14 @@ Section Eq_Prog.
 
   Definition Eq_Prog (p1 p2 : Prog A) := handle p1 = handle p2.
 
-  Lemma eq_Prog_refl : Reflexive Eq_Prog.
+  Lemma eq_prog_refl : Reflexive Eq_Prog.
   Proof. 
     intros p.
     unfold Eq_Prog.
     reflexivity.
   Qed.
 
-  Lemma eq_Prog_symm : Symmetric Eq_Prog.
+  Lemma eq_prog_symm : Symmetric Eq_Prog.
   Proof.
     intros p1 p2 H.
     unfold Eq_Prog in *.
@@ -28,7 +28,7 @@ Section Eq_Prog.
     assumption.
   Qed.
 
-  Lemma eq_Prog_trans : Transitive Eq_Prog.
+  Lemma eq_prog_trans : Transitive Eq_Prog.
   Proof.
     intros p1 p2 p3 H1 H2.
     unfold Eq_Prog in *.
@@ -37,7 +37,7 @@ Section Eq_Prog.
     assumption.
   Qed.
 
-  Global Instance eq_Prog_Reflexive  : Reflexive Eq_Prog  := eq_Prog_refl.
-  Global Instance eq_Prog_Symmetric  : Symmetric Eq_Prog  := eq_Prog_symm.
-  Global Instance eq_Prog_Transitive : Transitive Eq_Prog := eq_Prog_trans.
+  Global Instance eq_Prog_Reflexive  : Reflexive Eq_Prog  := eq_prog_refl.
+  Global Instance eq_Prog_Symmetric  : Symmetric Eq_Prog  := eq_prog_symm.
+  Global Instance eq_Prog_Transitive : Transitive Eq_Prog := eq_prog_trans.
 End Eq_Prog.
