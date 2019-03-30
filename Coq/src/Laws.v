@@ -99,16 +99,32 @@ Section SharingLaws.
    reflexivity.
  Qed.
 
- Theorem Choice :
-   forall id (p1 p2 : Prog A),
-     Eq_Prog _ (Share (Effect.Choice id p1 p2)) (Share p1 ? Share p2).
+
+ Lemma nf_bind : forall A B (p : Prog A) (f : A -> Prog B) `(Normalform A A) `(Normalform B B),
+     nf (free_bind' f p) = free_bind' (fun x => nf (f x)) p.
  Proof.
    intros.
-   unfold Eq_Prog, handle, Share.
-   cbn.
-   repeat (rewrite nf_impure; cbn).
+   induction p using Free_Ind.
+   - reflexivity.
+   - simpl.
+     rewrite nf_impure.
+     do 2 f_equal.
+     extensionality p.
+     apply (H1 p).
+ Qed.
+
+ Theorem Choice :
+   forall (p1 p2 : Prog A),
+     Eq_Prog _ (Share (p1 ? p2)) (Share p1 ? Share p2).
+ Proof.
+   intros.
+   unfold Eq_Prog, handle.
+   simpl.
    unfold nf'__Prog.
-   repeat rewrite nf_impure.
-   induction p1.
-Admitted.
+   repeat (rewrite nf_impure).
+   unfold free_bind.
+   repeat (rewrite nf_bind).
+   simpl free_bind'.
+   rewrite nf_bind. (* fails, but why? *)
+ Admitted.
 End SharingLaws.
