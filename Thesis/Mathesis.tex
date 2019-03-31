@@ -10,6 +10,7 @@
 \usepackage{natbib}
 \usepackage{abstract}
 \usepackage{xcolor}
+\usepackage{verbatim}
 \usepackage[automark, headsepline]{scrlayer-scrpage}
 
 \RequirePackage[palatino]{quotchap}
@@ -2145,6 +2146,7 @@ A more elegant solution can be implemented using a pair of integers as state.
 This way, one component is incremented in the outer program layer and the other component in the inner layer.
 
 \subsection{Deep Sharing}
+\label{subsec:deepSharing}
 The implementation of \hinl{share} from the previous subsection supports nested sharing and top-level non-determinism.
 Modeling Curry's call-time choice also includes non-determinism that occurs in components of data types.
 Therefore, when a value of a data type with non-deterministic components is shared, the individual components should be shared, too.
@@ -2615,7 +2617,7 @@ By means of the position function of type \cinl{Pos s -> A}, the values can be a
 Consequently, the extension of a container is isomorphic to the original data type.
 This means that we can define functions \cinl{to} and \cinl{from} that transform values of the container extension into values of the original data type and vice versa.
 As evidence of the isomorphism between both representations, proofs that show \cinl{to . from = id} and \hinl{from . to = id} are required.
-The transformation functions and isomorphism proofs are added to the \cinl{Container} class as follows.
+The transformation functions and isomorphism properties are added to the \cinl{Container} class as follows.
 
 \begin{minted}{Coq}
 Class Container F :=
@@ -3564,7 +3566,7 @@ In conclusion, the higher-order approach is an elegant solution to the problem o
 Although it is ultimately not possible to define recursive data type definitions with the resulting \cinl{Prog} data type, it is not clear whether there is a fundamental issue with the approach or if Coq's termination check is too restrictive in this case.
 Nevertheless, the examples that do not feature recursive data types inspire confidence that the higher-order implementation of call-time choice in Coq works correctly, just like the fully functional first-order version.
 
-\chapter{Reasoning about the Model}
+\chapter{Reasoning about the Coq Model}
 \label{ch:progsInCoq}
 
 In the last chapter, we have modeled call-time choice as effect in Coq.
@@ -3671,6 +3673,8 @@ Variable Impure_rect : forall (s : Shape) (pf : Pos s -> Free C__F A),
     (forall p, P (pf p)) -> P (impure (ext s pf)).
 \end{minted}
 
+% Removed due to different proof technique
+\begin{comment}
 When we try to prove properties about the \cinl{Prog = Free NDShare} type with this principle, we soon run into problems.
 For instance, one proof leads to the following subgoal.
 
@@ -3709,11 +3713,13 @@ Hence, we limit inductive proofs to non-deterministic programs, because the stat
 
 Based on the assumption \cinl{Free_Share_dec}, we can define an induction principle for values of type \cinl{Prog} that only considers non-deterministic programs.
 This allows us to prove, for example, the lemma about independence of non-determinism from the initial state.
+\end{comment}
 
 \section{Laws of Sharing}
 \citet{fischer2009purely} define equational laws that an implementation of an explicit sharing operator should satisfy.
-These laws, adapted to the notations and constructors used in the Coq implementation, are as follows.
+These laws, adapted to the notations and constructors used in the Coq implementation, are shown in \autoref{fig:laws}.
 
+\begin{figure}[H]
 \begin{minted}{Coq}
 pure x    >>= f    = f x                           (Lret)
 p         >>= pure = p                             (Rret)
@@ -3728,6 +3734,9 @@ share (pure (c x1 ... xn)) =                       (HNF)
   share x1 >>= fun y1 => ....
   share xn >>= fun yn => pure (pure (c y1 ... yn))
 \end{minted}
+\caption{Laws of Sharing}
+\label{fig:laws}
+\end{figure}
 
 In the last case, \cinl{c} is a constructor with \cinl{n} non-deterministic components.
 
@@ -3783,22 +3792,63 @@ Qed.
 \end{minted}
 
 The last three properties \cinl{Choice}, \cinl{Fail} and \cinl{HNF} are the actual laws of sharing, that is, equations that reason about the sharing operator.
-In order to be able to prove, for example, \cinl{Fail}, we need to modify the original proposition.
-Instead of proving \cinl{Eq_Prog (Share Fail) (pure Fail)}, we add a continuation function that gives us more information about the surrounding program.
+
+We begin with the property \cinl{Fail}, that is, sharing a failure equals \cinl{pure fail}.
+The idea of the proof is to let the function \cinl{handle}, introduced by \cinl{Eq_Prog}, evaluate the supplied programs.
+Recalling the definition of \cinl{handle}, the first step is to normalize the program.
+Thus, we need to define an instance of \cinl{Normalform} for \cinl{Prog} in order to progress in the proof.
+The function \cinl{nf} can be defined for nested types like \cinl{List} only by splitting the function, as we have seen before.
+Thus, both functions are part of the \cinl{Normalform} class.
+For \cinl{Prog}, the definition of \cinl{nf} and \cinl{nf'} is as follows.
 
 \begin{minted}{Coq}
-Theorem Fail__const : forall x,
-    Eq_Prog (Share Fail >>= const x) (pure (@Fail A) >>= const x).
-Proof. 
-  intros x. 
-  unfold Eq_Prog, handle, Search.collectVals.
-  simpl.
-  do 2 (rewrite nf_impure; simpl).
-  do 3 f_equal.
-  apply State_ND_Independence. 
-Qed.
+Definition nf'__Prog A B `{Normalform A B} (p : Prog A) 
+  : Prog (Prog B) :=
+  nf p >>= fun p' => pure (pure p').
+
+Definition nf__Prog A B `{Normalform A B}  (pp : Prog (Prog A)) 
+  : Prog (Prog B) :=
+  pp >>= fun p => nf'__Prog p.
 \end{minted}
 
+The function \cinl{nf} binds its argument and then calls \cinl{nf'}, where the \cinl{nf} instance for \cinl{A} and \cinl{B} is called.
+The result is bound and then returned twice, similar to the approach shown in \autoref{subsec:deepSharing}.
+
+Another useful definition of the \cinl{Normalform} class is the following proposition.
+
+\begin{minted}{Coq}
+Theorem nf_impure : forall s (pf : _ -> Prog A),
+  nf (impure (ext s pf)) = impure (ext s (fun p => nf (pf p))).
+\end{minted}
+
+Whenever \cinl{nf} is applied to an impure value, we can move \cinl{nf} into the position function.
+In combination with the \cinl{Normalform} instance for \cinl{Prog}, this allows us to move \cinl{nf} away from the root of the program arguments.
+Consequently, the handlers can evaluate the effect syntax of \cinl{share} and \cinl{fail}.
+Eventually, this leads to the same expressions of both sides of the equation.
+The following proof reflects this approach.
+
+\begin{minted}{Coq}
+Theorem Fail : Eq_Prog (Share Fail) (pure Fail).
+ Proof.
+   intros.
+   unfold Eq_Prog, Share, Fail, handle.
+   simpl.
+   unfold nf'__Prog.
+   do 4 (rewrite nf_impure; simpl).
+   reflexivity.
+ Qed.
+\end{minted}
+
+The theorem \cinl{Choice} cannot be proven using this simple approach.
+Eventually, the proof is stuck because neither bind nor the handlers can be further evaluated.
+Although this problem might be solved by more advanced rewriting tactics or custom induction principles, it is beyond the scope of this thesis.
+
+The last proposition \cinl{HNF} holds by construction.
+The \cinl{share} operator requires its arguments to be instances of \cinl{Shareable}, where \cinl{shareArgs} applies \cinl{share} to every effectful component.
+Therefore, the equation shown in \autoref{fig:laws} is satisfied if the instance is defined correctly.
+
+In conclusion, the call-time choice model satisfies the monad and \hinl{MonadPlus}.
+The property \cinl{Fail} has been proven and it seems plausible that \cinl{Choice} and \cinl{HNF} hold as well, although no formal proof has been given.
 
 \chapter{Conclusion}
 Verifying Haskell Programs Using Constructive Type Theory”

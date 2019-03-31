@@ -89,16 +89,16 @@ Section SharingLaws.
     destruct p; reflexivity.
   Qed.
 
- Theorem Fail : Eq_Prog _ (Share (@Fail A)) (pure (@Fail A)).
+ Theorem Fail : Eq_Prog _ (Share Fail) (pure Fail).
  Proof.
    intros.
    unfold Eq_Prog, Share, Fail, handle.
    simpl.
    unfold nf'__Prog.
+   simpl.
    do 4 (rewrite nf_impure; simpl).
    reflexivity.
  Qed.
-
 
  Lemma nf_bind : forall A B (p : Prog A) (f : A -> Prog B) `(Normalform A A) `(Normalform B B),
      nf (free_bind' f p) = free_bind' (fun x => nf (f x)) p.
@@ -125,6 +125,5 @@ Section SharingLaws.
    unfold free_bind.
    repeat (rewrite nf_bind).
    simpl free_bind'.
-   rewrite nf_bind. (* fails, but why? *)
  Admitted.
 End SharingLaws.
