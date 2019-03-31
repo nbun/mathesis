@@ -194,11 +194,11 @@ We discuss the differences of the simplified Coq implementation, compared to Has
 As an intermediary section, we have a look at how non-strict non-determinism works in Curry and the Coq model.
 Finally, a higher-order variation of the previous approach is discussed, together with its strengths and shortcomings.
 
-Second lastly, \autoref{ch:progsInCoq} proves things about stuff. \todo{Write chapter 5}
+Second lastly, we discuss program equality and induction principles in  \autoref{ch:progsInCoq}.
+Based on this, we then try to prove the laws of sharing for the Coq implementation.
 
-The last chapter summarizes the approach and findings of the thesis.
+The last \autoref{ch:conclusion} summarizes the approach and findings of the thesis.
 An overview of related work is given and future work is discussed.
-
 
 \chapter{Preliminaries}
 \label{ch:preliminaries}
@@ -3851,6 +3851,7 @@ In conclusion, the call-time choice model satisfies the monad and \hinl{MonadPlu
 The property \cinl{Fail} has been proven and it seems plausible that \cinl{Choice} and \cinl{HNF} hold as well, although no formal proof has been given.
 
 \chapter{Conclusion}
+\label{ch:conclusion}
 Verifying Haskell Programs Using Constructive Type Theory”
 
 % Literatur
