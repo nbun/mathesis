@@ -2577,13 +2577,16 @@ Consequently, the strict positivity requirement is ensured by construction and C
 In the following, we have a more detailed look at containers and how they relate to functors.
 
 \subsection{First-Order Containers}
-For a functor \cinl{F}, we define a first version of a container class that looks as follows.
+For a functor \cinl{F}, we define a first version of a container using Coq's type class syntax.
+Similar to Haskell, a type class contains names and types of definitions that the class abstracts.
+Besides types and functions, a type class in Coq may also contain propositions.
+For example, it is possible to encode the monad laws directly into the monad class, so that only instances which satisfy the laws can be defined.
 
 \begin{minted}{Coq}
 Class Container F :=
   {
-    Shape   : Type;
-    Pos     : Shape -> Type;
+    Shape : Type;
+    Pos   : Shape -> Type;
   }.
 \end{minted}
 
