@@ -63,6 +63,7 @@
 \setlength\partopsep{-\topsep}
 \addtolength\partopsep{-\parskip}
 \addtolength\partopsep{0.32cm}
+\raggedbottom
 
 \begin{document}
 \pagenumbering{roman} % römische Seitenzahlen
@@ -213,7 +214,7 @@ A sufficient understanding of functional programming languages like Haskell and 
 \section{Curry}
 Curry \citep{hanus2016curry} is a functional logic programming language based on Haskell.
 Its syntax is therefore largely based on Haskell's and many features like pattern matching, polymorphism, higher-order functions and type classes are supported in Curry, too.
-Besides its functional part, Curry has logical aspects known from languages like Prolog.
+Besides its functional part, Curry incorporates logical aspects known from languages like Prolog.
 These include non-determinism and free variables, that is,  multiple values as the result of evaluating an expression and a representation of unknown values.
 
 Curry programs can be executed using one of many compilers.
@@ -222,8 +223,8 @@ Due to Curry's similarity to Haskell, only unique features that are relevant for
 
 \subsection{Non-Strictness}
 Usually when the evaluation of a subexpression fails, the whole expression fails, too.
-This so-called strict semantics is the idea behind the evaluation strategy of most modern languages.
-However, certain aspects of strict languages like conditional branching need to be evaluated non-strictly because otherwise loops would never terminate.
+The so-called strict semantics is the idea behind the evaluation strategy of most modern languages.
+However, certain aspects of strict languages like conditional branching need to be evaluated non-strictly because otherwise loops would otherwise not terminate.
 
 In contrast, it is also possible to give a whole language non-strict semantics, as evidenced by Haskell and Curry.
 This means that an expression may have a value, although some subexpressions are not evaluated yet.
@@ -260,14 +261,14 @@ The example shows the concept of alternating production and consumption of data.
 When \hinl{take} cannot consume a list element because its second argument is not in head normal form, that is, the root expression is not a constructor or lambda abstraction, \hinl{pow2s} is evaluated to produce the demanded list element.
 This process repeats for the second element.
 When the first argument of \hinl{take} reaches zero, the list argument is not evaluated further and the empty list is returned.
-Consequently, it does not matter if a function has an argument which evaluation would fail, as long as the value is not evaluated by the function.
+Consequently, it does not matter if a function has an argument whose evaluation would fail, as long as the value is not evaluated by the function.
 For example, \hinl{const 42 (head [])} has the value \hinl{42} in Curry and Haskell.
 
 \subsection{Non-Determinism}
 Evaluating expressions in Haskell is deterministic, that is, an expression evaluates to exactly one result.
 Since it is possible to define functions with overlapping patterns, Haskell uses only the first matching rule to determine the result of a computation.
 In Curry, however, this restriction is not present.
-If multiple patterns match an expression, the computation becomes non-deterministic and each rule returns a result.
+If multiple patterns match an expression, the computation becomes non-deterministic and each applicable rule returns a result.
 The most simple, but very useful non-deterministic function is the choice operator, which is defined as follows.
 
 \begin{minted}{Haskell}
@@ -275,11 +276,11 @@ The most simple, but very useful non-deterministic function is the choice operat
 x ? _ = x
 _ ? y = y
 \end{minted}
-
+\noindent
 Both rules match for any input, so \hinl{0 ? 1} yields both \hinl{0} and \hinl{1} as results.
 
-Non-deterministic functions do not differ from deterministic ones in regard to the type system because there is no special syntax to denote this property.
-Although this requires inspecting the definition of a function to determine whether it is non-deterministic, we can freely combine deterministic and non-deterministic functions this way.
+Non-deterministic functions do not differ from deterministic ones in regard to the type system because there is no special syntax to denote this property in the signature.
+Although it is necessary to inspect the definition of a function in order to determine whether it is non-deterministic, we can freely combine deterministic and non-deterministic functions this way.
 When a deterministic function is applied to a non-deterministic argument, the function becomes non-deterministic itself.
 
 \begin{minted}{Haskell}
@@ -304,12 +305,7 @@ The former is shown in the following example.
 The choice operator in the argument of \hinl{head} makes the function non-deterministic.
 Whereas the first choice branch fails, the second one succeeds and returns the value \hinl{1}.
 Although one computation failed, this is not apparent from the result, unless the failure happens at top-level.
-In this case, Curry uses the symbol \hinl{!} as a representation of a failed computation.
-
-\begin{minted}{Haskell}
-λ> head []
-!
-\end{minted}
+In this case, the whole computation fails.
 
 \subsection{Sharing}
 The last aspect of call-time choice is sharing, that is, computing the result of an expression only once even if it is used multiple times.
@@ -339,7 +335,7 @@ Consequently, sharing that is introduced by pattern variables can be transformed
 However, replacing the occurrences of a variable with the shared expression gives the function call different semantics because the choices become independent of each other.
 Whereas both expression with shared non-determinism return only \hinl{0} and \hinl{2} because the decisions are made uniformly, the last expression evaluates to \hinl{0}, \hinl{1}, \hinl{1} and \cinl{2} since both terms of the sum can be \hinl{0} and \cinl{1}, independent of each other.
 
-With non-strictness, non-determinism and sharing as the  components of call-time choice, we have discussed the main aspects we want to model.
+With non-strictness, non-determinism and sharing as the main components of call-time choice, we have discussed the main aspects we want to model.
 In the next section, we focus on a language that allows us to formally reason about such a model.
 
 \section{Coq}
@@ -354,13 +350,14 @@ The most actively developed tools for programming in Coq are CoqIDE, a standalon
 The latter is shown in the \autoref{fig:company-coq}.
 The interface is split into two main parts: The left-hand side shows the program and current progress, where loaded sentences are colored in light blue.
 
+\begin{figure}
 \begin{center}
-\begin{figure}[H]
 \includegraphics[width=\textwidth]{img/coq.png}
+\end{center}
 \caption{Interface of the Company-Coq package for Emacs}
 \label{fig:company-coq}
 \end{figure}
-\end{center}
+
 
 The lower right-hand side region of the screen shows errors and other messages, while the upper part is used for proofs.
 The proof context, that is, all variables that have been introduced so far, is shown at the top.
@@ -810,6 +807,7 @@ Modeling Curry programs in a language like Haskell requires a transformation of 
 First, we have a look at the direct representation of non-determinism used in the KiCS2 implementation as described by \citet{brassel2011kics2}.
 
 \subsection{KiCS2 Approach}
+\label{subsec:kics2}
 Non-determinism in Curry is not limited to \textit{flat} non-determinism but can occur within components of data structures and anywhere in a computation.
 This means that expressing non-determinism via Haskell's list monad is not sufficient to model Curry's non-determinism.
 Instead, existing data types receive additional constructors that represent failure and the choice between two values.
@@ -820,7 +818,8 @@ data List a = Nil | Cons a (List a) | Choice (List a) (List a) | Fail
 \end{minted}
 
 Since this transformation adds new constructors, all functions need to cover these cases, too.
-The new rules return \hinl{Fail} if the function's argument is a failed computation and distribute function calls to both branches, if the argument is a choice.
+The new rules return \hinl{Fail} if the function's argument is a failed computation and distribute function calls to both branches if the argument is a choice.
+This so-called \textit{pull-tab transformation} is described by \citet{alqaddoumi2010ThePT}.
 
 One issue with this approach is that call-time choice is not implemented yet.
 If a choice is duplicated during evaluation, this information cannot be recovered later.
@@ -830,14 +829,15 @@ Since each choice requires a fresh ID, functions that create choices have an add
 The evaluation of a non-deterministic value is implemented by transforming the value into a search tree, which can then be traversed with different search strategies.
 In the process, the decision for each choice is stored and then repeated accordingly, if the same ID is encountered again.
 
-While this approach is useful when the host language supports laziness and sharing, another approach is necessary to model these effects when this is not the case.
+While this approach is useful when the host language supports non-strictness and sharing, another approach is necessary to model these effects when this is not the case.
 
-\subsection{Modeling Laziness and Sharing}
+\subsection{Modeling Non-Strictness and Sharing}
 \label{subsec:monadicLifting}
 \citet{fischer2009purely} introduce a monadic representation of non-determinism that supports sharing and non-strict evaluation.
 Out of simplicity, the implementation idea is presented in Haskell, similar to the approach of the original authors, using the example of permutation sort.
-The algorithm consists  of three components.
-Firstly, a function \hinl{insert} that inserts an element non-deterministically at every possible position within a list.
+Before the actual implementation is discussed, we have a look at a naive approach that uses only lifted result types.
+
+The algorithm consists of three components: Firstly, a function \hinl{insert} that inserts an element non-deterministically at every possible position within a list.
 
 \begin{minted}{Haskell}
 insert :: MonadPlus m => a -> [a] -> m [a]
@@ -847,7 +847,7 @@ insert x xs = return (x:xs)
                 (y:ys) -> do zs <- insert x ys
                              return (y:zs)
 \end{minted}
-
+\noindent
 The second part is the function \hinl{perm} that inserts the head of a given list into the permutations of the list's tail.
 
 \begin{minted}{Haskell}
@@ -857,7 +857,7 @@ perm (x:xs) = do ys <- perm xs
                  zs <- insert x ys
                  return zs
 \end{minted}
-
+\noindent
 Finally, the function \hinl{sort} generates permutations and then tests whether they are sorted.
 
 \begin{minted}{Haskell}
@@ -867,8 +867,8 @@ sort xs = do ys <- perm xs
              return ys
 \end{minted}
 
-The function \hinl{isSorted} compares each element in a list to the next one to determine whether the list is sorted.
-When we test this implementation, we can see that the runtime increases significantly when adding even a few elements.
+The function \hinl{isSorted} compares each element in a list to the next one in order to determine whether the list is sorted.
+While testing this implementation, we can see that the runtime increases significantly when adding even a few elements.\footnote{The results were measured using the \texttt{:set +s} option of \texttt{ghci}, version 8.4.3. Although the code runs faster with optimizations, the runtime complexity does not change.}
 
 \begin{minted}{Haskell}
 λ> sort [9, 8..1] :: [[Int]]
@@ -882,7 +882,7 @@ When we test this implementation, we can see that the runtime increases signific
 (77.54 secs)
 \end{minted}
 
-The reason for the factorial runtime is that the implementations is needlessly strict.
+The reason for the factorial runtime is that the implementation is needlessly strict.
 A list of length $n$  has $n!$ permutations, all of which are generated when running \hinl{sort}.
 This matches our observation above, since adding a tenth element increases the runtime by a factor of 10 and an eleventh element multiplies the runtime of the algorithm for a ten-element list by eleven.
 
@@ -918,8 +918,8 @@ As mentioned before, we can implement this idea by adapting all data types so th
 data List m a = Nil | Cons (m a) (m (List m a))
 \end{minted}
 
-The list data type now has an additional argument \hinl{m} of type \hinl{* -> *} that represents a non-determinism monad.
-Instead of fixed constructors like \hinl{Choice}, the monad \hinl{m} determines the structure and evaluation strategy of the non-determinism effect.
+The list data type now has an additional argument \hinl{m} of kind \hinl{* -> *} that represents a non-determinism monad.
+Instead of fixed constructors like \hinl{Choice}, which were discussed as part of the KiCS2 approach in \autoref{subsec:kics2}, the monad \hinl{m} determines the structure and evaluation strategy of the non-determinism effect.
 Two smart constructors \hinl{cons} and \hinl{nil} make handling the new list type more convenient.
 
 \begin{minted}{Haskell}
@@ -964,10 +964,10 @@ We are now able to take advantage of \hinl{isSorted}'s non-strict definition.
 The implementation generates permutations only if there is a chance that the permutation is sorted, that is, only recursive calls of \hinl{perm} that are demanded by \hinl{isSorted} are executed.
 
 We reconsider the Curry example \hinl{head (1 : head [] : [])}.
-Since the \hinl{List} data type now takes monad values as arguments, we can write the example using the smart constructors and a lifted \hinl{head} function as follows.
+Since the \hinl{List} data type now takes monad values as arguments, we can write the example using the smart constructors and a lifted \hinl{head} function \cinl{hdM} as follows.
 
 \begin{minted}{Haskell}
-λ> hd' (cons (return 1) (cons (hd' nil) nil))
+λ> hdM (cons (return 1) (cons (hd' nil) nil))
 1
 \end{minted}
 
@@ -1071,7 +1071,7 @@ data ND p = Fail | Choice p p
 
 Again, we can omit the \hinl{Return} constructor because it is  already part of the \hinl{Prog} data type.
 For the same reason,  the type variable \hinl{a} has been replaced with the variable \hinl{p}, since \hinl{ND} does not have \textit{values} as arguments but rather \textit{programs that return values}.
-When we specialise \hinl{Prog} with \hinl{ND}, we can see that the argument of \hinl{ND} is the type for non-deterministic programs.
+When we specialize \hinl{Prog} with \hinl{ND}, we can see that the argument of \hinl{ND} is the type for non-deterministic programs.
 
 \begin{minted}{Haskell}
 data NDProg a = Return a
