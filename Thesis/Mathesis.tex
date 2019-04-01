@@ -41,6 +41,7 @@
 \usemintedstyle[Coq]{default, encoding=utf8, fontsize=\small}
 \usemintedstyle[Text]{default, fontsize=\small}
 %framesep=10pt}
+
 \setmintedinline{style = bw, fontsize=\small, breaklines}
 
 %\AfterEndEnvironment{minted}%
@@ -2575,7 +2576,7 @@ One approach to achieve this goal is described in the next section.
 
 \section{Containers}
 
-Containers, as introduced by \citet{Abbott2005containers}, are an abstraction of data types that store values, which includes functors.
+Containers, as introduced by \citet{abbott2003categories}, are an abstraction of data types that store values, which includes functors.
 However, only strictly positive functors can be modeled as a container.
 This allows us to define a version of \cinl{Free} that works with the corresponding containers instead of functors.
 Consequently, the strict positivity requirement is ensured by construction and Coq accepts the definition.
