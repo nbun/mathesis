@@ -67,6 +67,8 @@
 \addtolength\partopsep{0.32cm}
 \raggedbottom
 
+\definecolor{IFI}{RGB}{0,61,143}
+
 \begin{document}
 \pagenumbering{roman} % römische Seitenzahlen
 
@@ -113,6 +115,7 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 \newpage
 
 \begin{abstract}
+\noindent
 Curry is a functional logic programming language that features non-strict non-determi-nism based on Haskell-like syntax.
 The approach described by \citet{dylus2019oneMonad} for formalizing Haskell programs in a proof assistant like Coq cannot be applied directly due to the interaction of non-determinism with sharing.
 Curry's so-called call-time choice semantics necessitate explicit modeling of sharing as effect.
@@ -1105,9 +1108,28 @@ data NDProg a = Return a
               | OpChoice (NDProg a) (NDProg a)
 \end{minted}
 
-We have found a way to model effect functors as instances of the data type \hinl{Prog}, which essentially models a tree with leafs, represented by the \hinl{Return} constructor, and branches that have the form defined by \hinl{sig}.
-\todo{Tree structure visualization}
-A more detailed explanation of this concept follows in the next section.
+We have found a way to model effect functors as instances of the data type \hinl{Prog}, which essentially models a leaf-labeled tree.
+The structure of the nodes and the degree of branching is determined by \hinl{sig}.
+Leaves are represented by either the \hinl{Return} constructor or a constructor of \hinl{sig} without \hinl{Prog} arguments.
+As an example, \autoref{fig:tree} shows the expression \hinl{Op (Choice (Return 0) (Op (Choice Fail (Return 1)))))} represented as a tree.
+
+\begin{figure}[H]
+\begin{center}
+\begin{tikzpicture}[sibling distance=10em,
+  every node/.style = {shape=rectangle, rounded corners, draw, align=center, top color=white, bottom color=IFI!20}]]
+  \node {Op}
+      child { node {Choice}
+        child { node {Return 0} }
+        child { node {Op}
+          child { node {Choice}
+            child { node {Op}
+              child { node {Fail}}}
+            child { node {Return 1} } }}};
+\end{tikzpicture}
+\end{center}
+\caption{Tree Structure of a Non-Deterministic Program}
+\label{fig:tree}
+\end{figure}
 
 \section{Free Monad}
 
