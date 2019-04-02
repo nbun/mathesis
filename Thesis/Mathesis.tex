@@ -1,5 +1,5 @@
 % !TEX TS-program = lualatex
-\documentclass[a4paper, 11pt, fleqn, twoside]{scrreprt}
+\documentclass[a4paper, 11pt, fleqn, twoside, abstract=on]{scrreprt}
 \usepackage[T1]{fontenc}
 \usepackage[english]{babel}
 \usepackage{amsmath}
@@ -8,7 +8,6 @@
 \usepackage{subcaption}
 \usepackage{tikz}
 \usepackage{natbib}
-\usepackage{abstract}
 \usepackage{xcolor}
 \usepackage{verbatim}
 \usepackage[automark, headsepline]{scrlayer-scrpage}
@@ -41,9 +40,11 @@
 \usemintedstyle[Haskell]{trac, fontsize=\small}
 \usemintedstyle[Coq]{default, encoding=utf8, fontsize=\small}
 \usemintedstyle[Text]{default, fontsize=\small}
-%framesep=10pt}
 
 \setmintedinline{style = bw, fontsize=\small, breaklines}
+
+\usepackage{abstract}
+\renewcommand{\abstractnamefont}{\raggedleft\normalfont\Huge\bfseries}
 
 %\AfterEndEnvironment{minted}%
 %{\noindent}%
@@ -65,6 +66,8 @@
 \addtolength\partopsep{-\parskip}
 \addtolength\partopsep{0.32cm}
 \raggedbottom
+
+
 
 \begin{document}
 \pagenumbering{roman} % römische Seitenzahlen
@@ -112,7 +115,13 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 \newpage
 
 \begin{abstract}
+Curry is a functional logic programming language that features non-strict non-determinism based on Haskell-like syntax.
+The approach described by \citet{dylus2019oneMonad} for formalizing Haskell programs in a proof assistant like Coq cannot be applied directly due to the interaction of non-determinism with sharing.
+Curry's so-called call-time choice semantics necessitate explicit modeling of sharing as effect.
 
+In this thesis, Curry's call-time choice is modeled using a combination of the free monad and effect handlers as presented by \citet{wu2014effect}.
+We explore different aspects of explicit sharing and multiple approaches for modeling scoped effects.
+Finally, we prove some properties -- similar to the laws of sharing introduced by \citet{fischer2009purely} -- of the model in Coq.
 \end{abstract}
 
 \newpage
@@ -266,7 +275,7 @@ Consequently, it does not matter if a function has an argument whose evaluation 
 For example, \hinl{const 42 (head [])} has the value \hinl{42} in Curry and Haskell.
 
 \subsection{Non-Determinism}
-Evaluating expressions in Haskell is deterministic, that is, an expression evaluates to exactly one result.
+Evaluating expressions in Haskell is deterministic, that is, an expression either evaluates to one result or the evaluation fails.
 Since it is possible to define functions with overlapping patterns, Haskell uses only the first matching rule to determine the result of a computation.
 In Curry, however, this restriction is not present.
 If multiple patterns match an expression, the computation becomes non-deterministic and each applicable rule returns a result.
