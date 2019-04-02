@@ -67,8 +67,6 @@
 \addtolength\partopsep{0.32cm}
 \raggedbottom
 
-
-
 \begin{document}
 \pagenumbering{roman} % römische Seitenzahlen
 
@@ -115,7 +113,7 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 \newpage
 
 \begin{abstract}
-Curry is a functional logic programming language that features non-strict non-determinism based on Haskell-like syntax.
+Curry is a functional logic programming language that features non-strict non-determi-nism based on Haskell-like syntax.
 The approach described by \citet{dylus2019oneMonad} for formalizing Haskell programs in a proof assistant like Coq cannot be applied directly due to the interaction of non-determinism with sharing.
 Curry's so-called call-time choice semantics necessitate explicit modeling of sharing as effect.
 
@@ -4010,6 +4008,32 @@ This topic is particularly interesting because tracing interacts with sharing.
 \bibliography{Mathesis} % Datei: seminar.bib
 % Anhang
 \appendix
-\chapter{Repository Structure}
+\chapter{Repository}
+The repository that contains the code presented in this thesis can be found at the following link.
+
+\vspace*{.5cm}
+\url{https://git.informatik.uni-kiel.de/stu114713/mathesis}
+\vspace*{.5cm}
+
+\noindent
+Each directory contains a \texttt{Readme} file that describes the content in more detail.
+
+\section{Compilation}
+
+The code can be compiled with the following tools.
+
+\begin{itemize}
+\item Curry: KiCS2, version 2.0.0-b17
+\item Haskell: GHC, version 8.4.3
+\item Coq: coqc, version 8.9.0
+\end{itemize}
+
+The Coq files can be compiled by means of the \cinl{_CoqProject} file located in the \cinl{Coq} directory.
+The following command creates a makefile, which can then be executed using \texttt{make}.
+
+\begin{minted}{Bash}
+coq_makefile -f _CoqProject -o Makefile
+\end{minted}
+
 
 \end{document}
