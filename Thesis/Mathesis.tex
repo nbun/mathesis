@@ -29,7 +29,7 @@
 
 \setmonofont{Fira Code Regular}
 \setmainfont[ItalicFont={XCharter Italic}]{XCharter Roman}
-\newfontfamily{\fallbackfont}{STIX}[Scale=MatchLowercase]
+\newfontfamily{\fallbackfont}{Symbola}[Scale=MatchLowercase]
 \DeclareTextFontCommand{\textfallback}{\fallbackfont}
 
 \usepackage{newunicodechar}
@@ -398,10 +398,10 @@ Since \cinl{option} is applied to \cinl{List} in the second constructor, this ki
 Although we have enabled implicit arguments, we still have to give an explicit type argument to \cinl{Nil}, as shown in the following example.
 The command \cinl{Check} is used to print the type of an expression.
 Since there is no \hinl{ghci}-like REPL for Coq, commands are written as part of the program and usually deleted afterwards.
-From now on, commands and the corresponding output are visualized in as follows.
+From now on, commands and the corresponding output are visualized as follows.
 
 \begin{minted}{Coq}
-> Check Cons (Some 42) (Some (Nil nat)). (* command *)
+🐔> Check Cons (Some 42) (Some (Nil nat)). (* command *)
 List nat (* output *)
 \end{minted}
 
@@ -550,7 +550,7 @@ L$_\text{tac}$ tactics like \cinl{reflexivity} represent values that Coq constru
 The constructed value can be printed using \cinl{Print eq11}, which yields the following.
 
 \begin{minted}{Coq}
-> Print eq11.
+🐔> Print eq11.
 eq_refl : 1 = 1
 \end{minted}
 
@@ -558,10 +558,10 @@ When we talk about values in the context of proofs, the type operator \cinl{:} c
 In order to find out more about \cinl{eq_refl}, we can ask Coq for the definition of the equality operator, using \cinl{Locate} and then \cinl{Print}.
 
 \begin{minted}{Coq}
-> Locate "=".
+🐔> Locate "=".
 Notation "x = y" := eq x y : type_scope (default interpretation)
 
-> Print eq.
+🐔> Print eq.
 Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x
 \end{minted}
 
@@ -690,7 +690,7 @@ Finally, we have defined the function using \cinl{Program Fixpoint} and two term
 We can ask Coq to compute the value of an expression using the command \cinl{Compute}.
 
 \begin{minted}{Coq}
-> Compute quicksort [23; 8; 15; 4; 42; 16].
+🐔> Compute quicksort [23; 8; 15; 4; 42; 16].
 [4; 8; 15; 16; 23; 42] : list nat
 \end{minted}
 
@@ -722,14 +722,14 @@ In this case, the length parameter encoded in the vector type is also a paramete
 Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
 
 \begin{minted}{Coq}
-> Compute vlength (vcons true (vcons true vnil)).
+🐔> Compute vlength (vcons true (vcons true vnil)).
 2 : nat
 \end{minted}
 
 When we enable explicit arguments for \cinl{vlength} and supply a value for \cinl{n} that does not match the length of the vector, Coq yields a type error.
 
 \begin{minted}{Coq}
-> Compute @vlength bool 2 (vcons true vnil).
+🐔> Compute @vlength bool 2 (vcons true vnil).
 \end{minted}
 \vspace*{-18pt}
 \begin{minted}{Text}
@@ -3278,7 +3278,7 @@ In Coq, the expression evaluates to the same result.
 Because the term is simple enough, it is not necessary to handle the program, as it can be viewed as a \cinl{Prog} value.
 
 \begin{minted}{Coq}
-> Compute (headM (recList (consM T (consM F nilM)))).
+🐔> Compute (headM (recList (consM T (consM F nilM)))).
 pure F : Prog bool
 \end{minted}
 
@@ -3298,7 +3298,7 @@ The expression now evaluates to two results due to the choice introduced by eval
 The Coq \cinl{Prog} term quickly grows in size, so it is handled and thus represented as a list of results.
 
 \begin{minted}{Coq}
-> Compute handle (headM (tailM (recList (consM T (consM F nilM))))).
+🐔> Compute handle (headM (tailM (recList (consM T (consM F nilM))))).
 [F; T] : list bool
 \end{minted}
 \noindent
@@ -3319,7 +3319,7 @@ Fixpoint recList' (xs : List bool) : Prog (List bool) :=
 Consequently, the following expression would not return the expected value \cinl{[F]}, but fail instead, because \cinl{Fail} is evaluated although it is not demanded.
 
 \begin{minted}{Coq}
-> Compute handle (headM (recList (consM T Fail))).
+🐔> Compute handle (headM (recList (consM T Fail))).
 [F] : list bool
 \end{minted}
 
