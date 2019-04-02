@@ -34,6 +34,7 @@
 
 \usepackage{newunicodechar}
 \newunicodechar{∀}{\textfallback{∀}}
+\newunicodechar{🐔}{\textfallback{🐔}}
 \newunicodechar{≔}{:=}
 
 \usepackage{minted}
@@ -396,10 +397,12 @@ Inductive List A : Type :=
 Since \cinl{option} is applied to \cinl{List} in the second constructor, this kind of definition is called \textit{nested inductive}.
 Although we have enabled implicit arguments, we still have to give an explicit type argument to \cinl{Nil}, as shown in the following example.
 The command \cinl{Check} is used to print the type of an expression.
+Since there is no \hinl{ghci}-like REPL for Coq, commands are written as part of the program and usually deleted afterwards.
+From now on, commands and the corresponding output are visualized in as follows.
 
 \begin{minted}{Coq}
-Check Cons (Some 42) (Some (Nil nat)).
-  : List nat
+> Check Cons (Some 42) (Some (Nil nat)). (* command *)
+List nat (* output *)
 \end{minted}
 
 The type argument of \cinl{Nil} cannot be inferred yet because no argument of \cinl{Nil} holds information about \cinl{A}.
@@ -547,20 +550,19 @@ L$_\text{tac}$ tactics like \cinl{reflexivity} represent values that Coq constru
 The constructed value can be printed using \cinl{Print eq11}, which yields the following.
 
 \begin{minted}{Coq}
-Print eq11.
-  eq_refl : 1 = 1
+> Print eq11.
+eq_refl : 1 = 1
 \end{minted}
 
 When we talk about values in the context of proofs, the type operator \cinl{:} can be read as 'is a proof of', that is, \cinl{eq_refl} is a proof of \cinl{1 = 1}, in this case.
 In order to find out more about \cinl{eq_refl}, we can ask Coq for the definition of the equality operator, using \cinl{Locate} and then \cinl{Print}.
 
 \begin{minted}{Coq}
-Locate "=".
-  Notation
-  "x = y" := eq x y : type_scope (default interpretation)
+> Locate "=".
+Notation "x = y" := eq x y : type_scope (default interpretation)
 
-Print eq.
-  Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x
+> Print eq.
+Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x
 \end{minted}
 
 Now we know that \cinl{=} is a notation for the \textit{inductively defined proposition} \cinl{eq}.
@@ -685,11 +687,11 @@ Coincidentally, the remaining goal can be proven directly using the helper lemma
 
 The second termination proof is identical to the first one because the helper lemma holds for any predicate, which is the only difference between both recursive calls.
 Finally, we have defined the function using \cinl{Program Fixpoint} and two termination proofs.
-Since there is no \hinl{ghci}-like REPL for Coq, we can ask Coq to compute the value of an expression using the command \cinl{Compute} as part of the program.
+We can ask Coq to compute the value of an expression using the command \cinl{Compute}.
 
 \begin{minted}{Coq}
-Compute quicksort [23; 8; 15; 4; 42; 16].
-  = [4; 8; 15; 16; 23; 42] : list nat
+> Compute quicksort [23; 8; 15; 4; 42; 16].
+[4; 8; 15; 16; 23; 42] : list nat
 \end{minted}
 
 In conclusion, we have seen two kinds of definitions that Coq's termination checker does not accept and two ways to bypass these restrictions.
@@ -720,16 +722,19 @@ In this case, the length parameter encoded in the vector type is also a paramete
 Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
 
 \begin{minted}{Coq}
-Compute vlength (vcons true (vcons true vnil)).
-     = 2 : nat
+> Compute vlength (vcons true (vcons true vnil)).
+2 : nat
 \end{minted}
 
 When we enable explicit arguments for \cinl{vlength} and supply a value for \cinl{n} that does not match the length of the vector, Coq yields a type error.
 
 \begin{minted}{Coq}
-Compute @vlength bool 2 (vcons true vnil).
-     Error: The term "vcons true vnil" has type "vec bool 1"
-              while it is expected to have type "vec bool 2".
+> Compute @vlength bool 2 (vcons true vnil).
+\end{minted}
+\vspace*{-18pt}
+\begin{minted}{Text}
+Error: The term "vcons true vnil" has type "vec bool 1"
+         while it is expected to have type "vec bool 2".
 \end{minted}
 
 As an example of a recursive function, we define the append function for vectors.
@@ -1003,8 +1008,14 @@ We first discuss a Haskell implementation, which is later formalized in Coq.
 \label{ch:callTimeChoiceHaskell}
 The first model of call-time choice is implemented in Haskell due to the freedom and flexibility that Haskell's type system allows.
 Although the ultimate goal is to create the model in Coq, so that it can be formally reasoned about, Haskell is better suited when it comes to experimenting with different approaches.
-Based on the idea of an explicit sharing operator, we can now begin to model call-time choice, that is, non-strictness, sharing and non-determinism.
 
+In this chapter, we first discuss a technique to model effectful programs.
+Based on this, we then define syntax for programs with non-determinism and stateful computations, as well as infrastructure that allows convenient pattern matching and combining effects.
+Using effect handlers, we then give our programs semantics.
+Beginning with scoped effects in general, we finally discuss the sharing effect and its different aspects.
+The chapter is then concluded with two more complex examples of algorithms that share non-deterministic choices.
+
+Based on the idea of an explicit sharing operator from the previous chapter, we can now begin to model call-time choice, that is, non-strictness, sharing and non-determinism.
 Similar to the implementation of \citet{fischer2009purely}, we parameterize all definitions with \hinl{MonadPlus} instead of using a static monad.
 This allows us, for example, to define a test suite that works with any implementation just by adapting the imported module.
 Similarly, we do not restrict the implementation to the effects that make up call-time choice.
@@ -2496,15 +2507,17 @@ The remaining empty scopes can be attributed to the monadic structure that somet
 Nevertheless, instead of a highly optimized implementation, the goal of this thesis is to model Curry's call-time choice correctly in both Haskell and Coq for the purpose of reasoning about programs.
 In the following chapter, the current model is implemented in Coq.
 
-
-
 \chapter{Call-Time Choice Modeled in Coq}
 \label{ch:callTimeChoiceCoq}
 
 The goal of this chapter is to transfer the Haskell implementation of call-time choice modeled as effect to Coq.
 Before implementing a specific approach, the challenges that come with Coq's more restrictive specification language are discussed.
-We begin with the data structure \hinl{Prog}, that is, the free monad, which allows us to model programs with effects of type \hinl{sig} and results of type \hinl{a}.
-In Haskell, the data type looks as follows.
+We then explore containers as a solution to these restrictions and define the effects from the previous chapter as containers.
+Since the infrastructure is simplified in Coq, the differences compared to the Haskell implementation are discussed next, followed by the definition of the sharing effect and an example of non-strict non-determinism.
+The chapter is concluded with a section about a higher-order approach, which makes defining the sharing effect easier but comes with other challenges.
+
+Similar to the Haskell implementation, we begin with the data structure \hinl{Prog}, that is, the free monad.
+It allowed us to model programs with effects of type \hinl{sig} and results of type \hinl{a} in Haskell as follows.
 
 \begin{minted}{Haskell}
 data Prog sig a = Return a | Op (sig (Prog sig a))
@@ -2520,11 +2533,11 @@ Fail Inductive Free F A :=
 
 However, the definition is rejected by Coq upon loading the file with the following error message.
 
-\begin{minted}[fontsize=\footnotesize]{Coq}
+\begin{minted}[fontsize=\footnotesize]{Text}
 Non-strictly positive occurrence of "Free" in "F (Free F A) -> Free F A".
 \end{minted}
 
-Non-strictly positive occurrence is the main obstacle we have to overcome in order to model effects in Coq.
+The strict positivity restriction is the main obstacle we have to overcome in order to model effects in Coq.
 The reason for this error and its significance is discussed in the next section.
 
 \section{Non-Strictly Positive Occurrence}
@@ -2543,7 +2556,7 @@ The function receives an argument \cinl{x} and calls itself with the same argume
 Since this function obviously never terminates, the result type \cinl{A} is arbitrary.
 In particular, we could instantiate \cinl{A} with \cinl{False}, the false proposition.
 Consequently, the value \cinl{loop tt : False} could be used to prove anything, according to the principle of explosion.
-For this reason, Coq requires all recursive functions to terminate provably.
+For this reason, Coq requires all recursive functions to terminate for every input.
 
 Returning to the original data type, what is the link between \cinl{Free} and termination?
 It is well known that recursion can be implemented in languages without explicit recursion syntax by means of constructs like the Y combinator or the data type \mintinline{Coq}{Mu} for type-level recursion.
@@ -2670,10 +2683,10 @@ The second component of a container is the function \cinl{Pos} that assigns each
 This type describes all positions for values of type \cinl{A} in the constructor that the shape represents.
 For the \cinl{cfail} constructor, there are no arguments (of type \cinl{A}).
 This means that when \cinl{Pos} is applied to the shape \cinl{sfail}, a type that represents no positions needs to be returned.
-Thus, the constructorless type \cinl{Inductive Void :=.} is returned.
+Thus, the empty type \cinl{Inductive Void :=.} is returned.
 On the other hand, \hinl{cchoice} contains two arguments of type \cinl{A} and thus, has two positions.
 We could define a new type with two constructors, but for this simple task, \cinl{bool} works just as well.
-Consequently, \cinl{true} means the first \cinl{A} position in \cinl{cchoice} and \cinl{false} the second one.
+Consequently, \cinl{true} corresponds to the first \cinl{A} position in \cinl{cchoice} and \cinl{false} to the second one.
 
 \begin{minted}{Coq}
 Definition Pos__Choice (s: Shape__Choice) : Type :=
@@ -2692,17 +2705,6 @@ Definition Ext__Choice : Type -> Type := Ext Shape__Choice Pos__Choice.
 The transformation functions are a first indicator whether the definition of the shape and position types are correct.
 When transforming a value of type \cinl{Choice}, as defined below, we need to supply two arguments to the container extension constructor \cinl{ext}.
 
-Firstly, the shape that corresponds to the constructor.
-For \cinl{cfail} and \cinl{cchoice}, this is \cinl{sfail} and \cinl{schoice} respectively.
-The latter takes the optional ID argument since this information cannot be stored in the position function.
-
-Secondly, to construct the position function, we define a function \cinl{pf} that takes a position argument.
-The type of the position is determined by \cinl{Pos} applied to the first argument of \cinl{ext}, that is, the shape that corresponds to the constructor that is currently handled.
-Evaluating \cinl{Pos__Choice sfail} yields \cinl{Void}, so we need to return a value of type \cinl{A} for each constructor of the type.
-Since \cinl{Void} does not have constructors, we do not need to return anything.
-This is expressed in Coq by doing empty pattern matching on the position argument of the function.
-The type of the position is known at compile time and thus, Coq accepts this definition.
-
 \begin{minted}{Coq}
 Definition from__Choice A (z : Choice A) : Ext__Choice A :=
   match z with
@@ -2713,6 +2715,18 @@ Definition from__Choice A (z : Choice A) : Ext__Choice A :=
     in ext s (fun p : Pos__Choice s => if p then l else r)
   end.
 \end{minted}
+
+The first argument of \cinl{ext} is the shape that corresponds to the constructor.
+For \cinl{cfail} and \cinl{cchoice}, this is \cinl{sfail} and \cinl{schoice} respectively.
+The latter takes the optional ID argument since this information cannot be stored in the position function.
+
+For the second argument of \cinl{ext}, we need to construct the position function \cinl{pf}.
+The type of \cinl{pf}'s position argument is determined by \cinl{Pos} applied to the first argument of \cinl{ext}, that is, the shape that corresponds to the constructor that is currently handled.
+As defined above, \cinl{Pos__Choice sfail} equals \cinl{Void}.
+The position function returns a value of type \cinl{A} for each position.
+However, since \cinl{Void} does not have constructors, there is no position for which we need to return a value of type \cinl{A}. 
+This is expressed in Coq by doing empty pattern matching on the position argument of the function.
+The type of the position is known at compile time and thus, Coq accepts this definition.
 
 The position function in case of \cinl{cchoice} is slightly more involved.
 This time, \cinl{Pos__Choice} returns \cinl{bool} as the type of the argument \cinl{p}.
@@ -2733,7 +2747,7 @@ Definition to__Choice A (e: Ext__Choice A) : Choice A :=
 \end{minted}
 
 Finally, the remaining parts of the container definition are the isomorphism proofs.
-The first proof is done by case distinction over the value \cinl{ox}.
+The first proof is done by case distinction on \cinl{ox}.
 
 \begin{minted}{Coq}
 Lemma to_from__Choice : forall A (ox : Choice A),
@@ -2746,7 +2760,7 @@ Qed.
 
 In both cases, the transformation functions neither add nor remove information, as shown in the following for the \cinl{cchoice} constructor.
 
-\begin{minted}{Coq}
+\begin{minted}{Text}
   to__Choice (from__Choice (cchoice mid l r))
 = let s := schoice mid
   in let pf (p : Pos__Choice s) := if p then l else r
@@ -2772,7 +2786,7 @@ Proof.
 Qed. 
 \end{minted}
 
-After destructing the shape of \cinl{e} for a case distinction and simplifying the expression, we are in a situation where the goal is \cinl{ext sfail pf = ext sfail pf'}.
+After destructing the shape of the container extension \cinl{e} for a case distinction and simplifying the expression, we are in a situation where the goal is \cinl{ext sfail pf = ext sfail pf'}.
 The tactic \cinl{f_equal} states that two values are equal if the outermost constructors are the same and all arguments are equal, too.
 Since the constructor and first argument are equal, the only remaining goal is to prove that the position functions are equal.
 The tactic \cinl{extensionality} is useful to show function equality, that is, $\forall x: f x = g x \Rightarrow f = g$.
@@ -2810,15 +2824,69 @@ This shows that the transformation functions form an isomorphism for the non-det
 Finally, the container instance can be defined as follows.
 
 \begin{minted}{Coq}
-  Instance C__Choice : Container Choice :=
-    {
-      to_from := to_from__Choice;
-      from_to := from_to__Choice
-    }.
+Instance C__Choice : Container Choice :=
+  {
+    to_from := to_from__Choice;
+    from_to := from_to__Choice
+  }.
 \end{minted}
 
 The isomorphism contains all necessary information about the container and its extension.
 Thus, Coq is able to infer the omitted definitions.
+
+\section{Monad Operations}
+The Haskell monad instance for \hinl{Prog} uses \hinl{fmap} to distribute a function throughout the structure determined by the functor argument.
+Since the Coq implementation uses containers instead of functors, we need to define a function that behaves similar to \hinl{fmap}.
+For this purpose, the function \cinl{cmap} is defined as follows.
+
+\begin{minted}{Coq}
+Variable F : Type -> Type.
+Variable C__F : Container F.
+
+Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) 
+  : Ext Shape Pos B :=
+  match x with
+  | ext s pf => ext s (fun x => f (pf x))
+  end.
+\end{minted}
+
+Instead of an argument of type \cinl{F A} and an \cinl{F B} result, the function has a corresponding container extension argument and returns an container extension, too.
+In order to behave like \hinl{fmap}, \cinl{cmap} needs to apply the function \cinl{f} to all values of type \cinl{A}.
+The arguments are returned by the position function \cinl{pf}, so the new position function that returns values of type \cinl{B} is \cinl{f . pf}.
+
+Based on this definition, we can define bind for \cinl{Free}.
+Although a direct definition would be possible, this can lead to issues with Coq's termination check in some situation.
+Therefore, the function argument is introduced as a section variable.
+
+\begin{minted}{Coq}
+Section free_bind.
+  Variable A B : Type.
+  Variable f : A -> Free C__F B.
+
+  Fixpoint free_bind' (ffA: Free C__F A) : Free C__F B :=
+    match ffA with
+    | pure x   => f x
+    | impure e => impure (cmap free_bind' e)
+    end.
+End free_bind.
+\end{minted}
+
+The function is defined similar to the Haskell version.
+Since \cinl{f} is a section variable instead of an argument of the function, \hinl{fmap (>>= f)} becomes \cinl{cmap free_bind'}.
+Outside of the section, we can now define \cinl{free_bind} by flipping the argument order, so that the added function argument is moved to the usual position.
+Using Coq's notation mechanism, we can define bind as an infix operator to keep the definitions similar to the Haskell implementation.
+
+
+\begin{minted}{Coq}
+Notation "mx >>= f" := (free_bind mx f)
+                       (at level 20, left associativity).
+\end{minted}
+
+When defining notations, an explicit precedence level -- ranging from 0 to 100 -- and information about the associativity is required.
+Similar to Haskell, bind has a low precedence and is left associative.
+
+While we could define a monad type class and an instance for \cinl{Free}, this would lead to non-strict positivity errors when defining, for instance, lifted data types.
+Consequently, instead of \hinl{return}, the function \cinl{pure} is used to create monadic values.
 
 \section{Modeling Effects}
 
@@ -2841,9 +2909,9 @@ Instead of writing \cinl{F (Free F A)} as the first argument of \cinl{impure}, w
 \label{subsec:infrastructure}
 
 With the \cinl{Free} data type defined, we can begin implementing the remaining infrastructure. 
-In the Haskell implementation, various type classes and language extensions were used to make working with effects as convenient as possible.
+In the Haskell implementation, various type classes and language extensions were used to simplify pattern matching and smart constructors.
 For the Coq implementation, the infrastructure is not implemented as generalized as before, but rather tailored to the purpose of modeling call-time choice.
-This means, for example, that handlers do not work with polymorphic signatures like \cinl{ND :+: sig}.
+This is, for example, that handlers do not work with polymorphic signatures like \cinl{ND :+: sig}.
 
 \paragraph{Combining Effects}
 Although it would be possible to merge all effects into one call-time choice effect with a large handler, the combination of independent effects is still a good idea in terms of modularity.
@@ -2879,71 +2947,17 @@ Definition Pos__Comb (s : Shape__Comb) : Type :=
   end.
 \end{minted}
 
-The transformation functions depend on the functions defined in the containers for \cinl{F} and \cinl{G}.
-To transform an \cinl{Ext__Comb} into a \cinl{Comb}, the \cinl{sum} constructor that wraps around the shape is removed and the original \cinl{to} function is called.
-The result is then wrapped in a \cinl{cinl} or \cinl{cinr} constructor.
-Transforming a \cinl{Comb} into an \cinl{Ext__Comb} is achieved by passing the value inside the \hinl{Comb} constructor to \cinl{from} and then wrapping a \cinl{sum} constructor around the shape of the result.
-
-The isomorphism proofs work similar to the \cinl{Choice} proofs in regard to destructing values and shapes.
-In addition, the isomorphism properties arising from $\texttt{C}_\texttt{F} \cong \texttt{F}$ and $\texttt{C}_\texttt{G} \cong \texttt{G}$ are applied.
-
-\paragraph{Monad Operations}
-In the Haskell monad instance for \hinl{Prog}, we used \hinl{fmap} to distribute a function throughout the structure determined by the functor argument.
-Since the Coq implementation uses containers instead of functors, we need to define a function that behaves similar to \hinl{fmap}.
-For this purpose, the function \cinl{cmap} is defined as follows.
-
-\begin{minted}{Coq}
-Variable F : Type -> Type.
-Variable C__F : Container F.
-
-Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) 
-  : Ext Shape Pos B :=
-  match x with
-  | ext s pf => ext s (fun x => f (pf x))
-  end.
-\end{minted}
-
-Instead of an argument of type \cinl{F A} and an \cinl{F B} result, the function has a corresponding container extension argument and returns an container extension, too.
-In order to behave like \hinl{fmap}, \cinl{cmap} needs to apply the function \cinl{f} to all values of type \cinl{A}.
-The arguments are returned by the position function \cinl{pf}, so the new position function that returns values of type \cinl{B} is \cinl{f . pf}.
-
-Based on this definition, we can define bind for \cinl{Free}.
-Although a direct definition would be possible, this can lead to issues with Coq's termination check in some situation.
-Therefore, the function argument is introduced as a section variable.
-
-\begin{minted}{Coq}
-Section free_bind.
-  Variable A B : Type.
-  Variable f : A -> Free C__F B.
-
-  Fixpoint free_bind' (ffA: Free C__F A) :=
-    match ffA with
-    | pure x   => f x
-    | impure e => impure (cmap free_bind' e)
-    end.
-End free_bind.
-\end{minted}
-
-The function is defined similar to the Haskell version.
-Since \cinl{f} is a section variable instead of an argument of the function, \hinl{fmap (>>= f)} becomes \cinl{cmap free_bind'}.
-Outside of the section, we can now define \cinl{free_bind} by flipping the argument order, so that the added function argument is moved to the usual position.
-Using Coq's notation mechanism, we can define bind as an infix operator to keep the definitions similar to the Haskell implementation.
-
-\begin{minted}{Coq}
-Notation "mx >>= f" := (free_bind mx f)
-                       (at level 50, left associativity).
-\end{minted}
-
-While we could define a monad type class and an instance for \cinl{Free}, this is omitted to simplify the implementation.
-Consequently, instead of \hinl{return}, the function \cinl{pure} is used to create monadic values.
+The transformation functions for \cinl{Comb} use the transformation functions defined in the containers for \cinl{F} and \cinl{G}.
+Similarly, the isomorphism proofs use the properties arising from $\texttt{C}_\texttt{F} \cong \texttt{F}$ and $\texttt{C}_\texttt{G} \cong \texttt{G}$.
+The definitions and proofs are omitted here since they follow mostly the same approach as for an effect like \cinl{Choice}.
 
 \paragraph{Effect Syntax}
 
 In the Haskell implementation, the type class \hinl{:<:} was used to inject syntax into a program, that is, an appropriate nesting of the combination functor \hinl{:+:} was derived from the type context.
 Contrary to that, the Coq implementation is based on a fixed effect stack that is handled in a predetermined  order.
 Whereas we used \hinl{inject} to define effect syntax like the \hinl{get} operator, we now have to combine the effects manually.
-Firstly, however, the state effect container is defined as an example of syntax constructors.
 
+Since we have not defined a container for the state effect yet, we use state as an example of how smart-constructors for syntax can be defined without \hinl{inject}.
 To avoid adding another type argument to all definitions, the type of the state is defined as a section variable \cinl{S}.
 
 \begin{minted}{Coq}
@@ -2977,7 +2991,7 @@ Definition Pos__State (s : Shape__State) : Type :=
 
 The transformation functions are omitted here since this section is focused on effect syntax.
 In order to define syntax for the state effect, we first need to define an effect stack.
-The effect stack is constructed by means of the combination container and the effect containers that were defined in the previous section.
+The effect stack is constructed by means of the combination container and the containers that correspond to the effects functors.
 Similar to the Haskell implementation, the state effect -- with a pair of natural numbers as state -- should be handled first.
 Therefore, state is the the outermost effect of the combination.
 The other argument of \cinl{C__Comb} is the combination of sharing and non-determinism, the former of which is defined in the next section.
@@ -3081,7 +3095,7 @@ runState s (Other op) = Op (fmap (runState s) op)
 
 Since Coq does not support language extensions like view patterns and pattern synonyms to simplify pattern matching, handlers are defined by matching plain \cinl{Prog} terms.
 The Coq signature of the state effect handler describes the first step shown in \autoref{fig:effectStackHandling}, that is, the state effect is handled and a program that contains sharing and non-determinism is returned.
-Since the state component \hinl{s} of \hinl{(s,a)} was never used in the Haskell implementation, it is omitted in the Coq version.
+Since the state component \hinl{s} of the handler's return type \hinl{Prog sig (s,a)} was not used in the Haskell implementation, it is omitted in the Coq version.
 
 \begin{minted}{Coq}
 Fixpoint runState A (st : nat * nat) (p : Prog A) : Prog__SC A :=
@@ -3096,7 +3110,7 @@ Fixpoint runState A (st : nat * nat) (p : Prog A) : Prog__SC A :=
 The constructors \hinl{Return} and \hinl{Op} correspond to \cinl{pure} and \cinl{impure}, respectively.
 While the \hinl{Op} constructor was hidden in the pattern in Haskell, we now have to explicitly match for it.
 Whereas in Haskell, the function \hinl{project} was used to unwrap the \hinl{Inl} and \hinl{Inr} constructors of \hinl{:+:}, the corresponding constructors are now determined by the effect stack and thus, can be matched explicitly.
-In the combination tree, the state effect was the left argument.
+In the effect stack, the state effect is the left argument.
 Therefore, \cinl{inl s} matches both shapes \cinl{s} of the state container.
 Similarly, \cinl{inr s} works the same as the \hinl{Other} pattern in Haskell.
 In fact, the definition does not differ between both implementations.
@@ -3144,17 +3158,17 @@ Definition Pos__Sharing : Shape__Sharing -> Type := fun _ => unit.
 Similar to the Haskell implementation, the type classes \cinl{Shareable} an \cinl{Normalform} allow deep sharing and normalization of effectful expressions.
 The definitions are similar to the Haskell implementation, except for the normal form instance for lists, which requires inlining the \cinl{Share} operator because the termination checker does not accept the definition otherwise. 
 Combined with smart constructors for \cinl{begin} and \cinl{end}, we can implement the \cinl{Share} operator as follows.
-Since Haskell's \hinl{do} notation is too complex for Coq's notation mechanism, we use explicit calls of bind instead.
+Since Coq's notation mechanism can only cover a subset of Haskell's \hinl{do} syntax, we use explicit calls of bind instead.
 
 \begin{minted}{Coq}
-Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
+Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   Get >>= fun '(i,j) =>
-  Put (i + 1, j) >>= fun _ =>
-  pure (BeginShare (i,j) >>= fun _ =>
-        Put (i, j + 1) >>= fun _ =>
-        fp >>= fun x =>
+  Put (i + 1, j) >>
+  pure (BeginShare (i,j) >>
+        Put (i, j + 1) >>
+        p >>= fun x =>
         shareArgs x >>= fun x' =>
-        EndShare (i,j) >>= fun _ =>
+        EndShare (i,j) >>
         pure x').
 \end{minted}
 
@@ -3186,8 +3200,9 @@ Thus, the invariant of a non-empty list is enforced by a separate head element.
 There is, however, an issue with the rule for \cinl{sesharing}.
 Since the shape represents an ending tag in the outside-scope handler, an error is thrown in the corresponding rule of the Haskell implementation.
 Although it is impossible to construct a faulty program by only using the \cinl{Share} operator, mismatched constructors need to be handled.
-There are two options: Firstly, the return type could be made optional, so that error cases return no result.
+There are two options: Firstly, the return type of the sharing handler could be wrapped in \cinl{option}, so that error cases return no result.
 This is, however, not an ideal solution because it would entail that we always have to reason about optional values in proofs.
+
 A more practical approach is to ignore mismatched tags and to continue handling the remaining program that is associated with the tag.
 While this approach is still not ideal, it is the most practical solution to this problem.
 
@@ -3199,8 +3214,8 @@ An alternative solution to the problem of handling mismatched tags is the higher
 First, however, a few examples that demonstrate the functionality of the Coq implementation are discussed in the next section.
 
 \section{Examples}
-Coq is a strict language without native support for non-determinism.
-Although the latter is also true for Haskell, non-strictness is part of Haskell's evaluation strategy.
+Coq is language without native support for non-strictness and non-determinism.
+Although the latter is also true for Haskell, the former is part of Haskell's evaluation strategy.
 Thus, examples that feature non-strict non-determinism are far more interesting in Coq because the non-strictness can be attributed solely to the model.
 For this reason, the first example is the function \hinl{recList}, which negates the head of a list and then adds either the tail or the result of a recursive call of \hinl{recList} applied to the tail.
 This function can be defined in Curry as follows. 
@@ -3226,14 +3241,14 @@ recList fxs = fxs >>= \xs ->
 One could expect that the same definition -- apart from syntactical differences -- works in Coq.
 Unfortunately, this is not the case.
 The termination check throws an error because it is not obvious that \hinl{fys} is a structurally smaller than \hinl{fxs}.
-A technique proposed by \citet{dylus2019oneMonad} that was already discussed briefly in \autoref{subsec:coqFunctions} works by splitting a recursive function into two definitions, where one is recursive, but takes plain values instead of \cinl{Prog} arguments, and the other is a simple definition that contains the first call of bind.
+A technique proposed by \citet{chlipala2013certified} that was already discussed briefly in \autoref{subsec:coqFunctions} works by splitting a recursive function into two definitions, where one is recursive, but takes plain values instead of \cinl{Prog} arguments, and the other is a simple definition that contains the first call of bind.
 
 \begin{minted}{Coq}
 Fixpoint recList' (xs : List bool) : Prog (List bool) :=
   match xs with
   | Nil'         => nilM
   | Cons' fy fys => consM (notM fy)
-                         (fys ? fys >>= fun zs => recList' zs)
+                          (fys ? fys >>= fun zs => recList' zs)
   end.
 
 Definition recList (fxs : Prog (List bool)) : Prog (List bool) :=
@@ -3248,6 +3263,7 @@ Fully evaluating the expression is not very interesting because we cannot observ
 However, when the result is only partially demanded, for example with \cinl{head}, the interplay of non-strictness and non-determinism becomes visible.
 In the following, a few examples with \hinl{T} and \hinl{F} as Boolean constructors are evaluated in Curry and Coq.
 
+\paragraph{Testing Non-Strict Non-Determinism}
 We begin with an example that shows that non-strictness is preserved in the Coq model.
 The following shows the application of \cinl{head} to \cinl{recList [T, F]}.
 
@@ -3262,8 +3278,8 @@ In Coq, the expression evaluates to the same result.
 Because the term is simple enough, it is not necessary to handle the program, as it can be viewed as a \cinl{Prog} value.
 
 \begin{minted}{Coq}
-Compute (headM (recList (consM T (consM F nilM)))).
-     = pure F : Prog bool
+> Compute (headM (recList (consM T (consM F nilM)))).
+pure F : Prog bool
 \end{minted}
 
 The next example shows how non-determinism is only introduced as demanded.
@@ -3282,18 +3298,29 @@ The expression now evaluates to two results due to the choice introduced by eval
 The Coq \cinl{Prog} term quickly grows in size, so it is handled and thus represented as a list of results.
 
 \begin{minted}{Coq}
-Compute handle (headM (tailM (recList (consM T (consM F nilM))))).
-     = [F; T] : list bool
+> Compute handle (headM (tailM (recList (consM T (consM F nilM))))).
+[F; T] : list bool
 \end{minted}
-
+\noindent
 Again, the Coq implementation yields the correct result.
+
 The position of bind in the function \cinl{recList'} is essential for preserving non-strictness.
-If bind was moved to the root of the expression, the tail of the list would be evaluated even if only the head is demanded.
-For example, the following expression would not return the expected value, but fail instead, because \cinl{Fail} is evaluated.
+For example, if bind was moved to the root of the expression as follows, the tail of the list would be evaluated even if only the head is demanded.
 
 \begin{minted}{Coq}
-Compute handle (headM (recList (consM T Fail))).
-     = [F] : list bool
+Fixpoint recList' (xs : List bool) : Prog (List bool) :=
+  match xs with
+  | Nil'         => nilM
+  | Cons' fy fys => fys >>= fun zs => consM (notM fy)
+                                            (fys ? recList' zs)
+  end.
+\end{minted}
+
+Consequently, the following expression would not return the expected value \cinl{[F]}, but fail instead, because \cinl{Fail} is evaluated although it is not demanded.
+
+\begin{minted}{Coq}
+> Compute handle (headM (recList (consM T Fail))).
+[F] : list bool
 \end{minted}
 
 For this reason, it is necessary to move calls of bind as close as possible to the position where the value is needed.
@@ -3576,9 +3603,11 @@ Nevertheless, the examples that do not feature recursive data types inspire conf
 
 In the last chapter, we have modeled call-time choice as effect in Coq.
 Although we are now able to define and evaluate Curry programs, this is the case for the Haskell implementation, too.
-Thus, this chapter focuses on reasoning about properties of the model and modeled programs using Coq's proof logic.
+Thus, this chapter focuses on reasoning about properties of the model using Coq's proof logic.
 
-As a first step towards proofs about program properties, we need to define when two programs are considered equal.
+We begin with a section about program equality because we need to define when two programs are considered equal in order to reason about them.
+Then, induction principles are discussed as a prerequisite for the following section about the laws of sharing, where we have a look at properties
+of the explicit sharing operator and try to prove them.
 
 \section{Program Equality}
 
@@ -3887,7 +3916,7 @@ Although the examples worked as expected, it became apparent that the performanc
 
 The focus of the fourth chapter was transferring the Haskell implementation to Coq.
 Starting the first definition, Coq refused to load the direct translation of the Haskell code due to termination check errors.
-We discussed non-strictly positive occurrence as the reason for these errors and why the termination check is critical for the soundness of Coq's.
+We discussed non-strictly positive occurrences as the reason for these errors and why the termination check is critical for the soundness of Coq's.
 
 As a solution to the non-strictly positive occurrence errors, containers were introduced as a way of representing only strictly positive functors, which are the base of the effect system.
 We then defined containers that represent the effect functors from the previous chapter and learned about the isomorphism between functors and the corresponding container extensions.
@@ -3952,9 +3981,9 @@ While the constructors \hinl{Var} and \hinl{Op} are similar to the approach of \
 Whereas we represented scopes as part of the type \cinl{f}, this approach moves scoping to the level of the \hinl{Prog} type.
 Unfortunately, the application of \hinl{Prog} to itself makes this approach unsuitable for Coq because truly nested data types yield a non-strictly positive occurrence error.
 
-\paragraph{}
+\paragraph{Future Directions}
 
-On the topic of future directions, it comes to mind that the implementations generate many redundant sharing scopes, partly, because deep sharing does not happen demand-driven.
+The implementation generates many redundant sharing scopes, partly, because deep sharing does not happen demand-driven.
 \citet{fischer2009purely} were able to significantly increase the performance of their implementation of explicit sharing, so the question arises, whether similar optimizations are possible for this implementation.
 
 For the Coq implementation, one interesting, unanswered question is whether it is possible to implement the higher-order approach in Coq.
@@ -3972,4 +4001,6 @@ This topic is particularly interesting because tracing interacts with sharing.
 \bibliography{Mathesis} % Datei: seminar.bib
 % Anhang
 \appendix
+\chapter{Repository Structure}
+
 \end{document}
