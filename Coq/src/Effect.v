@@ -20,16 +20,16 @@ Definition EndShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sesharing n))
   in impure (ext s (fun _ => pure tt)).
 
-Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
+Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   Get >>= fun '(i,j) =>
-  Put (i + 1, j) >>= fun _ =>
-  pure (BeginShare (i,j) >>= fun _ =>
-        Put (i, j + 1) >>= fun _ =>
-        fp >>= fun x =>
+  Put (i + 1, j) >>
+  pure (BeginShare (i,j) >>
+        Put (i, j + 1) >>
+        p >>= fun x =>
         shareArgs x >>= fun x' =>
-        EndShare (i,j) >>= fun _ =>
+        EndShare (i,j) >>
         pure x').
-Arguments Share {_} {_} fp.
+Arguments Share {_} {_} p.
 
 Definition Fail A : Prog A :=
   let s : @Shape _ NDShare := inr (inr sfail)

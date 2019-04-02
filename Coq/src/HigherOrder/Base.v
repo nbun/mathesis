@@ -92,4 +92,5 @@ Section MonadInstance.
 End MonadInstance.
 Arguments cmap {_} {_} {_} {_}.
 
-Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
+Notation "mx >>= f" := (free_bind mx         f) (at level 20, left associativity).
+Notation "mx >>  f" := (free_bind mx (fun _ => f)) (at level 20, left associativity).

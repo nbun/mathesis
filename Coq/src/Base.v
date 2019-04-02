@@ -38,7 +38,7 @@ Section MonadInstance.
     Variable A B: Type.
     Variable f: A -> Free C__F B.
 
-    Fixpoint free_bind' (ffA: Free C__F A) :=
+    Fixpoint free_bind' (ffA: Free C__F A) : Free C__F B :=
       match ffA with
       | pure x => f x
       | impure e => impure (cmap free_bind' e)
@@ -49,7 +49,7 @@ Section MonadInstance.
   Definition free_bind A B (ffA: Free C__F A) (f: A -> Free C__F B) : Free C__F B :=
     free_bind' f ffA.
 
-  Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
+  Notation "mx >>= f" := (free_bind mx         f)  (at level 20, left associativity).
   (* Notation "'do' x <- mx ; f" := *)
   (*   (free_bind mx (fun x => f)) *)
   (*     (at level 50, x ident, mx at level 40, f at level 50). *)
@@ -97,6 +97,7 @@ End MonadInstance.
 Arguments cmap {_} {_} {_} {_}.
 
 Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
+Notation "mx >>  f" := (free_bind mx (fun _ => f)) (at level 20, left associativity).
 (* Notation "'do' x <- mx ; f" := *)
 (*   (free_bind mx (fun x => f)) *)
 (*     (at level 50, x ident, mx at level 40, f at level 50). *)

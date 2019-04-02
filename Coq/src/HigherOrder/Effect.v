@@ -24,15 +24,15 @@ Definition Share'__SC (n : nat * nat) A (fs : Prog__SC A) : Prog__SC A :=
   in impure (ext s (fun p : @Pos _ NDShare__SC s => pure p)
                  (fun p : @PosX _ NDShare__SC s => fs)).
 
-Definition Share A `(Shareable A) (fp : Prog A) : Prog (Prog A) :=
+Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   Get >>= fun '(i,j) =>
-  Put (i + 1, j) >>= fun _ =>
+  Put (i + 1, j) >>
   pure (Share' (i,j)
-               (Put (i, j + 1) >>= fun _ =>
-                fp >>= fun x =>
+               (Put (i, j + 1) >>
+                p >>= fun x =>
                 shareArgs x)).
 
-Arguments Share {_} {_} fp.
+Arguments Share {_} {_} p.
 
 Definition Fail A : Prog A :=
   let s : @Shape _ NDShare := inr (inr sfail)
