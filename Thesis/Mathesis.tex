@@ -173,14 +173,14 @@ Although there are no flight control computers running on a functional logic lan
 
 Verifying the functional language Haskell in Coq, an interactive proof assistant, is a topic of active research, for example by \citet{breitner2018ready} and \citet{dylus2019oneMonad}.
 Due to its syntactic resemblance of Haskell, one might assume that Curry can be verified in Coq in a similar matter.
-However, some language aspects -- which serve a purely performance-related purpose in Haskell -- interact with Curry's non-determinism in a way that necessitates explicit consideration in the model.
+However, sharing -- which serves a purely performance-related purpose in Haskell -- interacts with Curry's non-determinism in a way that necessitates explicit consideration in the model.
 
 One approach of modeling a programming language in Coq is to translate definitions into equivalent Coq code whenever possible.
 Effects, that is, features of a language that surpass pure computation of values, are then modeled by means of other methods and integrated with the translated code.
 The result is a combination of native Coq code and modeled effects that, ideally, behaves identical to the original language and can be formally reasoned about.
 
 In the context of Curry, we are interested in \textit{call-time choice}, that is, the interaction between the effects non-determinism and sharing, in combination with non-strict evaluation.
-The technique chosen to represent this effect is a combination of representing syntax using the \textit{free monad} and effect handlers that describe the semantics.
+The technique chosen to model this effect is based on the approach of \citet{wu2014effect}, that is, a combination of the \textit{free monad}, which is used to represent effect syntax, and \textit{effect handlers} that describe the semantics.
 Since directly modeling Curry's call-time choice in Coq is complicated by some restrictions that Coq's proof system entails, the model is first implemented in Haskell and then transferred to Coq.
 
 \section{Goals}
@@ -196,19 +196,19 @@ Furthermore, the last goal of the thesis is to attempt proving the \textit{laws 
 
 \section{Structure}
 
-The following chapters are structured as follows.
-Firstly, we begin with preliminaries in \autoref{ch:preliminaries} about the unique features of Curry and the language Coq.
-In addition, an overview of techniques that can be used to represent Curry's non-determinism in Haskell is given.
+The next chapters are structured as follows.
+Firstly, we begin with \autoref{ch:preliminaries} with preliminaries about the unique features of Curry and an introduction to the language Coq.
+In addition, an overview of techniques that can be used to represent Curry's non-determinism and explicit sharing in Haskell is given.
 
 In \autoref{ch:callTimeChoiceHaskell}, we then have a detailed look at effects and effect handlers, followed by an implementation of sharing as effect.
 We explore different approaches and incrementally develop an explicit sharing operator that models Curry's call-time choice semantics.
 The chapter is concluded with two exemplary algorithms that make use of non-determinism and sharing.
 
 We begin \autoref{ch:callTimeChoiceCoq} with an explanation of the challenges that transferring the Haskell implementation to Coq poses.
-In the following section, a concept is introduced that allows us to represent effects in a different way that Coq accepts.
+In the following section, the concept of \textit{containers} is introduced, which allows representing effect functors in a way that is accepted by Coq.
 We discuss the differences of the simplified Coq implementation, compared to Haskell, and how the implementation of the sharing effect can be transferred to Coq.
 As an intermediary section, we have a look at how non-strict non-determinism works in Curry and the Coq model.
-Finally, a higher-order variation of the previous approach is discussed, together with its strengths and shortcomings.
+Finally, a higher-order variation of the previous approach is discussed.
 
 Second lastly, we discuss program equality and induction principles in  \autoref{ch:progsInCoq}.
 Based on this, we then try to prove the laws of sharing for the Coq implementation.
@@ -235,7 +235,7 @@ Due to Curry's similarity to Haskell, only unique features that are relevant for
 \subsection{Non-Strictness}
 Usually when the evaluation of a subexpression fails, the whole expression fails, too.
 The so-called strict semantics is the idea behind the evaluation strategy of most modern languages.
-However, certain aspects of strict languages like conditional branching need to be evaluated non-strictly because otherwise loops would otherwise not terminate.
+However, certain aspects of strict languages like conditional branching need to be evaluated non-strictly because loops would otherwise not terminate.
 
 In contrast, it is also possible to give a whole language non-strict semantics, as evidenced by Haskell and Curry.
 This means that an expression may have a value, although some subexpressions are not evaluated yet.
@@ -245,8 +245,8 @@ Consequently, non-strictness allows defining conceptually infinite data structur
 pow2s :: [Int]
 pow2s = 1 : map (2*) pow2s
 \end{minted}
-
-Although this list is infinite and cannot be evaluated wholly, non-strictness allows us to evaluate only the parts that are demanded by the surrounding expressions.
+\noindent
+Although this list is infinite and cannot be evaluated wholly, non-strictness allows us to evaluate only the parts that are demanded by the surrounding expressions, as shown below.
 
 \begin{minted}{Haskell}
 λ> take 4 pow2s
@@ -267,20 +267,20 @@ For example, \hinl{take 2 pow2s} is evaluated using an outermost strategy as fol
 = 1 : 2 : []
 = [1, 2]
 \end{minted}
-
+\noindent
 The example shows the concept of alternating production and consumption of data.
 When \hinl{take} cannot consume a list element because its second argument is not in head normal form, that is, the root expression is not a constructor or lambda abstraction, \hinl{pow2s} is evaluated to produce the demanded list element.
 This process repeats for the second element.
 When the first argument of \hinl{take} reaches zero, the list argument is not evaluated further and the empty list is returned.
 Consequently, it does not matter if a function has an argument whose evaluation would fail, as long as the value is not evaluated by the function.
-For example, \hinl{const 42 (head [])} has the value \hinl{42} in Curry and Haskell.
+For example, \hinl{const 42 (head [])} has the value \hinl{42} in Curry.
 
 \subsection{Non-Determinism}
 Evaluating expressions in Haskell is deterministic, that is, an expression either evaluates to one result or the evaluation fails.
 Since it is possible to define functions with overlapping patterns, Haskell uses only the first matching rule to determine the result of a computation.
 In Curry, however, this restriction is not present.
 If multiple patterns match an expression, the computation becomes non-deterministic and each applicable rule returns a result.
-The most simple, but very useful non-deterministic function is the choice operator, which is defined as follows.
+The most simple, but very useful, non-deterministic function is the choice operator, which is defined as follows.
 
 \begin{minted}{Haskell}
 (?) :: a -> a -> a
@@ -292,6 +292,7 @@ Both rules match for any input, so \hinl{0 ? 1} yields both \hinl{0} and \hinl{1
 
 Non-deterministic functions do not differ from deterministic ones in regard to the type system because there is no special syntax to denote this property in the signature.
 Although it is necessary to inspect the definition of a function in order to determine whether it is non-deterministic, we can freely combine deterministic and non-deterministic functions this way.
+
 When a deterministic function is applied to a non-deterministic argument, the function becomes non-deterministic itself.
 
 \begin{minted}{Haskell}
@@ -299,7 +300,7 @@ When a deterministic function is applied to a non-deterministic argument, the fu
 True
 False
 \end{minted}
-
+\noindent
 However, this effect is limited by non-strictness.
 If a function does not evaluate the non-determinism contained in one of its arguments, the function remains deterministic.
 For example, \hinl{const 42 (0 ? 1)} only yields \hinl{42}.
@@ -312,7 +313,7 @@ The former is shown in the following example.
 λ> head ([] ? [1])
 1
 \end{minted}
-
+\noindent
 The choice operator in the argument of \hinl{head} makes the function non-deterministic.
 Whereas the first choice branch fails, the second one succeeds and returns the value \hinl{1}.
 Although one computation failed, this is not apparent from the result, unless the failure happens at top-level.
@@ -329,20 +330,20 @@ In Curry, however, non-determinism can occur in shared expressions, for example 
 double :: Int -> Int
 double x = x + x
 \end{minted}
-
+\noindent
 When \hinl{double} is called with a non-deterministic argument, there are two possible options: Firstly, the choices in both occurrences of \hinl{x} can behave independently of each other, which is called run-time choice.
 Secondly, there is call-time choice.
 Conceptually, call-time choice means that the decision of which branches are taken in a non-deterministic argument are determined at the time the function is called.
 Of course this does not mean that the argument is evaluated before the function is called.
-Instead, sharing that is introduced by the pattern variable of a function means that, whenever a decision is made in any occurrence of the shared variable, the same decision must be made in all other occurrences of said variable.
+Instead, sharing that is introduced by a pattern variable means that, whenever a decision is made in any occurrence of the shared variable, the same decision must be made in all other occurrences of the variable.
 Consequently, sharing that is introduced by pattern variables can be transformed into local bindings.
 
-\begin{minted}[escapeinside=<>]{Haskell}
+\begin{minted}[escapeinside=<>]{Text}
   double (0 ? 1) 
 <$=$> let x = 0 ? 1 in x + x 
 <$\neq$> (0 ? 1) + (0 ? 1)
 \end{minted}
-
+\noindent
 However, replacing the occurrences of a variable with the shared expression gives the function call different semantics because the choices become independent of each other.
 Whereas both expression with shared non-determinism return only \hinl{0} and \hinl{2} because the decisions are made uniformly, the last expression evaluates to \hinl{0}, \hinl{1}, \hinl{1} and \cinl{2} since both terms of the sum can be \hinl{0} and \cinl{1}, independent of each other.
 
@@ -359,8 +360,8 @@ Sentences are processed sequentially, that is, from top to bottom of the file.
 
 The most actively developed tools for programming in Coq are CoqIDE, a standalone editor developed together with the language, and the Emacs package Proof General\footnote{\url{https://proofgeneral.github.io/}} or its extension Company-Coq\footnote{\url{https://github.com/cpitclaudel/company-coq}}.
 The latter is shown in the \autoref{fig:company-coq}.
-The interface is split into two main parts: The left-hand side shows the program and current progress, where loaded sentences are colored in light blue.
 
+The interface is split into two main parts: The left-hand side shows the program and current progress, where loaded sentences are colored in light blue.
 \begin{figure}
 \begin{center}
 \includegraphics[width=\textwidth]{img/coq.png}
@@ -368,20 +369,21 @@ The interface is split into two main parts: The left-hand side shows the program
 \caption{Interface of the Company-Coq package for Emacs}
 \label{fig:company-coq}
 \end{figure}
-
-
+\noindent
 The lower right-hand side region of the screen shows errors and other messages, while the upper part is used for proofs.
 The proof context, that is, all variables that have been introduced so far, is shown at the top.
 Separated by a line, the current goal follows below the context.
 
 In the following, an introduction to the syntax and concepts of Coq is given.
+We begin with data types and functions, followed by propositions and proofs as well as dependent types.
+Lastly, Coq's section mechanism is explained.
 
 \subsection{Data Types}
 \label{subsec:coqdatatypes}
 One important aspect of functional programming languages is the ability to easily define new data types.
 In Coq, constructor-based data types are defined using the keyword \cinl{Inductive}, which is followed by the name of the type and a list of type arguments.
-After a colon, the type of the definition follows.
-For inductive definitions like \cinl{option}, this type is \cinl{Type}.
+After a colon, the type of the definition follows, which is usually \cinl{Type} for inductive data types.
+As an example, the following shows the predefined \cinl{option} type, which is equivalent to \hinl{Maybe} in Haskell.
 
 \begin{minted}{Coq}
 Inductive option (A : Type) : Type := 
@@ -389,42 +391,45 @@ Inductive option (A : Type) : Type :=
 | None : option A.
 \end{minted}
 
-The \cinl{option} type is the predefined equivalent to the \hinl{Maybe} type in Haskell.
-Constructors of inductive data types are defined by giving the full type.
-Based on this definition, we can define values of \cinl{option} like \cinl{Some nat 42} or \cinl{None bool}.
+Constructors of inductive data types are defined by giving the full type, similar to GADTs in Haskell.
+Unfortunately, there seems to be no capitalization standard for names of constructors and types in Coq.
+In the following, self-defined types are capitalized and constructors begin with a lowercase letter.
 
+Based on the definition of \cinl{option}, we can define values like \cinl{Some nat 42} or \cinl{None bool}.
 By default, all arguments -- including type variables -- need to be specified when using polymorphic data types.
-However, the command \cinl{Set Implicit Arguments} can be used to enable Coq's ability to infer values that can be derived directly from other arguments.
-Now we can omit the type argument of \cinl{Some} because the type \cinl{A} can be inferred from the supplied value.
+However, the command \cinl{Set Implicit Arguments} can be used to enable Coq's ability to infer values which can be derived directly from other arguments.
+Since the type of an expression can be inferred, we can omit the type argument of \cinl{Some}.
 
+\paragraph{Nested Inductive Types}
 Based on the \cinl{option} type, we can define a list type with optional components as follows.
 \begin{minted}{Coq}
 Inductive List A : Type :=
-| Nil  : List A
-| Cons : option A -> option (List A) -> List A.
+| nil  : List A
+| cons : option A -> option (List A) -> List A.
 \end{minted}
-
+\noindent
 Since \cinl{option} is applied to \cinl{List} in the second constructor, this kind of definition is called \textit{nested inductive}.
-Although we have enabled implicit arguments, we still have to give an explicit type argument to \cinl{Nil}, as shown in the following example.
-The command \cinl{Check} is used to print the type of an expression.
-Since there is no \hinl{ghci}-like REPL for Coq, commands are written as part of the program and usually deleted afterwards.
-From now on, commands and the corresponding output are visualized as follows.
+Although we have enabled implicit arguments, we still have to give an explicit type argument to \cinl{nil}, as shown in the following example.
 
 \begin{minted}{Coq}
-🐔> Check Cons (Some 42) (Some (Nil nat)). (* command *)
+🐔> Check cons (Some 42) (Some (nil nat)). (* command *)
 List nat (* output *)
 \end{minted}
 
-The type argument of \cinl{Nil} cannot be inferred yet because no argument of \cinl{Nil} holds information about \cinl{A}.
-Nevertheless, the type argument can be inferred from the context of \cinl{Nil}, where \cinl{A} is defined as \cinl{nat} by the first argument of \cinl{Cons}.
+The command \cinl{Check} is used to print the type of an expression.
+Since there is no \hinl{ghci}-like REPL for Coq, commands are written as part of the program and usually deleted afterwards.
+Nevertheless, commands and the corresponding output are visualized REPL-like as shown above.
+
+The type argument of \cinl{nil} cannot be inferred yet because no argument of \cinl{nil} holds information about \cinl{A}.
+Nevertheless, it is possible to infer the type argument from the context of \cinl{nil}, where \cinl{A} is defined as \cinl{nat} by the first argument of \cinl{cons}.
 Such contextual inference of values can be enabled with the command \cinl{Set Contextual Implicit}.
 Now we can use \cinl{List} without explicit type arguments.
 
 In some situations, the type inference is not able to gather all required information.
-For example, defining \cinl{Cons None None} leads to the error message 'Cannot infer the implicit parameter \cinl{A} of \cinl{Cons} whose type is \cinl{Type}'.
+For example, defining \cinl{cons None None} leads to the error message 'Cannot infer the implicit parameter \cinl{A} of \cinl{cons} whose type is \cinl{Type}'.
 Thus, it is possible to explicitly pass implicit parameters by adding \cinl{@} in front of the function or constructor name.
 \begin{minted}{Coq}
-Definition empty A := @Cons A None None.
+Definition empty A := @cons A None None.
 \end{minted}
 
 \subsection{Functions}
@@ -432,27 +437,28 @@ Definition empty A := @Cons A None None.
 
 Based on data types, we can define functions that process data.
 The keyword \cinl{Definition} is predominantly used to define values, types and non-recursive functions.
-Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows provably terminating definitions.
-Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for functions of the former kind.
-As an example of a simple non-recursive function, we define the function \cinl{head} for the \cinl{List} type.
+Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows terminating definitions.
+Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for recursive functions.
+As an example of a simple non-recursive function, we define the function \cinl{head} for the \cinl{List} type with optional components.
 
 \begin{minted}{Coq}
 Definition head A (oxs : List A) : option A :=
   match oxs with
-  | Nil       => None
-  | Cons ox _ => ox
+  | nil       => None
+  | cons ox _ => ox
   end.
 \end{minted}
-
+\noindent
 Similar to data types, all occurring type variables need to be introduced explicitly in the function head.
+
 Pattern matching in Coq is done using the \cinl{match} construct.
 All functions must be total and thus, if an argument is matched, the patterns must be exhaustive.
-Since the elements of \cinl{List} are optional by definition, the return type is, too.
-Therefore, it is possible to define \cinl{head} for \cinl{List}.
-A partial function like \cinl{head} for ordinary lists in Haskell cannot be defined in Coq.
+Since the elements of \cinl{List} are optional by definition, the return type is wrapped in \cinl{option}, too.
+
+A partial function like \cinl{head} for ordinary lists in Haskell cannot be defined in Coq due to the totality requirement.
 However, it is possible to define lists in a different way that circumvents this problem, as described in \autoref{subsec:dependent}.
 
-As an example of recursive functions, we define an append function over \cinl{List}.
+As an example of recursive functions, we define an append function for \cinl{List}.
 Similar to the situation we encounter later in \autoref{ch:callTimeChoiceCoq}, the \cinl{List} arguments are wrapped in \cinl{option} types because optional components alone are not sufficient to model some aspects of call-time choice.
 
 \begin{minted}{Coq}
@@ -461,26 +467,29 @@ Fail Fixpoint app A (oxs oys : option (List A)) : option (List A) :=
   | None    => None
   | Some xs =>
     match xs with
-    | Nil         => oys
-    | Cons oz ozs => Some (Cons oz (app ozs oys))
+    | nil         => oys
+    | cons oz ozs => Some (cons oz (app ozs oys))
     end
   end.
 \end{minted}
-
+\noindent
 As indicated by \cinl{Fail}, this definition fails to load in Coq with the error message 'Cannot guess decreasing argument of fix'.
 Such errors generally mean that Coq is not able automatically detect that a recursive function always terminates.
 The reason for this requirement is explained in more detail in \autoref{sec:non-strictly}.
 In short, Coq's termination checker ensures that the proof logic remains sound.
+
 However, the termination check is too restrictive in some situations, as evidenced by \cinl{app}.
-Since the recursive call of \cinl{app} has \cinl{ozs} as its first argument, which is a subterm of \cinl{xs} and, consequently, \cinl{oxs}, the function is always called with structurally smaller values, which implies that the function eventually terminates.
+Since the recursive call of \cinl{app} has \cinl{ozs} as its first argument, which is a subterm of \cinl{xs} and, consequently, \cinl{oxs}, the function is always called with a structurally decreasing value.
+This implies that the function eventually terminates.
 Unfortunately, Coq is not able to track subterms across multiple levels of pattern matching in combination with nested inductive types. \citet{chlipala2013certified} describes this topic as follows.
 
 \begin{quotation}
 \noindent
-There is no deep theoretical reason why this program should be rejected; Coq applies incomplete termination-checking heuristics, and it is necessary to learn a few of the most important rules. The term "nested inductive type" hints at the solution to this particular problem[:] [\dots{}] nested types require nested recursion.
+There is no deep theoretical reason why this program should be rejected; Coq applies incomplete termination-checking heuristics, and it is necessary to learn a few of the most important rules.
+The term "nested inductive type" hints at the solution to this particular problem[:] [\dots{}] nested types require nested recursion.
 \end{quotation}
-
-In the example of \cinl{app}, nested recursion is not necessary, because option is not a recursive type.
+\noindent
+In the example of \cinl{app}, nested recursion is not necessary because \cinl{option} is not a recursive type.
 The basic idea, however, still applies.
 Instead of defining a single function that handles the nested patterns of a nested type, we split the function into two parts.
 First, however, we generalize the first \cinl{match} expression over optional values into the function \cinl{bind}.
@@ -493,30 +502,32 @@ Definition bind A B (o : option A) (f : A -> option B) : option B :=
   end.
 \end{minted}
 
-Now we remove the \cinl{option} wrapper from the first \cinl{List} argument and reuse the remaining definition except for the second argument of \cinl{Cons}.
+Now we remove the \cinl{option} wrapper from the first \cinl{List} argument and reuse the remaining definition of \cinl{app}, except for the second argument of \cinl{cons}.
 
 \begin{minted}{Coq}
 Fixpoint app' A (xs : List A) (oys : option (List A)) 
   : option (List A) :=
   match xs with
-  | Nil         => oys
-  | Cons oz ozs => Some (Cons oz (bind ozs (fun zs => app' zs oys)))
+  | nil         => oys
+  | cons oz ozs => Some (cons oz (bind ozs (fun zs => app' zs oys)))
   end.
 \end{minted}
+\noindent
+Since \cinl{app'} expects an argument of type \cinl{List A} but the second argument of \cinl{cons} has the type \cinl{option (List A)}, we use \cinl{bind} to retrieve the list \cinl{zs} for the recursive call.
 
-Since \cinl{app'} expects an argument of type \cinl{List A} but the second argument of \cinl{Cons} has the type \cinl{option (List A)}, we use \cinl{bind} to retrieve the list \cinl{zs} for the recursive call.
 Now we can define the last remaining part of the function, that is, a definition that has the original type of \cinl{app} and uses \cinl{app'}, with the help of bind.
 
 \begin{minted}{Coq}
 Definition app A (oxs oys : option (List A)) : option (List A) :=
   bind oxs (fun xs => app' xs oys).
 \end{minted}
-
+\noindent
 These three definitions are all accepted by Coq and allow us to define recursive functions over nested inductive types.
 
+\paragraph{Program Fixpoint}
 Another example of a recursive function that Coq's termination check does not accept is the Quicksort algorithm.
-Using the predefined \cinl{filter} function and Boolean comparison operator \cinl{leb} as well as Boolean negation, the function could look as follows.
-To define the predicate arguments of \cinl{filter}, we use anonymous functions, which are defined in Coq using the keyword \cinl{fun}.
+For this purpose, we use the predefined \cinl{list} type in Coq, whose constructors are named the same as for out self-defined lists.
+Using the predefined \cinl{filter} function and Boolean comparison operator \cinl{leb} as well as Boolean negation, the Quicksort function could look as follows.
 
 \begin{minted}{Coq}
 Fail Fixpoint quicksort (xs : list nat) : list nat :=
@@ -528,23 +539,27 @@ Fail Fixpoint quicksort (xs : list nat) : list nat :=
     in quicksort (filter le ys) ++ [y] ++ quicksort (filter gt ys)
   end.
 \end{minted}
+\noindent
+To define the predicate arguments of \cinl{filter}, we use anonymous functions, which are defined in Coq using the keyword \cinl{fun}.
 
-This definition is not accepted by Coq because the argument of the recursive call is modified by another function and thus, is not necessarily structurally decreasing.
-Nevertheless, there is a way to define such functions, which leads to the next subsection.
+The definition of \cinl{quicksort} is not accepted by Coq because the argument of the recursive call is modified by another function and thus, is not necessarily structurally decreasing.
+Nevertheless, there is a way to define such functions.
 
-Using \cinl{Program Fixpoint}, which is special syntax that can be imported using the command \cinl{Require Import Program}, we split the definition into two parts.
+\cinl{Program Fixpoint}, which is special syntax that can be imported using the command \cinl{Require Import Program}, splits the definition into two parts.
 The first part is almost the same definition as before, except for an additional argument called \textit{measure}.
 This value is used as evidence that the function is called with structurally decreasing arguments.
-In the case, we use \cinl{length xs} as measure, because each call of \cinl{quicksort} splits the input list into two structurally smaller lists.
+In the case, we use \cinl{length xs} as measure because each call of \cinl{quicksort} splits the input list into two structurally smaller lists for the recursive calls.
 
-The second part of a \cinl{Program Fixpoint} definition are proof obligations that are automatically generated based on the function definition and the supplied measure.
+The second part of a \cinl{Program Fixpoint} definition are proof obligations.
+Coq allows calling a function defined by \cinl{Program Fixpoint} only after proving these termination properties.
+The proof obligations are automatically generated based on the function definition and the supplied measure.
 Since we have not yet discussed how proofs in Coq work, this is the topic of the next subsection.
 
 \subsection{Propositions and Proofs}
 
 The goal of a proof in Coq is to construct evidence that a certain proposition holds.
 Propositions have the type \cinl{Prop} and represent statements about Gallina structures.
-For example, $1 = 0$ is a proposition, although not a provable one.
+For example, \cinl{1 = 0} is a proposition, although not a provable one.
 
 The term 'constructing evidence' is related to the \textit{Curry-Howard Correspondence}, which suggests that logical proofs and computational values are strongly connected.
 When we reason mathematically about a statement like $1 = 1$, we might argue that equality is a reflexive relation and thus, the statement must be true.
@@ -555,15 +570,16 @@ Lemma eq11 : 1 = 1.
 Proof. reflexivity. Qed.
 \end{minted}
 
-Proofs in Coq start with the command \cinl{Proof} and end with \cinl{Qed}.
+Propositions can be defined as a theorem or lemma with the corresponding keyword.
+A proof usually follows below the lemma, beginning with the command \cinl{Proof} and ending with \cinl{Qed}.
 L$_\text{tac}$ tactics like \cinl{reflexivity} represent values that Coq constructs in the background when a proof is defined.
-The constructed value can be printed using \cinl{Print eq11}, which yields the following.
+The constructed value can be printed using the command \cinl{Print} as follows.
 
 \begin{minted}{Coq}
 🐔> Print eq11.
 eq_refl : 1 = 1
 \end{minted}
-
+\noindent
 When we talk about values in the context of proofs, the type operator \cinl{:} can be read as 'is a proof of', that is, \cinl{eq_refl} is a proof of \cinl{1 = 1}, in this case.
 In order to find out more about \cinl{eq_refl}, we can ask Coq for the definition of the equality operator, using \cinl{Locate} and then \cinl{Print}.
 
@@ -572,9 +588,9 @@ In order to find out more about \cinl{eq_refl}, we can ask Coq for the definitio
 Notation "x = y" := eq x y : type_scope (default interpretation)
 
 🐔> Print eq.
-Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x
+Inductive eq (A : Type) (x : A) : A -> Prop := eq_refl : x = x
 \end{minted}
-
+\noindent
 Now we know that \cinl{=} is a notation for the \textit{inductively defined proposition} \cinl{eq}.
 'Inductively defined' means that a proposition consists of multiple constructors whose definition is usually related to the inductive data type that the proposition reasons about.
 The constructor \cinl{eq_refl} matches values of all types and can be applied if its first argument \cinl{x} and second argument -- the argument of type \cinl{A} that follows -- are the same.
@@ -598,10 +614,11 @@ Proof.
       apply IHxs.
 Qed.
 \end{minted}
+\noindent
+When a tactic yields multiple subgoals, the symbols \cinl{-}, \cinl{+} and \cinl{*} or multiples of the same symbols can be used to structure the proof.
 
-When a tactic yields multiple subgoals, the symbols \cinl{-}, \cinl{+} and \cinl{*} can be used to structure the proof.
 We begin the proof with \cinl{intros A xs p}. 
-This command moves quantified variables from the goal to the context.
+This command moves quantified variables from the goal, which initially matches the proposition, to the context.
 Hence, the proof view now looks as follows.
 
 \begin{minted}{Coq}
@@ -611,8 +628,8 @@ p : A -> bool
 ============================
 length (filter p xs) <= length xs
 \end{minted}
-
-To further advance the proof, we need more information about \cinl{xs}, because both \cinl{length} and \cinl{filter} do pattern matching.
+\noindent
+To further advance the proof, we need more information about \cinl{xs} because both \cinl{length} and \cinl{filter} pattern match the list argument.
 For inductive data types, the tactic \cinl{destruct} does a case distinction over the constructors of the passed argument, where each constructor generates one new subgoal.
 For non-recursive data types like \cinl{bool}, this is sufficient.
 However, proofs over recursive data types like \cinl{list} usually require structural induction to be able to prove the property.
@@ -620,6 +637,7 @@ Consequently, we use \cinl{induction xs} to distinguish empty lists and non-empt
 
 When a semicolon is used instead of a dot between two tactics, the second tactic is applied to all subgoals that the first one generates.
 In this case, we want to apply the tactic \cinl{simpl} to both cases and thus, combine \cinl{induction xs} and \cinl{simpl} with a semicolon.
+
 The tactic \cinl{simpl} tries to reduce an expression while still maintaining readability.
 For example, \cinl{simpl} applies the definition of \cinl{filter} and \cinl{length} because the outermost constructor of \cinl{xs} has been determined by \cinl{induction}.
 In the following goal, \cinl{::} is an infix notation for the \cinl{cons} constructor.
@@ -635,7 +653,7 @@ subgoal 2 (ID 64) is:
 For the first subgoal, which corresponds to the case \cinl{xs = nil}, the functions on both sides of the inequality have been reduced to \cinl{0}.
 Since \cinl{<=} is a reflexive relation, this goal is solved trivially.
 In the second subgoal, the definition of \cinl{filter} and \cinl{length} have been applied once.
-Additionally, the induction hypothesis created by the \cinl{induction} tactic is added to the context.
+Additionally, a induction hypothesis created by the \cinl{induction} tactic is added to the context.
 
 \begin{minted}{Coq}
 A : Type
@@ -650,7 +668,8 @@ length (if p a then a :: filter p xs else filter p xs)
 
 Again, we need to make a case distinction, but this time over the result of \cinl{p a}.
 Since \cinl{bool} is not a recursive type, the tactic \cinl{destruct} applied to \cinl{p a} is sufficient.
-In case of \cinl{p a = true}, the new goal is \cinl{ S (length (filter p xs)) <= S (length xs)}.
+
+In case of \cinl{p a = true}, the new goal is \cinl{S (length (filter p xs)) <= S (length xs)}.
 When compared to the induction hypothesis \cinl{IHxs}, the only difference are the \cinl{S} constructors.
 Since they can be removed without affecting the inequality, we ask Coq if such a proposition already exists by means of \cinl{Search (S _ <= S _)}, where underscores represent a wildcard pattern.
 The result is the following lemma.
@@ -659,7 +678,7 @@ The result is the following lemma.
 le_n_S: forall n m : nat, n <= m -> S n <= S m
 \end{minted}
 
-The lemma can be applied with the tactic \cinl{apply}.
+A lemma can be applied with the tactic \cinl{apply}.
 In general, \cinl{apply} works by matching the goal against the conclusion $c$ of a lemma of type $p_1 \rightarrow \dots \rightarrow p_n \rightarrow c$ where $p$ represent premises.
 When the matching is successful, a new subgoal for each premise is generated.
 Thus, \cinl{apply} 'reasons backwards' in the sense that we replace the current goal with premises, which, if eventually proven, imply that the original goal must hold, too. 
@@ -669,6 +688,7 @@ Therefore, the new goal is identical to the induction hypothesis, which can be a
 For the second case that corresponds to \cinl{p a = false}, the reasoning is similar to the first case but with a slightly different lemma.
 This concludes the proof of the helper lemma \cinl{filter_length} and allows us to finally begin the termination proofs for Quicksort.
 
+\paragraph{Quicksort Termination Proofs}
 Using the command \cinl{Next Obligation}, we can begin the first of two termination proofs, where each one corresponds to one recursive call.
 The proof context and goal now looks as follows.
 
@@ -686,50 +706,51 @@ Using Coq's search, we find the following lemma that allows us to transform the 
 \begin{minted}{Coq}
 Lt.le_lt_n_Sm: forall n m : nat, n <= m -> n < S m
 \end{minted}
-
-This leads to the following goal.
+\noindent
+Applying the lemma leads to the following goal.
 
 \begin{minted}{Coq}
 length (filter (fun x : nat => Nat.leb x y) ys) <= length ys
 \end{minted}
-
-Coincidentally, the remaining goal can be proven directly using the helper lemma \cinl{filter_length}.
+\noindent
+Coincidentally, the remaining goal can be proven directly using the previously defined helper lemma \cinl{filter_length}.
 
 The second termination proof is identical to the first one because the helper lemma holds for any predicate, which is the only difference between both recursive calls.
+
 Finally, we have defined the function using \cinl{Program Fixpoint} and two termination proofs.
-We can ask Coq to compute the value of an expression using the command \cinl{Compute}.
+We can now ask Coq to compute the value of an expression using the command \cinl{Compute}.
+Coq's list notation uses semicolons instead of commas to separate list elements.
 
 \begin{minted}{Coq}
 🐔> Compute quicksort [23; 8; 15; 4; 42; 16].
 [4; 8; 15; 16; 23; 42] : list nat
 \end{minted}
 
-In conclusion, we have seen two kinds of definitions that Coq's termination checker does not accept and two ways to bypass these restrictions.
-
 \subsection{Dependent Types}
 \label{subsec:dependent}
 
-Since Coq is a dependently typed language, it is also possible to have values as part of the type.
+Since Coq is a dependently typed language, it is possible to have values as part of a type.
 For example, the following definition represents a list data type -- also called vector -- that encodes the list's length in the type using Peano numbers.
 
 \begin{minted}{Coq}
-Inductive vec (A : Type) : nat -> Type :=
-| vnil  : vec A 0
-| vcons : forall n, A -> vec A n -> vec A (S n).
+Inductive Vec (A : Type) : nat -> Type :=
+| vnil  : Vec A 0
+| vcons : forall n, A -> Vec A n -> Vec A (S n).
 \end{minted}
 
 The constructor \cinl{vnil} is a vector of length zero, whereas \cinl{vcons} has an explicit argument \cinl{n} introduced by \cinl{forall} that represents the length of the vector's tail.
-Since the tail has length $n$ and an element is added, the whole vector has $n + 1$ elements, represented by the successor constructor.
+Since the tail has length $n$ and an element is added, the whole vector has $n + 1$ elements, represented by the successor constructor \cinl{S}.
+
 Using this inductive definition of vectors, we can write a singleton vector of Boolean values as \cinl{vcons bool 0 true (vnil bool)}.
 When we enable Coq's inference capabilities as described in \autoref{subsec:coqdatatypes}, this value can be defined as \cinl{vcons true vnil}.
 As a non-recursive function over vectors, we define a length function as follows.
 
 \begin{minted}{Coq}
-Definition vlength (A : Type) (n : nat) (xs : vec A n) : nat := n.
+Definition vlength (A : Type) (n : nat) (xs : Vec A n) : nat := n.
 \end{minted}
-
+\noindent
 In this case, the length parameter encoded in the vector type is also a parameter of the function and the result of the function.
-Although this might seem strange because the result of the function is also a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
+Although this might seem strange because the result of the function is a parameter, it makes sense when we consider that parameters, whose value can be inferred from other arguments, can be omitted.
 
 \begin{minted}{Coq}
 🐔> Compute vlength (vcons true (vcons true vnil)).
@@ -743,8 +764,8 @@ When we enable explicit arguments for \cinl{vlength} and supply a value for \cin
 \end{minted}
 \vspace*{-18pt}
 \begin{minted}{Text}
-Error: The term "vcons true vnil" has type "vec bool 1"
-         while it is expected to have type "vec bool 2".
+Error: The term "vcons true vnil" has type "Vec bool 1"
+         while it is expected to have type "Vec bool 2".
 \end{minted}
 
 As an example of a recursive function, we define the append function for vectors.
@@ -752,8 +773,8 @@ Again, there is a type argument and two natural numbers that represent the lengt
 The encoded length argument allows us to express the invariant that appending two vectors of length $n$ and $m$ yields a vector with $n + m$ elements.
 
 \begin{minted}{Coq}
-Fixpoint vapp (A : Type) (n m : nat) (xs : vec A n) (ys : vec A m) 
-  : vec A (n + m) :=
+Fixpoint vapp (A : Type) (n m : nat) (xs : Vec A n) (ys : Vec A m) 
+  : Vec A (n + m) :=
   match xs with
   | vnil       => ys
   | vcons z zs => vcons z (vapp zs ys)
@@ -763,13 +784,13 @@ Fixpoint vapp (A : Type) (n m : nat) (xs : vec A n) (ys : vec A m)
 As discussed in the previous section, it is not possible to define a function that returns the head of an ordinary list without a wrapper like \cinl{option} because functions must be total.
 However, for dependently typed vectors, it is possible to ensure that the function is only applied to non-empty vectors.
 
-Functions over dependent types can be tricky to write directly in some situations.
+Functions over dependent types can be tricky to write computationally in some situations.
 In the last subsection, the Curry-Howard correspondence and values as proofs were discussed.
 In the context of dependent types, the other direction, that is, proofs as values, are more interesting.
 Using Coq's proof mode, we are able to define computational functions with proof tactics as follows.
 
 \begin{minted}{Coq}
-Definition vhead (A : Type) (n : nat) (xs : vec A (S n)) : A.
+Definition vhead (A : Type) (n : nat) (xs : Vec A (S n)) : A.
   dependent destruction xs.
   apply a.
 Defined.
@@ -781,6 +802,7 @@ In a computational definition, we would use \cinl{match} to pattern match for th
 The equivalent proof tactic is \cinl{destruct}, which we already used in the last subsection.
 For dependent types, however, there is a special tactic called \cinl{dependent destruction}, which considers information like the \cinl{S} pattern in the length argument of the vector.
 This allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the only generated subgoal is for \cinl{cons a _}.
+The resulting proof view is as follows.
 
 \begin{minted}{Coq}
 A : Type
@@ -790,7 +812,7 @@ xs : vlist A n
 ============================
 A
 \end{minted}
-
+\noindent
 Coq now expects a value of the function's return type \cinl{A}.
 Since \cinl{a : A} is in the context, we can return \cinl{a} with \cinl{apply a}.
 When the proof is finished with \cinl{Defined}, the function behaves like any other defined function.
@@ -843,15 +865,18 @@ Therefore, each \hinl{Choice} constructor needs an additional \hinl{ID} argument
 Since each choice requires a fresh ID, functions that create choices have an additional \hinl{IDSupply} argument that is used to generate new IDs.
 
 The evaluation of a non-deterministic value is implemented by transforming the value into a search tree, which can then be traversed with different search strategies.
-In the process, the decision for each choice is stored and then repeated accordingly, if the same ID is encountered again.
+In the process, the decision for each choice is stored and then repeated accordingly if the same ID is encountered again.
 
 While this approach is useful when the host language supports non-strictness and sharing, another approach is necessary to model these effects when this is not the case.
 
 \subsection{Modeling Non-Strictness and Sharing}
 \label{subsec:monadicLifting}
 \citet{fischer2009purely} introduce a monadic representation of non-determinism that supports sharing and non-strict evaluation.
-Out of simplicity, the implementation idea is presented in Haskell, similar to the approach of the original authors, using the example of permutation sort.
-Before the actual implementation is discussed, we have a look at a naive approach that uses only lifted result types.
+Out of simplicity, the idea is presented in Haskell, similar to the approach of the original authors.
+Before the actual implementation is discussed, we have a look at a naive approach to motivate the usage of monadic liftings.
+
+As an example of an algorithm that uses non-determinism in combination with sharing, we have a look at \textit{permutation sort}.
+The idea is to non-deterministically generate permutations until a permutation is sorted and then return the sorted permutation.
 
 The algorithm consists of three components: Firstly, a function \hinl{insert} that inserts an element non-deterministically at every possible position within a list.
 
@@ -864,7 +889,7 @@ insert x xs = return (x:xs)
                              return (y:zs)
 \end{minted}
 \noindent
-The second part is the function \hinl{perm} that inserts the head of a given list into the permutations of the list's tail.
+The second part is a function \hinl{perm} that inserts the head of a given list into the permutations of the list's tail.
 
 \begin{minted}{Haskell}
 perm :: MonadPlus m => [a] -> m [a]
@@ -882,9 +907,10 @@ sort xs = do ys <- perm xs
              guard (isSorted ys)
              return ys
 \end{minted}
-
+\noindent
 The function \hinl{isSorted} compares each element in a list to the next one in order to determine whether the list is sorted.
-While testing this implementation, we can see that the runtime increases significantly when adding even a few elements.\footnote{The results were measured using the \texttt{:set +s} option of \texttt{ghci}, version 8.4.3. Although the code runs faster with optimizations, the runtime complexity does not change.}
+
+When testing the performance of the implementation, we can see that the runtime increases significantly when adding even a few elements.\footnote{The results were measured using the \texttt{:set +s} option of \texttt{ghci}, version 8.4.3. Although the code runs faster with optimizations, the runtime complexity does not change.}
 
 \begin{minted}{Haskell}
 λ> sort [9, 8..1] :: [[Int]]
@@ -902,22 +928,25 @@ The reason for the factorial runtime is that the implementation is needlessly st
 A list of length $n$  has $n!$ permutations, all of which are generated when running \hinl{sort}.
 This matches our observation above, since adding a tenth element increases the runtime by a factor of 10 and an eleventh element multiplies the runtime of the algorithm for a ten-element list by eleven.
 
-If we consider the implementation of \hinl{isSorted}, we can see that, as soon as the comparison of two elements yields \hinl{False}, the function returns \hinl{False} and does not evaluate the remainder of the list.
+If we consider the implementation of \hinl{isSorted}, we can see that, as soon as the comparison of two elements yields \hinl{False}, the function returns \hinl{False}.
+Furthermore, the remainder of the list is not evaluated.
 
 \begin{minted}{Haskell}
 isSorted :: [Int] -> Bool
 isSorted (x:y:zs) = (x <= y) && isSorted (y:zs)
 isSorted _        = True
 \end{minted}
-
+\noindent
 However, since we use bind to pass permutations from \hinl{perm} to \hinl{isSorted}, each permutation is fully evaluated before it is determined whether the permutation is sorted.
 This leads to the complete evaluation of every permutation, which results in an inefficient program.
 
 Similarly, when we consider the Curry example \hinl{head (1 : head [] : [])}, the strictness of our \hinl{MonadPlus} approach shows again.
 The corresponding Haskell expression is as follows.
 
-\mint{Haskell}{hd [] >>= \x -> hd (1 : x : [])}
-
+\begin{minted}{Haskell}
+hd [] >>= \x -> hd (1 : x : [])
+\end{minted}
+\noindent
 Here \hinl{hd :: MonadPlus a => [a] -> m a} is the lifted \hinl{head} function.
 Evaluating the expression in Haskell yields \hinl{mzero}, that is, no result, while Curry returns \hinl{1}.
 The reason is the definition of the bind operator.
@@ -925,7 +954,7 @@ For example, the monad instance for lists defines bind as \hinl{xs >>= f = conca
 In the expression above, this means that the pattern matching within \hinl{concatMap} evaluates \hinl{hd []} to \hinl{mzero} and thus returns \hinl{mzero}.
 
 The strictness observed in both examples is the motivation for an alternative approach.
-The problem with the above implementations is that non-deterministic arguments of constructors need to be evaluated completely before the computation can continue.
+The problem with the above implementation is that non-deterministic arguments of constructors need to be evaluated completely before the computation can continue.
 Therefore, we would like to be able to use unevaluated, non-deterministic computations as arguments of constructors.
 
 As mentioned before, we can implement this idea by adapting all data types so that they may contain non-deterministic components.
@@ -933,9 +962,10 @@ As mentioned before, we can implement this idea by adapting all data types so th
 \begin{minted}{Haskell}
 data List m a = Nil | Cons (m a) (m (List m a))
 \end{minted}
-
+\noindent
 The list data type now has an additional argument \hinl{m} of kind \hinl{* -> *} that represents a non-determinism monad.
-Instead of fixed constructors like \hinl{Choice}, which were discussed as part of the KiCS2 approach in \autoref{subsec:kics2}, the monad \hinl{m} determines the structure and evaluation strategy of the non-determinism effect.
+Instead of a fixed constructor like \hinl{Choice}, which was discussed as part of the KiCS2 approach in \autoref{subsec:kics2}, the monad \hinl{m} determines the structure and evaluation strategy of the non-determinism effect.
+
 Two smart constructors \hinl{cons} and \hinl{nil} make handling the new list type more convenient.
 
 \begin{minted}{Haskell}
@@ -967,7 +997,7 @@ perm' ml = ml >>= \l ->
 Whenever pattern matching occurred in the original definition, we now use bind to extract a \hinl{List} value.
 Since this only evaluates flat non-determinism and not non-determi-nism that occurs in the components, non-strictness is upheld as much as possible.
 
-All functions now take arguments of the same type they return.
+As a result of the monadic transformation, all functions now take arguments of the same type they return.
 Thus, the definition of \hinl{sort} does not need bind in order to pass permutations to \hinl{isSorted}.
 
 \begin{minted}{Haskell}
@@ -986,7 +1016,7 @@ Since the \hinl{List} data type now takes monad values as arguments, we can writ
 λ> hdM (cons (return 1) (cons (hd' nil) nil))
 1
 \end{minted}
-
+\noindent
 Because we do not need to use bind to get the result of \hinl{hd' nil}, the expression is not evaluated due to non-strictness and the result is equal to Curry's output.
 
 Data types with non-deterministic components solve the problem of non-strictness because each component can be evaluated individually, instead of forcing the evaluation of the whole term.
@@ -1001,7 +1031,7 @@ Thus, \hinl{share} takes a  computation and then returns a computation that retu
 The reason for this nesting of monad layers is that, in short, the \hinl{share} combinator performs some actions that can be immediately executed by bind (the outer monad layer), while the inner monad layer should only be evaluated when needed.
 This is explained in more detail later.
 
-With the explicit sharing operator, we can adapt \hinl{perm'} to share the generated permutations in order to achieve non-strictness in combination with sharing.
+With the explicit sharing operator, we can adapt \hinl{perm'} to explicitly share the generated permutations, which results in non-strictness combined with sharing.
 
 \begin{minted}{Haskell}
 sort' :: MonadPlus m => m (List m Int) -> m (List m Int)
@@ -1011,7 +1041,7 @@ sort' xs = do ys <- share (perm' xs)
               ys
 \end{minted}
 
-Based on this idea of an operator that allows us to explicitly express sharing, we can now begin modeling call-time choice.
+Based on this idea of an explicit sharing operator, we can now begin modeling call-time choice.
 We first discuss a Haskell implementation, which is later formalized in Coq.
 
 \chapter{Call-Time Choice Modeled in Haskell}
@@ -3598,8 +3628,8 @@ In the following, \cinl{Prog} is defined as \cinl{Free NDShare} where \cinl{NDSh
 
 \begin{minted}{Coq}
 Fail Inductive List A :=
-| Nil  : List A
-| Cons : Prog A -> Prog (List A) -> List A.
+| nil  : List A
+| cons : Prog A -> Prog (List A) -> List A.
 \end{minted}
 
 Coq does not accept this definition due to non-strict occurrence of \cinl{List} in the second constructor.
@@ -3617,8 +3647,8 @@ It is possible to circumvent this error by defining the data type using continua
 
 \begin{minted}{Coq}
 Inductive List A :=
-| Nil             : List A
-| Cons {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
+| nil             : List A
+| cons {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
 \end{minted}
 
 While this definition is accepted by Coq, we do not gain much because we cannot define other crucial functions due to inconsistent universes and other errors related to Coq's type hierarchy.
