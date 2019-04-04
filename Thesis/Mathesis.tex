@@ -3700,18 +3700,18 @@ Nevertheless, the examples that do not feature recursive data types inspire conf
 \label{ch:progsInCoq}
 
 In the last chapter, we have modeled call-time choice as effect in Coq.
-Although we are now able to define and evaluate Curry programs, this is the case for the Haskell implementation, too.
+Although we are now able to define and evaluate Curry programs, this is the case for the Haskell implementation as well.
 Thus, this chapter focuses on reasoning about properties of the model using Coq's proof logic.
 
 We begin with a section about program equality because we need to define when two programs are considered equal in order to reason about them.
 Then, induction principles are discussed as a prerequisite for the following section about the laws of sharing, where we have a look at properties
-of the explicit sharing operator and try to prove them.
+of the explicit sharing operator.
 
 \section{Program Equality}
 
 There are multiple aspects to consider when talking about program equality.
 For instance, one could say that two programs are equal only if they are structurally identical.
-This is, however, not a very useful property, because programs can have the same behavior and thus, yield the same results, although they are structurally different.
+This is, however, not a very useful property because programs can have the same behavior and thus, yield the same results, although they are structurally different.
 Consequently, defining equality of programs by means of their semantics is a better approach.
 
 We have already learned that an effect handler described the semantics of an effect.
@@ -3723,7 +3723,7 @@ The same order of effects is represented in the following definition of the prog
 Definition handle A `{Normalform A A} (p : Prog A) : list A :=
   collectVals (runChoice (runSharing (runState (0,0) (nf p)))).
 \end{minted}
-
+\noindent
 The program is first normalized by \cinl{nf}, that is, effects that occur inside components of data structures are moved to the root of the expression.
 Then, the effect stack is handled by calling the handlers for state, sharing and non-determinism, followed by the function \cinl{collectVals} which transforms a choice tree into a list.
 Because \cinl{nf} can only be applied to instances of the \cinl{Normalform} class, we add a corresponding type constraint to the function.
@@ -3732,21 +3732,15 @@ Based on \cinl{handle}, we can now define program equality as equality of the ha
 In order to satisfy the type constraint of \cinl{handle}, we define the type \cinl{A} and a \cinl{Normalform} instance as sections variables.
 
 \begin{minted}{Coq}
-Section Eq_Prog.
-  Variable A : Type.
-  Variable NF__A : Normalform A A.
+Variable A : Type.
+Variable NF__A : Normalform A A.
 
-  Definition Eq_Prog (p1 p2 : Prog A) := handle p1 = handle p2.
+Definition Eq_Prog (p1 p2 : Prog A) := handle p1 = handle p2.
 \end{minted}
 
 When equality is involved in a proof, the tactic \cinl{reflexivity} is vital.
 This tactic is defined as part of the \cinl{Reflexive} type class for reflexive relations.
 Besides reflexivity, we also want to prove that \cinl{Eq_Prog} is symmetric and transitive, that is, \cinl{Eq_Prog} is an equivalence relation.
-
-In case of program equality, the equivalence relation proofs follow a common pattern.
-First, the variables are introduced.
-Then, the definition of \cinl{Eq_Prog} is applied with \cinl{unfold}.
-Finally, we can use the corresponding property of the predefined list equality to conclude the proof.
 
 \begin{minted}{Coq}
 Lemma eq_prog_refl : Reflexive Eq_Prog.
@@ -3759,8 +3753,13 @@ Qed.
 Global Instance eq_Prog_Reflexive : Reflexive Eq_Prog  := eq_prog_refl.
 \end{minted}
 
+In case of program equality, the equivalence relation proofs follow a common pattern.
+First, the variables are introduced.
+Then, the definition of \cinl{Eq_Prog} is applied with \cinl{unfold}.
+Finally, we can use the corresponding property of the predefined list equality to conclude the proof.
+
 For the proofs of symmetry and transitivity, we use the same approach but with the tactic \cinl{symmetry} and \cinl{transitivity}, respectively.
-Since we have defined the proof as an instance of the \cinl{Reflexive} class, we can now use the tactic \cinl{reflexivity} whenever the goal is an \cinl{Eq_Prog} equality.
+Since we have defined the proof as an instance of the \cinl{Reflexive} class, we can now use the tactic \cinl{reflexivity} whenever the goal is an equation over values of type \cinl{Eq_Prog}.
 
 \section{Induction Principles}
 
@@ -3775,7 +3774,7 @@ list_ind : forall (A : Type) (P : list A -> Prop),
              (forall (a : A) (l : list A), P l -> P (a :: l)) ->
              forall l : list A, P l
 \end{minted}
-
+\noindent
 The induction principle for lists states that a proposition \cinl{P} over lists hold for all lists under two conditions.
 Firstly, the property needs to hold for the empty list.
 Secondly, if we have a list \cinl{a :: l}, the proposition must hold for \cinl{l}.
@@ -3805,47 +3804,7 @@ Variable Impure_rect : forall (s : Shape) (pf : Pos s -> Free C__F A),
     (forall p, P (pf p)) -> P (impure (ext s pf)).
 \end{minted}
 
-% Removed due to different proof technique
-\begin{comment}
-When we try to prove properties about the \cinl{Prog = Free NDShare} type with this principle, we soon run into problems.
-For instance, one proof leads to the following subgoal.
-
-\begin{minted}{Coq}
-  collectVals (runChoice (runSharing (runState (1, 0) (nf x))))
-= collectVals (runChoice (runSharing (runState (0, 0) (nf x))))
-\end{minted}
-
-The initial ID of the state does not matter for the result, because the specific value of IDs makes no difference as long as the same choices are linked when they are shared.
-We define this property as the following lemma.
-
-\begin{minted}{Coq}
-Lemma State_ND_Independence : forall n m (p : Prog A),
-    runState n p = runState m p.
-\end{minted}
-
-The stronger induction principle is quantified over a shape \cinl{s}.
-Thus, when the principle is applied with \cinl{induction}, we need to do a case distinction over \cinl{s} for the corresponding subgoal.
-Since \cinl{NDShare} combines the effects state, sharing and non-determinism, \cinl{s} can be either one of the effects' shapes.
-This poses a problem, however.
-The lemma does not hold for the shape \cinl{sget} of the state effect, in particular.
-When \cinl{p = Get}, the result obviously depends on the initial state that \cinl{runState} is called with.
-
-As a solution to this problem, we define an induction principle for the \cinl{Prog} type that is based on the following axiom.
-
-\begin{minted}{Coq}
-Axiom Free_Share_dec :
-  forall (A : Type) (p : Prog A),
-    { exists x, p = pure x } +
-    { p = Fail } +
-    { exists id p1 p2, p = Effect.Choice id p1 p2}.
-\end{minted}
-
-\cinl{Free_Share_dec} states that a value \cinl{p : Prog A} is either a pure value, a failed computation or a non-deterministic choice.
-Hence, we limit inductive proofs to non-deterministic programs, because the state and sharing effect are already expressed in non-deterministic programs as choice IDs.
-
-Based on the assumption \cinl{Free_Share_dec}, we can define an induction principle for values of type \cinl{Prog} that only considers non-deterministic programs.
-This allows us to prove, for example, the lemma about independence of non-determinism from the initial state.
-\end{comment}
+With the definition of program equality and a sufficiently strengthened induction principle, we can now begin proving properties of the call-time choice model, as demonstrated in the next section.
 
 \section{Laws of Sharing}
 \citet{fischer2009purely} define equational laws that an implementation of an explicit sharing operator should satisfy.
@@ -3857,23 +3816,26 @@ pure x    >>= f    = f x                           (Lret)
 p         >>= pure = p                             (Rret)
 (p >>= f) >>= g    = p >>= fun x => f x >>= g      (Bassc)
 
-fail    >>= f = fail                               (Lzero)
+Fail    >>= f = Fail                               (Lzero)
 (p ? q) >>= f = (p >>= f) ? (q >>= f)              (Ldistr)
 
-share (p ? q) = share p ? share q                  (Choice)
-share fail    = pure fail                          (Fail)
-share (pure (c x1 ... xn)) =                       (HNF)
-  share x1 >>= fun y1 => ....
-  share xn >>= fun yn => pure (pure (c y1 ... yn))
+Share (p ? q) = Share p ? Share q                  (Choice)
+Share Fail    = pure Fail                          (Fail)
+Share (pure (c x1 ... xn)) =                       (HNF)
+  Share x1 >>= fun y1 => ....
+  Share xn >>= fun yn => pure (pure (c y1 ... yn))
 \end{minted}
 \caption{Laws of Sharing}
 \label{fig:laws}
 \end{figure}
+\noindent
+In the last equation, \cinl{c} is a constructor with \cinl{n} non-deterministic components.
 
-In the last case, \cinl{c} is a constructor with \cinl{n} non-deterministic components.
+\paragraph{Monad Laws}
+The first three equations \cinl{Lret}, \cinl{Rret} and \cinl{Bassc} correspond to the monad laws and are easily proven because \cinl{Free} transforms containers into monads.
 
-The first three equations \cinl{Lret}, \cinl{Rret} and \cinl{Bassc} correspond to the monad laws and are easily proven proven because \cinl{Free} transforms containers into monads.
-First, the properties are defined for \cinl{Free} with an arbitrary container argument.
+As an exemplary proof, the property \cinl{Rret} is shown.
+Instead of the \cinl{Prog} type which specializes \cinl{Free} with \cinl{NDShare}, we prove the lemma for an arbitrary container \cinl{C__F} as follows.
 
 \begin{minted}{Coq}
 Lemma bind_pure :
@@ -3889,9 +3851,30 @@ Qed.
 \end{minted}
 
 In the proof, we make use of the custom induction principle for \cinl{Free}.
-Whereas the pure case is solved by \cinl{reflexivity}, the impure case begins by removing \cinl{impure} and \cinl{ext} constructors.
-Then, pointwise function equality of the position functions is shown by means of the induction hypothesis, which is applied in the last step.
-For this reason, it is not possible to show this property with the automatically generated induction principle.
+Whereas the pure case is solved by \cinl{reflexivity}, the impure case begins by removing \cinl{impure} and \cinl{ext} constructors using \cinl{f_equal} twice.
+The proof view now looks as follows.
+
+\begin{minted}{Coq}
+F : Type -> Type
+C__F : Container F
+ A : Type
+s : Shape
+pf : Pos s -> Free C__F A
+H : forall p : Pos s, pf p >>= (fun x : A => pure x) = pf p
+============================
+(fun x : Pos s => pf x >>= (fun x0 : A => pure x0)) = pf
+\end{minted}
+\noindent
+Since we need to prove an equation over two functions, we show pointwise function equality of the position functions using \cinl{extensionality}.
+The current goal changes as follows.
+
+\begin{minted}{Coq}
+pf p >>= (fun x : A => pure x) = pf p
+\end{minted}
+
+Now we can prove the goal by applying the induction hypothesis \cinl{H}, which matches the current goal.
+Without this induction hypothesis, we would not be able to prove this property.
+For this reason, it is necessary to modify the automatically generated induction principle as shown in the previous subsection.
 
 The proof of \cinl{Rret}, which is just a specialized version of the previous lemma, does not need additional reasoning, as shown in the following.
 
@@ -3903,14 +3886,13 @@ Proof.
   reflexivity.
 Qed.
 \end{minted}
-
+\noindent
 The properties are defined using the equivalence relation \cinl{Eq_Prog} instead of the predefined equality relation.
-However, the laws hold for structural equality, too.
+However, the monad laws hold for structural equality, too.
 
+\paragraph{MonadPlus Laws}
 \cinl{Lzero} and \cinl{Ldistr} are properties of \hinl{MonadPlus}.
 Since the Haskell implementation is generalized over instances of \cinl{MonadPlus}, instead of using \cinl{Prog} directly, this property translates to Coq as well.
-As an exemplary proof, \cinl{Lzero} can be shown by unfolding the definitions, removing equal constructors until the position functions remain and then showing pointwise function equality.
-Since the position functions inside \cinl{Fail} take arguments of type \cinl{Void}, of which there are no values, \cinl{contradiction} finishes the proof.
 
 \begin{minted}{Coq}
 Theorem Lzero : forall (f : A -> Prog B), Eq_Prog (Fail >>= f) Fail.
@@ -3923,6 +3905,10 @@ Theorem Lzero : forall (f : A -> Prog B), Eq_Prog (Fail >>= f) Fail.
 Qed.
 \end{minted}
 
+As an exemplary proof, \cinl{Lzero} can be shown by unfolding the definitions, removing equal constructors until the position functions remain and then showing pointwise function equality.
+Since the position functions inside \cinl{Fail} take arguments of type \cinl{Void}, of which there are no values, \cinl{contradiction} finishes the proof.
+
+\paragraph{Sharing Laws}
 The last three properties \cinl{Choice}, \cinl{Fail} and \cinl{HNF} are the actual laws of sharing, that is, equations that reason about the sharing operator.
 
 We begin with the property \cinl{Fail}, that is, sharing a failure equals \cinl{pure fail}.
@@ -3943,7 +3929,7 @@ Definition nf__Prog A B `{Normalform A B}  (pp : Prog (Prog A))
   pp >>= fun p => nf'__Prog p.
 \end{minted}
 
-The function \cinl{nf} binds its argument and then calls \cinl{nf'}, where the \cinl{nf} instance for \cinl{A} and \cinl{B} is called.
+The function \cinl{nf} binds its argument and then calls \cinl{nf'}, where the \cinl{nf} instance for \cinl{A} is called.
 The result is bound and then returned twice, similar to the approach shown in \autoref{subsec:deepSharing}.
 
 Another useful definition of the \cinl{Normalform} class is the following proposition.
@@ -3952,9 +3938,10 @@ Another useful definition of the \cinl{Normalform} class is the following propos
 Theorem nf_impure : forall s (pf : _ -> Prog A),
   nf (impure (ext s pf)) = impure (ext s (fun p => nf (pf p))).
 \end{minted}
-
+\noindent
 Whenever \cinl{nf} is applied to an impure value, we can move \cinl{nf} into the position function.
-In combination with the \cinl{Normalform} instance for \cinl{Prog}, this allows us to move \cinl{nf} away from the root of the program arguments.
+
+In combination with the \cinl{Normalform} instance for \cinl{Prog}, this allows us to move \cinl{nf} from the root of the program arguments to the leaves, where it reaches the position function of \cinl{Fail} and disappears because the function has empty pattern matching.
 Consequently, the handlers can evaluate the effect syntax of \cinl{share} and \cinl{fail}.
 Eventually, this leads to the same expressions of both sides of the equation.
 The following proof reflects this approach.
@@ -3979,7 +3966,7 @@ The last proposition \cinl{HNF} holds by construction.
 The \cinl{share} operator requires its arguments to be instances of \cinl{Shareable}, where \cinl{shareArgs} applies \cinl{share} to every effectful component.
 Therefore, the equation shown in \autoref{fig:laws} is satisfied if the instance is defined correctly.
 
-In conclusion, the call-time choice model satisfies the monad and \hinl{MonadPlus}.
+In conclusion, the call-time choice model satisfies the monad and \hinl{MonadPlus} laws.
 The property \cinl{Fail} has been proven and it seems plausible that \cinl{Choice} and \cinl{HNF} hold as well, although no formal proof has been given.
 
 \chapter{Conclusion}
