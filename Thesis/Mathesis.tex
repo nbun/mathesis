@@ -2569,6 +2569,8 @@ In the following chapter, the current model is implemented in Coq.
 \label{ch:callTimeChoiceCoq}
 
 The goal of this chapter is to transfer the Haskell implementation of call-time choice modeled as effect to Coq.
+This chapter is based on an approach to formalizing Haskell's partiality effect in Coq by \citet{dylus2019oneMonad}.
+
 Before implementing a specific approach, the challenges that come with Coq's more restrictive specification language are discussed.
 We then explore containers as a solution to these restrictions and define the effects from the previous chapter as containers.
 Since the infrastructure is simplified in Coq, the differences compared to the Haskell implementation are discussed next, followed by the definition of the sharing effect and an example of non-strict non-determinism.
@@ -2580,7 +2582,7 @@ It allowed us to model programs with effects of type \hinl{sig} and results of t
 \begin{minted}{Haskell}
 data Prog sig a = Return a | Op (sig (Prog sig a))
 \end{minted}
-
+\noindent
 The direct translation of the definition to Coq looks very similar to the Haskell version, aside from renaming and the explicit constructor types.
 
 \begin{minted}{Coq}
@@ -2588,8 +2590,8 @@ Fail Inductive Free F A :=
 | pure : A -> Free F A
 | impure : F (Free F A) -> Free F A.
 \end{minted}
-
-However, the definition is rejected by Coq upon loading the file with the following error message.
+\noindent
+However, upon loading the file, the definition is rejected by Coq with the following error message.
 
 \begin{minted}[fontsize=\footnotesize]{Text}
 Non-strictly positive occurrence of "Free" in "F (Free F A) -> Free F A".
@@ -2609,7 +2611,7 @@ To understand why functions must always terminate in Coq, we consider the follow
 \begin{minted}{Coq}
 Fail Fixpoint loop (x : unit) : A := loop x.
 \end{minted}
-
+\noindent
 The function receives an argument \cinl{x} and calls itself with the same argument.
 Since this function obviously never terminates, the result type \cinl{A} is arbitrary.
 In particular, we could instantiate \cinl{A} with \cinl{False}, the false proposition.
@@ -2648,8 +2650,8 @@ One approach to achieve this goal is described in the next section.
 
 \section{Containers}
 
-Containers, as introduced by \citet{abbott2003categories}, are an abstraction of data types that store values, which includes functors.
-However, only strictly positive functors can be modeled as a container.
+Containers, as introduced by \citet{abbott2003categories}, are an abstraction of data types that store (polymorphic) values, which includes functors.
+However, only strictly positive functors can be modeled as containers.
 This allows us to define a version of \cinl{Free} that works with the corresponding containers instead of functors.
 Consequently, the strict positivity requirement is ensured by construction and Coq accepts the definition.
 In the following, we have a more detailed look at containers and how they relate to functors.
@@ -2667,33 +2669,37 @@ Class Container F :=
     Pos   : Shape -> Type;
   }.
 \end{minted}
-
+\noindent
 The first component of a container is the type \mintinline{Coq}{Shape}.
 A shape determines how the data type is structured, regardless of the stored values.
-For example, the  shape of a list is the same as the shape of Peano numbers: a number that  represents the length of the list, or rather the number of \cinl{Cons}/\cinl{Succ} applications.
+For example, the  shape of a list is the same as the shape of Peano numbers: a number that  represents the length of the list, or rather the number of \cinl{cons} or \cinl{S} applications.
 A pair, on the other hand, has only a single shape.
 
-The second component of a container is a function \cinl{Pos : Shape -> Type} that gives each shape a type that represents the positions within the shape.
+The second component of a container is a function \cinl{Pos : Shape -> Type} that gives each shape a type which represents the positions within the shape.
+Each position represents one value of the functor's type argument \hinl{A}.
+
 In the example of pairs, the shape has two positions, the first and second component.
 For lists, on the other hand, each element of a list is a position within the shape.
 Therefore, the position type for lists with length $n$ is natural numbers smaller than $n$.
 Lastly, Peano numbers do not store values and therefore, the position type for each shape is empty.
 
-Containers can be extended by a function that maps all valid positions to values.
-Since the position type depends on a concrete shape, the definition in Coq is quantified universally over values of type \cinl{Shape}.
-In the following definition, \cinl{Shape} and \cinl{Pos} represent the components of a container as defined above.
+The \textit{extension of a container} adds a function that maps all valid positions to values of type \cinl{A}.
+It is defined as an inductive data type as follows.
 
 \begin{minted}{Coq}
 Inductive Ext Shape Pos A := 
   ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
 \end{minted}
-
+\noindent
+\cinl{Shape} and \cinl{Pos} represent the components of a container as defined above.
+Since the position type depends on a concrete shape, the definition in Coq is quantified universally over values of type \cinl{Shape}.
 The extension of a container is responsible for storing all values of type \cinl{A}.
-By means of the position function of type \cinl{Pos s -> A}, the values can be accessed.
+By means of the position function of type \cinl{Pos s -> A}, these values can be accessed.
 Consequently, the extension of a container is isomorphic to the original data type.
 This means that we can define functions \cinl{to} and \cinl{from} that transform values of the container extension into values of the original data type and vice versa.
+
 As evidence of the isomorphism between both representations, proofs that show \cinl{to . from = id} and \hinl{from . to = id} are required.
-The transformation functions and isomorphism properties are added to the \cinl{Container} class, which results in the following container definition by \citet{dylus2019oneMonad}.
+The transformation functions and isomorphism properties are added to the \cinl{Container} class, which results in the following container definition.
 
 \begin{minted}{Coq}
 Class Container F :=
@@ -2719,32 +2725,27 @@ Inductive Choice (A : Type) :=
 | cchoice : option ID -> A -> A -> Choice A.
 \end{minted}
 
+\paragraph{Shape and Pos}
 When determining the shape of a functor, we first have to consider whether the data type is recursive.
 For the effect data types, recursion is introduced by \cinl{Free}, so the types are generally non-recursive.
 This means that we only need one shape for each constructor.
 
 Next, we focus on the arguments of the constructors.
 Since \cinl{cfail} has no arguments, there is no data that needs to be stored in its shape.
-\cinl{cchoice}, however, has three arguments.
-In the definition of container extensions in the previous subsection, a function of type \cinl{forall s, Pos s -> A} was mentioned.
+The constructor \cinl{cchoice}, however, has three arguments.
+In the definition of the container extension from the previous subsection, a function of type \cinl{forall s, Pos s -> A} was mentioned.
 This function is responsible for all arguments of type \cinl{A} and thus, these values are not part of the shape for \cinl{cchoice}.
-All arguments of types other than \cinl{A}, that is, \cinl{option ID} in this case, become part of the shape.
-This results in the following shape for the type \cinl{Choice}.
 
 \begin{minted}{Coq}
 Inductive Shape__Choice :=
 | sfail   : Shape__Choice
 | schoice : option ID -> Shape__Choice.
 \end{minted}
+\noindent
+All arguments of types other than \cinl{A}, that is, \cinl{option ID} in this case, become part of the shape.
 
 The second component of a container is the function \cinl{Pos} that assigns each shape a position type.
 This type describes all positions for values of type \cinl{A} in the constructor that the shape represents.
-For the \cinl{cfail} constructor, there are no arguments (of type \cinl{A}).
-This means that when \cinl{Pos} is applied to the shape \cinl{sfail}, a type that represents no positions needs to be returned.
-Thus, the empty type \cinl{Inductive Void :=.} is returned.
-On the other hand, \hinl{cchoice} contains two arguments of type \cinl{A} and thus, has two positions.
-We could define a new type with two constructors, but for this simple task, \cinl{bool} works just as well.
-Consequently, \cinl{true} corresponds to the first \cinl{A} position in \cinl{cchoice} and \cinl{false} to the second one.
 
 \begin{minted}{Coq}
 Definition Pos__Choice (s: Shape__Choice) : Type :=
@@ -2754,12 +2755,20 @@ Definition Pos__Choice (s: Shape__Choice) : Type :=
   end.
 \end{minted}
 
-With the definition of \cinl{Shape} and \cinl{Pos}, we can define the container extension type as follows.
+For the \cinl{cfail} constructor, there are no arguments (of type \cinl{A}).
+This means that when \cinl{Pos} is applied to the shape \cinl{sfail}, a type that represents no positions needs to be returned.
+Thus, the empty type \cinl{Inductive Void :=.} is returned.
+On the other hand, \hinl{cchoice} contains two arguments of type \cinl{A} and thus, has two positions.
+We could define a new type with two constructors, but for this simple task, \cinl{bool} works just as well.
+Consequently, \cinl{true} corresponds to the first position in \cinl{cchoice} and \cinl{false} to the second one.
+
+With the definition of \cinl{Shape} and \cinl{Pos}, we can define the container extension for \cinl{Choice} as follows.
 
 \begin{minted}{Coq}
 Definition Ext__Choice : Type -> Type := Ext Shape__Choice Pos__Choice.
 \end{minted}
 
+\paragraph{To and From}
 The transformation functions are a first indicator whether the definition of the shape and position types are correct.
 When transforming a value of type \cinl{Choice}, as defined below, we need to supply two arguments to the container extension constructor \cinl{ext}.
 
@@ -2773,7 +2782,7 @@ Definition from__Choice A (z : Choice A) : Ext__Choice A :=
     in ext s (fun p : Pos__Choice s => if p then l else r)
   end.
 \end{minted}
-
+\noindent
 The first argument of \cinl{ext} is the shape that corresponds to the constructor.
 For \cinl{cfail} and \cinl{cchoice}, this is \cinl{sfail} and \cinl{schoice} respectively.
 The latter takes the optional ID argument since this information cannot be stored in the position function.
@@ -2781,29 +2790,32 @@ The latter takes the optional ID argument since this information cannot be store
 For the second argument of \cinl{ext}, we need to construct the position function \cinl{pf}.
 The type of \cinl{pf}'s position argument is determined by \cinl{Pos} applied to the first argument of \cinl{ext}, that is, the shape that corresponds to the constructor that is currently handled.
 As defined above, \cinl{Pos__Choice sfail} equals \cinl{Void}.
+
 The position function returns a value of type \cinl{A} for each position.
 However, since \cinl{Void} does not have constructors, there is no position for which we need to return a value of type \cinl{A}. 
 This is expressed in Coq by doing empty pattern matching on the position argument of the function.
 The type of the position is known at compile time and thus, Coq accepts this definition.
 
 The position function in case of \cinl{cchoice} is slightly more involved.
-This time, \cinl{Pos__Choice} returns \cinl{bool} as the type of the argument \cinl{p}.
+This time, the function \cinl{Pos__Choice} returns \cinl{bool} as the type of the argument \cinl{p}.
 Consequently, we need to return a value of type \cinl{A} for both members of the type \cinl{bool}.
 Since \cinl{cchoice} has two such arguments, we return either \cinl{l} or \cinl{r}, depending on whether \cinl{p} is \cinl{true} or \cinl{false}.
 
-Based on this intuition of how the position function works, the function \cinl{to} can be defined easily.
-We pattern match for the different shapes and create values using the corresponding constructors of the original data type.
-This time, there is a position function \cinl{pf} given by the container extension.
-Knowing the type of argument it expects, we use the function to retrieve the values of type \cinl{A}.
+Based on this intuition of how the position function works, the function \cinl{to} for \cinl{Choice} can be defined easily.
 
 \begin{minted}{Coq}
 Definition to__Choice A (e: Ext__Choice A) : Choice A :=
    match e with
-   | ext sfail         pf => cfail A
+   | ext sfail         pf => cfail
    | ext (schoice mid) pf => cchoice mid (pf true) (pf false)
    end.
 \end{minted}
+\noindent
+We pattern match for the different shapes and create values by applying the corresponding constructors of the original data type.
+This time, there is a position function \cinl{pf} given by the container extension.
+Knowing the type of argument it expects, we use the function to retrieve the values of type \cinl{A}.
 
+\paragraph{Isomorphism Proofs}
 Finally, the remaining parts of the container definition are the isomorphism proofs.
 The first proof is done by case distinction on \cinl{ox}.
 
@@ -2815,7 +2827,7 @@ Proof.
   destruct ox; reflexivity.
 Qed.
 \end{minted}
-
+\noindent
 In both cases, the transformation functions neither add nor remove information, as shown in the following for the \cinl{cchoice} constructor.
 
 \begin{minted}{Text}
@@ -2843,10 +2855,12 @@ Proof.
   - destruct p; reflexivity.
 Qed. 
 \end{minted}
+\noindent
+After destructing the shape of the container extension \cinl{e} for a case distinction and simplifying the expression, the current goal is \cinl{ext sfail pf = ext sfail pf'}.
 
-After destructing the shape of the container extension \cinl{e} for a case distinction and simplifying the expression, we are in a situation where the goal is \cinl{ext sfail pf = ext sfail pf'}.
 The tactic \cinl{f_equal} states that two values are equal if the outermost constructors are the same and all arguments are equal, too.
 Since the constructor and first argument are equal, the only remaining goal is to prove that the position functions are equal.
+
 The tactic \cinl{extensionality} is useful to show function equality, that is, $\forall x: f x = g x \Rightarrow f = g$.
 When \cinl{extensionality p} is applied, the position \cinl{p} appears in the proof context with an appropriate type, which is determined by the function \cinl{Pos__Choice}.
 Now there are two goals left to prove that correspond to the shapes of the container.
@@ -2860,12 +2874,12 @@ p : Void
 match p return A with
 end = pf p
 \end{minted}
-
+\noindent
 Since the position function for \cinl{sfail} takes arguments of type \cinl{Void}, there is a value \cinl{p} of type \cinl{Void} in the context.
 However, this is not possible because \cinl{Void} has no constructors.
 Consequently, the tactic \cinl{contradiction} solves this case.
 
-For the second case that corresponds to the shape \cinl{schoice}, the position function takes arguments of type \cinl{bool}.
+For the second case, which corresponds to the shape \cinl{schoice}, the position function takes arguments of type \cinl{bool}.
 
 \begin{minted}{Coq}
 A : Type
@@ -2875,10 +2889,11 @@ p : bool
 ============================
 (if p then pf true else pf false) = pf p
 \end{minted}
-
-If we destruct \hinl{p}, we can see that the \cinl{if}-statement returns \cinl{pf true} if \cinl{p} is \cinl{true} and vice versa, which leads to two trivially true equations.
+\noindent
+When we destruct \hinl{p}, we can see that the \cinl{if}-statement returns \cinl{pf true} if \cinl{p} is \cinl{true} and vice versa, which leads to two trivially true equations.
 This shows that the transformation functions form an isomorphism for the non-determinism container.
 
+\paragraph{Container Instance}
 Finally, the container instance can be defined as follows.
 
 \begin{minted}{Coq}
@@ -2888,8 +2903,8 @@ Instance C__Choice : Container Choice :=
     from_to := from_to__Choice
   }.
 \end{minted}
-
-The isomorphism contains all necessary information about the container and its extension.
+\noindent
+The isomorphism proofs contains all necessary information about the container and its extension.
 Thus, Coq is able to infer the omitted definitions.
 
 \section{Monad Operations}
@@ -2898,19 +2913,22 @@ Since the Coq implementation uses containers instead of functors, we need to def
 For this purpose, the function \cinl{cmap} is defined as follows.
 
 \begin{minted}{Coq}
-Variable F : Type -> Type.
-Variable C__F : Container F.
+Section cmap.
+  Variable F : Type -> Type.
+  Variable C__F : Container F.
 
-Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) 
-  : Ext Shape Pos B :=
-  match x with
-  | ext s pf => ext s (fun x => f (pf x))
-  end.
+  Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) 
+    : Ext Shape Pos B :=
+    match x with
+    | ext s pf => ext s (fun x => f (pf x))
+    end.
+End cmap.
 \end{minted}
+\noindent
+Instead of an argument of type \cinl{F A} and a result of type \cinl{F B}, the function has a corresponding container extension argument and returns an container extension, too.
 
-Instead of an argument of type \cinl{F A} and an \cinl{F B} result, the function has a corresponding container extension argument and returns an container extension, too.
 In order to behave like \hinl{fmap}, \cinl{cmap} needs to apply the function \cinl{f} to all values of type \cinl{A}.
-The arguments are returned by the position function \cinl{pf}, so the new position function that returns values of type \cinl{B} is \cinl{f . pf}.
+These values are returned by the position function \cinl{pf}, so the position function is adapted to \cinl{f . pf}, so that it returns values of type \cinl{B}.
 
 Based on this definition, we can define bind for \cinl{Free}.
 Although a direct definition would be possible, this can lead to issues with Coq's termination check in some situation.
@@ -2928,12 +2946,12 @@ Section free_bind.
     end.
 End free_bind.
 \end{minted}
-
-The function is defined similar to the Haskell version.
+\noindent
+The function \cinl{free_bind} is defined similar to the Haskell version.
 Since \cinl{f} is a section variable instead of an argument of the function, \hinl{fmap (>>= f)} becomes \cinl{cmap free_bind'}.
-Outside of the section, we can now define \cinl{free_bind} by flipping the argument order, so that the added function argument is moved to the usual position.
-Using Coq's notation mechanism, we can define bind as an infix operator to keep the definitions similar to the Haskell implementation.
+Outside of the section, we can now define \cinl{free_bind} by flipping the argument order, so that the function argument is moved to the usual position.
 
+Using Coq's notation mechanism, we can define bind as an infix operator to keep the definitions similar to the Haskell implementation.
 
 \begin{minted}{Coq}
 Notation "mx >>= f" := (free_bind mx f)
@@ -2949,7 +2967,7 @@ Consequently, instead of \hinl{return}, the function \cinl{pure} is used to crea
 \section{Modeling Effects}
 
 In the previous section, a technique for representing functors as containers was presented.
-The initial motivation for this was the issue of non-strictly positive occurrence errors in the definition of \cinl{Free}.
+The motivation for this was the issue of non-strictly positive occurrence errors in the definition of \cinl{Free}.
 Since containers can only represent strictly positive functors, the following definition is accepted by Coq.
 
 \begin{minted}{Coq}
@@ -2959,9 +2977,10 @@ Inductive Free (C__F : Container F) A :=
 | pure   : A -> Free C__F A
 | impure : Ext Shape Pos (Free C__F A) -> Free C__F A.
 \end{minted}
-
+\noindent
 The parameter \cinl{F} is replaced by the container that represents \cinl{F}.
 Instead of writing \cinl{F (Free F A)} as the first argument of \cinl{impure}, we can now use the extension of the container \cinl{C__F} applied to \cinl{Free C__F A}.
+Although not explicitly defined, it is inferred from the context that \hinl{Shape} and \hinl{Pos} are components of \hinl{C__F}.
 
 \subsection{Infrastructure}
 \label{subsec:infrastructure}
@@ -2975,8 +2994,6 @@ This is, for example, that handlers do not work with polymorphic signatures like
 Although it would be possible to merge all effects into one call-time choice effect with a large handler, the combination of independent effects is still a good idea in terms of modularity.
 Thus, we need a counterpart to the functor \hinl{:+:} in Haskell.
 
-The original functor is still parameterized over two functors \cinl{F} and \cinl{G} that represent effects.
-
 \begin{minted}{Coq}
 Variable F G : Type -> Type.
 
@@ -2984,7 +3001,8 @@ Inductive Comb A : Type :=
 | cinl : F A -> Comb A
 | cinr : G A -> Comb A.
 \end{minted}
-
+\noindent
+The translated functor is still parameterized over two functors \cinl{F} and \cinl{G} that represent effects.
 Since \cinl{Comb} combines effects into a new effect functor, we need to represent the combination as a container, too.
 We assume that we have containers \cinl{C__F : Container F} and \cinl{C__G : Container G} for both functors.
 The shape can then be defined as a \cinl{sum} type -- the Haskell equivalent is \hinl{Either} -- of the containers' shapes.
@@ -2992,10 +3010,8 @@ The shape can then be defined as a \cinl{sum} type -- the Haskell equivalent is 
 \begin{minted}{Coq}
 Definition Shape__Comb : Type := sum (@Shape F C__F) (@Shape G C__G).
 \end{minted}
-
+\noindent
 The same principle applies to the function \cinl{Pos}.
-The shape argument can be distinguished by means of the \cinl{sum} constructors \cinl{inl} and \cinl{inr}.
-Depending on the \cinl{sum} constructor, the shape inside is passed to the \cinl{Pos} function of either \cinl{C__F} or \cinl{C__G}.
 
 \begin{minted}{Coq}
 Definition Pos__Comb (s : Shape__Comb) : Type :=
@@ -3004,18 +3020,22 @@ Definition Pos__Comb (s : Shape__Comb) : Type :=
   | inr x => @Pos G C__G x
   end.
 \end{minted}
+\noindent
+The shape argument can be distinguished by means of the \cinl{sum} constructors \cinl{inl} and \cinl{inr}.
+Depending on the \cinl{sum} constructor, the shape inside is passed to the \cinl{Pos} function of either \cinl{C__F} or \cinl{C__G}.
 
 The transformation functions for \cinl{Comb} use the transformation functions defined in the containers for \cinl{F} and \cinl{G}.
 Similarly, the isomorphism proofs use the properties arising from $\texttt{C}_\texttt{F} \cong \texttt{F}$ and $\texttt{C}_\texttt{G} \cong \texttt{G}$.
 The definitions and proofs are omitted here since they follow mostly the same approach as for an effect like \cinl{Choice}.
+\todo{Appendix?}
 
-\paragraph{Effect Syntax}
+\paragraph{Syntax Smart Constructors}
 
 In the Haskell implementation, the type class \hinl{:<:} was used to inject syntax into a program, that is, an appropriate nesting of the combination functor \hinl{:+:} was derived from the type context.
-Contrary to that, the Coq implementation is based on a fixed effect stack that is handled in a predetermined  order.
-Whereas we used \hinl{inject} to define effect syntax like the \hinl{get} operator, we now have to combine the effects manually.
+Contrary to that, the Coq implementation is based on a fixed effect stack that is handled in a predetermined order.
 
-Since we have not defined a container for the state effect yet, we use state as an example of how smart-constructors for syntax can be defined without \hinl{inject}.
+Whereas we used \hinl{inject} to define syntax smart constructors like the \hinl{get} operator, we now have to combine the effects manually.
+Since we have not defined a container for the state effect yet, we use state as an example of how smart constructors for syntax can be defined without \hinl{inject}.
 To avoid adding another type argument to all definitions, the type of the state is defined as a section variable \cinl{S}.
 
 \begin{minted}{Coq}
@@ -3023,21 +3043,20 @@ Inductive State (A : Type) :=
 | cget : (S -> A) -> State A
 | cput : S -> A -> State A.
 \end{minted}
-
+\noindent
 The shape of the state container has two constructors that represent the constructors of \cinl{State}.
-The function \cinl{S -> A} is not part of the shape because it returns a value of type \cinl{A}.
-Thus, the position function is responsible for handling this argument.
-For \cinl{sput}, the first argument carries the new state from the original constructor.
 
 \begin{minted}{Coq}
 Inductive Shape__State :=
 | sget : Shape__State
 | sput : S -> Shape__State.
 \end{minted}
+\noindent
+The function \cinl{S -> A} is not part of the shape because it returns a value of type \cinl{A}.
+Thus, the position function is responsible for handling this argument.
+For \cinl{sput}, the first argument carries the new state from the original constructor.
 
-The function \cinl{Pos} returns either \cinl{S} or \cinl{unit}, depending on the given shape.
-Since the function argument of \cinl{cget} returns a value of type \cinl{A} for every \cinl{S}, each value of \cinl{S} represents a position of the shape \cinl{sget}.
-\cinl{cput} has only one argument of type \cinl{A} and thus, the type \cinl{unit} is returned.
+The function \cinl{Pos} for \cinl{State} returns either \cinl{S} or \cinl{unit}, depending on the given shape.
 
 \begin{minted}{Coq}
 Definition Pos__State (s : Shape__State) : Type :=
@@ -3046,9 +3065,12 @@ Definition Pos__State (s : Shape__State) : Type :=
   | sput _ => unit
   end.
 \end{minted}
-
+\noindent
+Since the function argument of \cinl{cget} returns a value of type \cinl{A} for every \cinl{S}, each value of \cinl{S} represents a position of the shape \cinl{sget}.
+\cinl{cput} has only one argument of type \cinl{A} and thus, the type \cinl{unit} is returned.
 The transformation functions are omitted here since this section is focused on effect syntax.
-In order to define syntax for the state effect, we first need to define an effect stack.
+
+In order to define smart constructors for the state effect, we first need to define an effect stack.
 The effect stack is constructed by means of the combination container and the containers that correspond to the effects functors.
 Similar to the Haskell implementation, the state effect -- with a pair of natural numbers as state -- should be handled first.
 Therefore, state is the the outermost effect of the combination.
@@ -3059,11 +3081,11 @@ Definition NDShare := C__Comb (C__State (nat * nat))
                               (C__Comb C__Sharing C__Choice).
 Definition Prog := Free NDShare.
 \end{minted}
-
+\noindent
 When \cinl{Free} is applied to \cinl{NDShare}, the resulting functor represents programs that are evaluated with respect to call-time choice.
 
-With the effect stack in mind, we can begin defining syntax for the state effect.
-The definition of the Haskell smart constructor for \hinl{get} is as follows.
+With the effect stack in mind, we can begin defining smart constructors for the state effect.
+The definition of \hinl{get} in Haskell is as follows.
 
 \begin{minted}{Haskell}
 get :: (State s :<: sig) => Prog sig s
@@ -3071,22 +3093,23 @@ get = inject (Get' return)
 \end{minted}
 
 In Coq, the definition is implemented by defining a value of the \cinl{NDShare} combination container.
-Therefore, we need to supply a shape and a position function to the constructor \cinl{ext}.
-The shape for \hinl{get} is \cinl{sget}.
-However, \cinl{sget} is a shape of the state container, whereas we need a combination shape for this definition to be correct.
-Consequently, we use \cinl{inl} as a combination shape with \cinl{sget} as its argument.
-In this case, \cinl{inl} is used to select the left container argument of \cinl{NDShare}, which is the state container, as defined in the effect stack.
+Therefore, we need to supply a shape and a position function to the constructor \cinl{ext}, which itself is the argument of  the constructor \cinl{impure} for effectful programs.
 
 \begin{minted}{Coq}
 Definition Get : Prog (nat * nat) :=
   let s : @Shape _ NDShare := inl sget
   in impure (ext s (fun p : @Pos _ NDShare s => pure p)).
 \end{minted}
+\noindent
+The shape for \hinl{get} is \cinl{sget}.
+However, \cinl{sget} is a shape of the state container, whereas we need a combination shape for this definition to be correct.
+Consequently, we use \cinl{inl} as a combination shape with \cinl{sget} as its argument.
+In this case, \cinl{inl} is used to select the left container argument of \cinl{NDShare}, which is the state container, as defined in the effect stack.
 
 The position function takes arguments of type \cinl{@Pos _ NDShare (inl sget)}.
 According to the definition of \cinl{Pos} for the combination container, the function \cinl{Pos} of the left container is applied to \cinl{sget}.
-As defined above, the function \cinl{Pos__State} returns \cinl{S} or rather \cinl{nat * nat} for the shape \cinl{sget}.
-Since we have a position \cinl{p : nat * nat} and need to return a value of type \cinl{Prog (nat * nat)}, applying \cinl{pure} to \cinl{p} yields the correct result.
+As defined above, the function \cinl{Pos__State} returns the type \cinl{S} or rather \cinl{nat * nat} for the shape \cinl{sget}.
+Since we have a position \cinl{p} of type \cinl{nat * nat} and need to return a value of type \cinl{Prog (nat * nat)}, applying \cinl{pure} to \cinl{p} yields the correct result.
 
 The smart constructor for \hinl{put} works similar to \hinl{get}, with the difference that the new state is stored within the shape.
 Furthermore, the return type is \cinl{Prog unit} because \hinl{put} has no information to return.
@@ -3152,7 +3175,7 @@ runState s (Other op) = Op (fmap (runState s) op)
 \end{minted}
 
 Since Coq does not support language extensions like view patterns and pattern synonyms to simplify pattern matching, handlers are defined by matching plain \cinl{Prog} terms.
-The Coq signature of the state effect handler describes the first step shown in \autoref{fig:effectStackHandling}, that is, the state effect is handled and a program that contains sharing and non-determinism is returned.
+The Coq signature of the state effect handler describes the first step shown in \autoref{fig:effectStackHandling}, that is, the state effect is handled and a program that contains sharing and non-determi-nism is returned.
 Since the state component \hinl{s} of the handler's return type \hinl{Prog sig (s,a)} was not used in the Haskell implementation, it is omitted in the Coq version.
 
 \begin{minted}{Coq}
@@ -3164,14 +3187,15 @@ Fixpoint runState A (st : nat * nat) (p : Prog A) : Prog__SC A :=
   | impure (ext (inr s) pf) => impure (cmap (runState st) (ext s pf))
   end.
 \end{minted}
-
+\noindent
 The constructors \hinl{Return} and \hinl{Op} correspond to \cinl{pure} and \cinl{impure}, respectively.
-While the \hinl{Op} constructor was hidden in the pattern in Haskell, we now have to explicitly match for it.
-Whereas in Haskell, the function \hinl{project} was used to unwrap the \hinl{Inl} and \hinl{Inr} constructors of \hinl{:+:}, the corresponding constructors are now determined by the effect stack and thus, can be matched explicitly.
+While the \hinl{Op} constructor was hidden by the pattern synonym in Haskell, we now have to explicitly match for it.
+Similarly, the function \hinl{project} was used in Haskell to unwrap the \hinl{Inl} and \hinl{Inr} constructors of \hinl{:+:}, whereas the corresponding constructors are now determined by the effect stack and thus, can be matched explicitly.
+
 In the effect stack, the state effect is the left argument.
 Therefore, \cinl{inl s} matches both shapes \cinl{s} of the state container.
 Similarly, \cinl{inr s} works the same as the \hinl{Other} pattern in Haskell.
-In fact, the definition does not differ between both implementations.
+In fact, the definition is the same for both implementations.
 
 The right-hand sides of the rules are slightly different in the Coq implementation due to the container structure.
 Since the program argument is not part of the shape but stored in the position function, it is retrieved by applying \cinl{pf} to \cinl{st}.
@@ -3187,13 +3211,13 @@ Since the position function is parameterized over a shape, both must be compatib
 \label{sec:lawsOfSharing}
 For the implementation of the sharing effect in Coq, we first implement the explicit scoping tag approach.
 Although the first-order handler of this approach has downsides that are discussed later in the section, it supports the same functionality as the Haskell implementation.
-The higher-order approach would be suited much better in this regard.
-Unfortunately, other problems arise from the higher-order definition and limit the applicability of the approach.
+
+The higher-order approach would be suited much better in this regard; however, other problems arise from the higher-order definition and limit the applicability of the approach.
 This is discussed in more detail in \autoref{sec:coqHO}.
 
 We begin with the definition of the sharing container.
-Similar to the Haskell implementation, the sharing functor has two constructors that open and close a scope.
-Each constructor has an ID and an argument that later represents the remaining program.
+Similar to the Haskell implementation, the sharing functor has constructors that open and close a scope.
+Each constructor has an ID and an argument that represents the remaining program.
 
 \begin{minted}{Coq}
 Inductive Sharing (A : Type) :=
@@ -3202,8 +3226,6 @@ Inductive Sharing (A : Type) :=
 \end{minted}
 
 The corresponding container is easily defined according to the scheme presented in \autoref{subsec:infrastructure}.
-The ID is stored in each constructors' shape and the argument of \cinl{A} means that each shape has one position.
-Thus, the position function returns \cinl{unit} for both shapes.
 
 \begin{minted}{Coq}
 Inductive Shape__Sharing :=
@@ -3212,11 +3234,14 @@ Inductive Shape__Sharing :=
 
 Definition Pos__Sharing : Shape__Sharing -> Type := fun _ => unit.
 \end{minted}
+\noindent
+The ID is stored in each constructors' shape and the argument of \cinl{A} means that each shape has one position.
+Thus, the position function returns \cinl{unit} for both shapes.
 
 Similar to the Haskell implementation, the type classes \cinl{Shareable} an \cinl{Normalform} allow deep sharing and normalization of effectful expressions.
-The definitions are similar to the Haskell implementation, except for the normal form instance for lists, which requires inlining the \cinl{Share} operator because the termination checker does not accept the definition otherwise. 
-Combined with smart constructors for \cinl{begin} and \cinl{end}, we can implement the \cinl{Share} operator as follows.
-Since Coq's notation mechanism can only cover a subset of Haskell's \hinl{do} syntax, we use explicit calls of bind instead.
+The definitions are similar to the Haskell implementation, except for the normal form instance for lists, which requires inlining the \cinl{Share} operator because the termination checker does not accept the definition otherwise.
+
+Combined with smart constructors for \cinl{begin} and \cinl{end}, we can define the \cinl{Share} operator as follows, which is mostly a direct translation of the Haskell implementation sans \hinl{do}-notation.
 
 \begin{minted}{Coq}
 Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
@@ -3259,7 +3284,7 @@ There is, however, an issue with the rule for \cinl{sesharing}.
 Since the shape represents an ending tag in the outside-scope handler, an error is thrown in the corresponding rule of the Haskell implementation.
 Although it is impossible to construct a faulty program by only using the \cinl{Share} operator, mismatched constructors need to be handled.
 There are two options: Firstly, the return type of the sharing handler could be wrapped in \cinl{option}, so that error cases return no result.
-This is, however, not an ideal solution because it would entail that we always have to reason about optional values in proofs.
+This is, however, not an ideal solution because it would entail that we always have to reason about \cinl{option} values in proofs.
 
 A more practical approach is to ignore mismatched tags and to continue handling the remaining program that is associated with the tag.
 While this approach is still not ideal, it is the most practical solution to this problem.
@@ -3284,7 +3309,7 @@ recList xs = case xs of
                []     -> []
                y : ys -> not y : (ys ? recList ys)
 \end{minted}
-
+\noindent
 To translate this function to the Haskell model, we use the lifted list type and replace pattern matching with bind.
 
 \begin{minted}{Haskell}
@@ -3299,7 +3324,8 @@ recList fxs = fxs >>= \xs ->
 One could expect that the same definition -- apart from syntactical differences -- works in Coq.
 Unfortunately, this is not the case.
 The termination check throws an error because it is not obvious that \hinl{fys} is a structurally smaller than \hinl{fxs}.
-A technique proposed by \citet{chlipala2013certified} that was already discussed briefly in \autoref{subsec:coqFunctions} works by splitting a recursive function into two definitions, where one is recursive, but takes plain values instead of \cinl{Prog} arguments, and the other is a simple definition that contains the first call of bind.
+
+A technique proposed by \citet{chlipala2013certified}, which was already discussed briefly in \autoref{subsec:coqFunctions}, works by splitting a recursive function into two definitions, where one is recursive, but takes plain values instead of \cinl{Prog} arguments, and the other is a simple definition that contains the first call of bind.
 
 \begin{minted}{Coq}
 Fixpoint recList' (xs : List bool) : Prog (List bool) :=
@@ -3322,16 +3348,16 @@ However, when the result is only partially demanded, for example with \cinl{head
 In the following, a few examples with \hinl{T} and \hinl{F} as Boolean constructors are evaluated in Curry and Coq.
 
 \paragraph{Testing Non-Strict Non-Determinism}
-We begin with an example that shows that non-strictness is preserved in the Coq model.
-The following shows the application of \cinl{head} to \cinl{recList [T, F]}.
+We begin with an example which shows that non-strictness is preserved in the Coq model.
+The following shows the application of \cinl{head} to \cinl{recList [T, F]} in Curry.
 
 \begin{minted}{Haskell}
   head $ recList [T, F]
 = head $ not T : ([F] ? recList [F])
 = F
 \end{minted}
-
-Since \hinl{head} does not evaluate the tail of its list argument, no non-determinism is introduced and only the negation of the first element is returned.
+\noindent
+Since \hinl{head} does not evaluate the tail of its list argument, no non-determinism is introduced and only the negated first element is returned.
 In Coq, the expression evaluates to the same result.
 Because the term is simple enough, it is not necessary to handle the program, as it can be viewed as a \cinl{Prog} value.
 
@@ -3351,7 +3377,7 @@ Instead of applying \hinl{head} to the expression directly, \hinl{tail} is appli
 = F ? head (not F : ([] ? recList []))
 = F ? T
 \end{minted}
-
+\noindent
 The expression now evaluates to two results due to the choice introduced by evaluating \hinl{recList} once.
 The Coq \cinl{Prog} term quickly grows in size, so it is handled and thus represented as a list of results.
 
@@ -3373,18 +3399,18 @@ Fixpoint recList' (xs : List bool) : Prog (List bool) :=
                                             (fys ? recList' zs)
   end.
 \end{minted}
-
+\noindent
 Consequently, the following expression would not return the expected value \cinl{[F]}, but fail instead, because \cinl{Fail} is evaluated although it is not demanded.
 
 \begin{minted}{Coq}
 🐔> Compute handle (headM (recList (consM T Fail))).
 [F] : list bool
 \end{minted}
-
+\noindent
 For this reason, it is necessary to move calls of bind as close as possible to the position where the value is needed.
 This is especially important if there are \cinl{case} or \cinl{if} branches where the bound value is not needed.
 
-After this short demonstration of the call-time choice model in Coq, we want to explore an alternative to the explicit scoping tag approach in the next section.
+After this short demonstration of the call-time choice model in Coq, we explore an alternative to the explicit scoping tag approach in the next section.
 
 \section{Modeling Effects using Higher-Order Containers}
 \label{sec:coqHO}
@@ -3394,9 +3420,13 @@ In the last chapter, a higher-order approach was briefly discussed in \autoref{s
 Due to the more abstract definition and the function arguments in the term structure, it was not suitable for discussing the different aspects of the sharing implementation.
 However, with the prospect of avoiding mismatched scope tags being a tangible benefit, it seems worthwhile to pursue this approach in Coq.
 
+In the following, we first discuss a naive implementation of higher-order containers that misses expressiveness.
+The next iteration fixes this issue at the cost of no longer being a monad.
+Finally, an implementation that can represent the sharing effect while retaining the monadic properties is presented.
+
 \subsection{Higher-Order Containers}
 \label{subsec-higherOrderContainers}
-In the higher-order approach, effect signatures are represented not as a simple functor, but as as higher-order functor of type \hinl{(* -> *) -> * -> *}.
+In the higher-order approach, effect signatures are represented not as a simple functor, but as as higher-order functor of kind \hinl{(* -> *) -> * -> *}.
 Similar to the first-order data type for \hinl{Prog}, the following higher-order version fails due to non-strictly positive occurrence of \cinl{Free}.
 
 \begin{minted}{Coq}
@@ -3404,7 +3434,7 @@ Fail Inductive Free F A :=
 | pure   : A -> Free F A
 | impure : F (Free F) A -> Free F A.
 \end{minted}
-
+\noindent
 This calls for a higher-order container that is able to represent higher-order functors.
 Initially, one could assume that we can adapt the first-order container by replacing the functor \cinl{F} with the higher-order functor \cinl{H} and adding the necessary functor arguments of \cinl{H} to the list of quantified variables, as follows.
 
@@ -3419,19 +3449,20 @@ Class HContainer (H : (Type -> Type) -> Type -> Type) :=
     from_to : forall F A (e : Ext Shape Pos F A), from (to e) = e
   }.
 \end{minted}
-
+\noindent
 The extension of such a higher-order container needs to be adapted, too.
-Similar to higher-order functor data types, such as choice, the additional type variable \hinl{m :: * -> *} needs to be represented in the container.
-Thus, it is added as a parameter to the container extension.
-Since higher-order data types like choice have arguments of type \hinl{m a}, it seems appropriate to adapt the type of the position function to return values of type \cinl{F A}.
 
 \begin{minted}{Coq}
 Inductive Ext Shape (Pos : Shape -> Type) (F : Type -> Type) A := 
   ext : forall s, (Pos s -> F A) -> Ext Shape Pos F A.
 \end{minted}
+\noindent
+Similar to higher-order functor data types, such as \hinl{HShare}, the additional type variable \hinl{m :: * -> *} needs to be represented in the container.
+Thus, it is added as a parameter \cinl{F} to the container extension.
+Since higher-order data types like \hinl{HShare} have arguments of type \hinl{m a}, it seems appropriate to adapt the type of the position function to return values of type \cinl{F A}.
 
-With the adapted higher-order container, we can now represent higher-order programs with a version of \cinl{Free} that works with higher-order containers.
-For the additional functor argument, we can use \cinl{Free C}, similar to the Haskell implementation.
+With the adapted higher-order container, we can now represent higher-order programs using a version of \cinl{Free} that works with higher-order containers.
+For the additional functor argument of \cinl{Ext}, we use \cinl{Free C}, similar to the Haskell implementation.
 
 \begin{minted}{Coq}
 Variable H : (Type -> Type) -> Type -> Type.
@@ -3443,20 +3474,19 @@ Inductive Free (C : HContainer H) A :=
 
 With the adapted definition of \cinl{Free}, it is possible to define containers for the effects non-determinism, state and combination.
 The containers look almost identical to the original definitions because whenever the argument \cinl{A} occurred in the first-order data type, we can now use \cinl{F A} in the higher-order definition.
-This also applies to the definition of containers.
 However, one effect cannot be represented with this container definition: sharing.
+
+\paragraph{Higher-Order Sharing Container}
 Since the sharing effect can be defined without explicit scope delimiters in the Haskell higher-order implementation, we need to consider why this container definition is not sufficient.
-In the Haskell implementation, the definition of the higher-order sharing functor is as follows.
+The definition of the higher-order sharing functor in Coq is as follows.
 
-\begin{minted}{Haskell}
-data HShare m a = forall x. Share' (Int, Int) (m x) (x -> m a)
+\begin{minted}{Coq}
+Inductive Sharing F (A : Type) :=
+  csharing : forall X, nat * nat -> F X -> (X -> F A) -> Sharing F A.
 \end{minted}
-
-Compared to the other effects, the argument \hinl{m x} is difficult to represent, because the position function usually only handles values of type \hinl{m a}.
-Thus, the corresponding container would need to store the ID, a value of type \hinl{m x} and the type \hinl{x} in its single shape.
-The position function then returns the type that is stored inside the shape, because for each \hinl{x}, the function argument \hinl{x -> m a} returns a value of type \hinl{m a}.
-Consequently, each value of type \cinl{x} represents a position within the shape.
-The definitions of the sharing shape and \cinl{Pos} function look as follows.
+\noindent
+Compared to the other effects, the argument \hinl{F X} is difficult to represent, because the position function only handles values of type \hinl{F A}.
+The definition of \cinl{Shape} and \cinl{Pos} for \cinl{Sharing} is as follows.
 
 \begin{minted}{Coq}
 Inductive Shape__Sharing (F : Type -> Type) :=
@@ -3465,10 +3495,14 @@ Inductive Shape__Sharing (F : Type -> Type) :=
 Definition Pos__Sharing F (s : Shape__Sharing F) : Type :=
   let '(@ssharing _ X _ _) := s in X.
 \end{minted}
+\noindent
+Since the value of type \cinl{F X} cannot be stored by the position function, the shape needs to store the type \hinl{X}, an ID and a value of type \hinl{F X} in its single shape.
+The function \cinl{Pos} then returns the type that is stored inside the shape, because for each \hinl{X}, the function argument \hinl{X -> F A} returns a value of type \hinl{F A}.
+Consequently, each value of type \cinl{X} represents a position within the shape.
 
-This definition is isomorphic to the original data type, but it does not fit the container class, because the shape -- and consequently the position function -- need to be parameterized over the functor \hinl{m} in order to store a value of type \hinl{m x}.
+This definition is isomorphic to the original data type but it does not fit the container class because the shape -- and consequently the function \cinl{Pos} -- need to be parameterized over the functor \hinl{F} in order to store a value of type \hinl{F X}.
 Although the container can be adapted to allow another parameter for \cinl{Shape} and \cinl{Pos}, this approach ultimately fails when defining \cinl{Free}.
-The additional functor argument is instantiated with \cinl{Free C}, just like the regular functor argument \cinl{Ext}.
+The reason for this is that the additional functor argument is instantiated with \cinl{Free C}, just like the regular functor argument \cinl{Ext}.
 However, this moves \cinl{Free} to a possibly non-strictly positive position and thus, is not accepted by Coq.
 
 \subsection{Indexed Containers}
@@ -3484,34 +3518,36 @@ Class HContainer :=
     Pos   : Shape -> Type;
     Ctx   : forall s : Shape, Pos s -> Type -> Type
   }.
-\end{minted}
 
-The definition of \cinl{Ext} is adapted by adding a position parameter to the position function and replacing \cinl{A} with \cinl{Ctx s p A}.
-Since the context function has \cinl{A} as a parameter, higher-order functors where \hinl{m} occurs only as \hinl{m a} can be represented before by defining \cinl{Ctx} as a constant function that returns \cinl{A}.
- 
-\begin{minted}{Coq}
 Inductive Ext (C : HContainer) (F : Type -> Type) A :=
   ext : forall s, (forall p : Pos s, F (Ctx s p A)) -> Ext C F A.
 \end{minted}
 
+The definition of \cinl{Ext} is adapted by adding a position parameter \cinl{p} to the position function and replacing \cinl{A} with \cinl{Ctx s p A}.
+Since the context function has \cinl{A} as a parameter, higher-order functors where \hinl{F} occurs only as \hinl{F A} can be represented as before by defining \cinl{Ctx} as a constant function that returns \cinl{A}.
+
 The new definition of the position function means that we no longer have to store a value of type \cinl{F X} as part of the shape.
 Therefore, the shape does not need to be parameterized over \cinl{F}.
-The type \cinl{X} is still part of the shape, nevertheless, since the sharing effect makes use of the context function, which can only return a type that is part of one of its arguments.
 
 \begin{minted}{Coq}
 Inductive Shape__Sharing :=
 | ssharing : nat * nat -> Type -> Shape__Sharing.
 \end{minted}
-
-The position type is now defined as an inductive definition because an additional argument of type \cinl{shapeType s}, that is, the quantified type \cinl{X}, is part of the constructor \cinl{pcont}.
-Consequently, this covers all values of type \cinl{F A} that can be generated by the function argument of \cinl{ssharing}.
-The position of the other argument of type \cinl{F X} is represented by \cinl{pshared}.
+\noindent
+The type \cinl{X} is still part of the shape, nevertheless, since the sharing effect makes use of the context function, which can only return a type that is part of one of its arguments.
+The position type is now defined as an inductive definition.
 
 \begin{minted}{Coq}
 Inductive Pos__Sharing (s : Shape__Sharing) : Type :=
 | pshared : Pos__Sharing s
 | pcont   : shapeType s -> Pos__Sharing s.
 \end{minted}
+\noindent
+The constructor \cinl{pcont} has an additional argument of type \cinl{shapeType s}, that is, the quantified type \cinl{X}.
+The reason is that the function argument of \cinl{ssharing} with type \cinl{X -> F A} holds a value of type \cinl{F A} for each \cinl{X}, similar to the continuation function encoded in the state syntax.
+The position of the other argument of type \cinl{F X} is represented by \cinl{pshared}.
+
+
 
 Finally, the context function is defined.
 For the shared program, the context needs to return the type \cinl{X}, so that the position function yields a value of type \cinl{F X}.
@@ -3532,6 +3568,7 @@ Furthermore, indexed containers do not require a parameterized shape or \cinl{Po
 Consequently, we can use the same definition of \cinl{Free} as shown in the last subsection.
 
 Although we are now able to represent all necessary effects as containers and have a container definition that is strictly positive when used with \cinl{Free}, the higher-order implementation is still not as expressive as the first-order version.
+
 Considering what is important for writing programs with the syntax we defined, the aspect of combining programs comes to mind.
 In the first-order Coq implementation, we defined the function \cinl{free_bind} in order to use the same monadic structure from the Haskell version.
 One important part of the definition of \cinl{free_bind} was \cinl{cmap}, the container-equivalent of \cinl{fmap}.
@@ -3544,9 +3581,9 @@ Definition cmap A B F (f : F A -> F B) (x : Ext Shape Pos Ctx F A)
   apply ext with (s := sh).
   intros.
 \end{minted}
-
+\noindent
 At this point in the proof, the new position function is defined.
-The context, as shown in the following, contains the position function \cinl{pf}, from the container extension that was destructed, and the position argument \cinl{p} from the new function, as well as the function \cinl{f} that we can use to turn values of type \cinl{F A} into \cinl{F B}.
+The context and current goal is shown in the following.
 
 \begin{minted}{Coq}
 A, B : Type
@@ -3558,11 +3595,14 @@ p : Pos sh
 ============================
 F (Ctx sh p B)
 \end{minted}
+\noindent
+The context contains the position function \cinl{pf} from the container extension that was destructed and the position argument \cinl{p} from the new position function that we are trying to construct.
+Additionally, we have the function \cinl{f} that we can use to turn values of type \cinl{F A} into \cinl{F B}.
 
 The context function enables us to store values of different types in the position function.
 Although this allowed us to define the sharing container and works well with \cinl{Free}, it becomes problematic now.
 In the proof, we have variables \cinl{sh} and \cinl{p} that represent arbitrary shapes and positions, respectively.
-Thus, we have no way of knowing whether the context function returns \cinl{A} or a different type and cannot apply the function \cinl{f}.
+Thus, we have no way of knowing whether the context function returns \cinl{A} or a different type and therefore, cannot apply the function \cinl{f}.
 Since \cinl{cmap} is essential for defining bind over \cinl{Free}, the idea of a context that can either return \cinl{A} or any other type is not feasible.
 There is, however, a solution to this problem, as presented in the next subsection.
 
@@ -3572,7 +3612,7 @@ Whereas the naive version can reuse the first-order definition of \cinl{cmap} bu
 Based on this observation, a combination of both container definitions would be ideal.
 
 A bi-container, as defined by \citet{ghani2007higherDimensional}, consists of two containers that use the same shape but have different \cinl{Pos} and position functions.
-Applied to the topic of higher-order containers, this means that we split \cinl{Pos} into two functions: The first function behaves like the naive higher-order \cinl{Pos} function and the second one is used in conjunction with the context.
+Applied to the topic of higher-order containers, this means that we split \cinl{Pos} into two functions: The first function behaves like the higher-order \cinl{Pos} function from the naive implementation and the second one is used in conjunction with the context.
 The definition of a higher-order container is adapted as follows.
 
 \begin{minted}{Coq}
@@ -3584,8 +3624,8 @@ Class HContainer :=
     Ctx   : forall s : Shape, PosX s -> Type;
   }.
 \end{minted}
-
-A container extension now has two position functions.
+\noindent
+The container extension now has two position functions.
 The first one handles values of type \cinl{F A}, whereas the second one returns values of a type that is determined by the context.
 Since \cinl{F A} is handled by the first function, the context no longer needs the parameter \cinl{A}.
 
@@ -3595,28 +3635,28 @@ Inductive Ext (C : HContainer) (F : Type -> Type) A :=
     (Pos s -> F A) -> (forall p : PosX s, F (Ctx s p)) -> Ext C F A.
 \end{minted}
 
-This definition allows us to define \cinl{cmap} similar to the first-order version.
+This definition of the container extension allows us to define \cinl{cmap} similar to the first-order version.
 The first position function returns only values of type \cinl{F A} and therefore can be mapped over, while the second position function does not contain \cinl{A} and thus, does not need to be changed.
-In addition, the shape and \cinl{Pos} functions still do not need additional arguments.
+In addition, the shape and \cinl{Pos} functions still do not require \cinl{F} as an argument.
 Hence, the indexed bi-container definition works with \cinl{Free}.
 
 With the new approach of higher-order containers, we can define the sharing effect one last time.
 The shape remains the same as before with an ID and type argument.
 For \cinl{Pos} and \cinl{PosX}, the constructors of the inductive data type are split.
-Whereas \cinl{pcont} with its argument of type \cinl{shapeType s} is represented directly by the same type in \cinl{Pos__Sharing}, the single position of \cinl{pshared} is now handled by \cinl{PosX__Sharing} as follows.
 
 \begin{minted}{Coq}
 Definition Pos__Sharing (s : Shape__Sharing) := shapeType s.
 
 Definition PosX__Sharing : Shape__Sharing -> Type := fun _ => unit.
+\end{minted}
+\noindent
+Whereas \cinl{pcont} with its argument of type \cinl{shapeType s} is represented by the same type in \cinl{Pos__Sharing}, the single position of \cinl{pshared} is now handled by \cinl{PosX__Sharing}.
 
+The context no longer distinguishes between positions and always returns the type that is stored in the shape argument, since the case of \cinl{A} as a return type is now handled by the other position function.
+\begin{minted}{Coq}
 Definition Ctx__Sharing (s : Shape__Sharing) : PosX__Sharing s -> Type :=
   fun _ => shapeType s.
 \end{minted}
-
-The context no longer distinguishes between positions and always returns the type that is stored in the shape argument, since the case of \cinl{A} as a return type is now handled by the other position function.
-Converting between container extension and original data type is straight-forward.
-The former direction calls the position functions with appropriate arguments to retrieve the values of the original constructor, while the latter one positions these values inside the position functions.
 
 Now that we are finally able to represent all effects as higher-order containers and can use these containers with \cinl{Free} and bind for \cinl{Free}-based programs, we are able to adapt the remainder of the code base.
 For the most part, the differences between first-order and higher-order are negligible and can be implemented by adding the additional position function of \cinl{ext} to patterns and expressions.
@@ -3640,7 +3680,7 @@ The non-strictly positive occurrence error can also be evidence of \textit{truly
 data Bush a = NilB | ConsB (a, Bush (Bush a))
 \end{minted}
 
-Such nested self-applications are not allowed in Coq, which might be why the definition of \cinl{List} fails.
+Such nested self-applications are not allowed in Coq, which might be the reason why the definition of \cinl{List} fails.
 
 It is possible to circumvent this error by defining the data type using continuation passing style, that is, the list argument is encoded in a function that returns the list's tail after being applied to some value.
 
@@ -3649,7 +3689,7 @@ Inductive List A :=
 | nil             : List A
 | cons {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
 \end{minted}
-
+\noindent
 While this definition is accepted by Coq, we do not gain much because we cannot define other crucial functions due to inconsistent universes and other errors related to Coq's type hierarchy.
 
 In conclusion, the higher-order approach is an elegant solution to the problem of mismatched syntax delimiters and can be implemented in Coq using indexed bi-containers.
@@ -4059,7 +4099,8 @@ This topic is particularly interesting because tracing interacts with sharing.
 \bibliography{Mathesis} % Datei: seminar.bib
 % Anhang
 \appendix
-\chapter{Repository}
+\chapter{Appendix}
+\section{Repository}
 The repository that contains the code presented in this thesis can be found at the following link.
 
 \vspace*{.5cm}
@@ -4069,7 +4110,7 @@ The repository that contains the code presented in this thesis can be found at t
 \noindent
 Each directory contains a \texttt{Readme} file that describes the content in more detail.
 
-\section{Compilation}
+\subsection{Compilation}
 
 The code can be compiled with the following tools.
 
@@ -4086,8 +4127,8 @@ The following command creates a makefile, which can then be executed using \text
 coq_makefile -f _CoqProject -o Makefile
 \end{minted}
 
-\chapter{Code}
-\section{Subtyping Class}
+\section{Code}
+\subsection{Subtyping Class}
 \label{ap:subtyping}
 \begin{minted}{Haskell}
 class (Functor sub, Functor sup) => sub <: sup where
