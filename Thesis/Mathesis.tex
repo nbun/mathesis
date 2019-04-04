@@ -3984,13 +3984,13 @@ The chapter was concluded with a short overview of how the compiler KiCS2 transl
 In the third chapter, the Haskell implementation of the call-time choice model was discussed.
 After an introduction to the free monad, we defined effect syntax according to \citet{wu2014effect} by instantiating the free monad appropriately.
 We learned about combining effects and how writing and evaluating programs can be simplified with type classes and language extensions.
-Then, we defined the semantics of an effect by means of effect handlers and discussed how the order of handlers can influence the result of a computation.
+Then, we defined the semantics of effects by means of effect handlers and discussed how the order of handlers can influence the result of a computation.
 
 As preparation for defining the sharing effect, we explored two working approaches and one failed implementation for representing scoped effects.
 The first working approach used explicit scope delimiters and thus, allowed mismatched scoping tags.
 
 The second approach solved this problem by allowing the scoped program to be a direct argument of the sharing syntax.
-However, the higher-order infrastructure was more complicated and not suitable for discussing the different aspects of the sharing effect, so the explicit scoping approach was used.
+However, the higher-order infrastructure was more complicated and not suitable for discussing the different aspects of the sharing effect, so the explicit scoping approach was pursued.
 
 The sharing effect, that is, assigning IDs to choices, was then implemented as a program.
 Beginning with a bare-bones version, the necessary adjustments for repeated sharing, nested sharing and deep sharing were illustrated using examples.
@@ -3999,9 +3999,9 @@ Finally, the effect handler for the sharing effect was discussed, followed by mo
 The programs made heavy use of sharing with up to ten levels of nested and repeated sharing scopes.
 Although the examples worked as expected, it became apparent that the performance of the implementation is significantly diminished by redundant sharing scopes and the overall amount of pattern matching.
 
-The focus of the fourth chapter was transferring the Haskell implementation to Coq.
-Starting the first definition, Coq refused to load the direct translation of the Haskell code due to termination check errors.
-We discussed non-strictly positive occurrences as the reason for these errors and why the termination check is critical for the soundness of Coq's.
+The focus of the fourth chapter was transferring the Haskell implementation to Coq, based on the approach of \citet{dylus2019oneMonad}.
+Beginning with the first definition, Coq refused to load the direct translation of the Haskell code due to termination check errors.
+We discussed non-strictly positive occurrences as the reason for these errors and why the termination check is critical for the soundness of Coq's logic.
 
 As a solution to the non-strictly positive occurrence errors, containers were introduced as a way of representing only strictly positive functors, which are the base of the effect system.
 We then defined containers that represent the effect functors from the previous chapter and learned about the isomorphism between functors and the corresponding container extensions.
@@ -4013,7 +4013,7 @@ Although, as a consequence, the definitions became more extensive, the implement
 In an intermediate section, we had a look at a recursive list function, which was used to demonstrate non-strict non-determinism.
 We compared the non-strict evaluation of different expressions in Curry to the results of the Coq model and concluded that the model works as expected.
 
-Concluding the end of the fourth chapter, the higher-order approach was implemented in Coq.
+Concluding the end of the fourth chapter, the higher-order approach was implemented in Coq as a solution to mismatched scoping tags in the first-order implementation.
 Due to the higher-order structure of functors in this approach, we had to adapt the corresponding containers.
 While the first approach to higher-order containers was not powerful enough to represent the sharing effect, the second approach was no longer a monad.
 The final approach was a combination of both previous implementations, called indexed bi-containers.
@@ -4025,9 +4025,10 @@ Instead, program equality was defined as equality over semantics, that is, the r
 
 Next, we discussed how the \cinl{induction} tactic in Coq works and that an automatically generated induction principle can be too weak for successful induction, using the example of the free monad data type.
 
-Finally, we mostly proved the laws of sharing introduced by \citet{fischer2009purely} for the Coq implementation.
-The monad and \hinl{MonadPlus} proofs worked flawlessly, but the sharing properties posed a challenge.
-We were able to prove a property about sharing a failed computation and argued that the head normal form property holds by construction, but failed to prove the last property about a shared choice due to the technical nature of the proof.
+Finally, we proved a subset of the laws of sharing introduced by \citet{fischer2009purely} for the Coq implementation.
+The monad and \hinl{MonadPlus} proofs worked flawlessly but the sharing properties posed a challenge.
+
+We succeeded in prove a property about sharing a failed computation and argued that the head normal form property holds by construction, but were not able to prove the last property shared choices due to the technical nature of the proof.
 
 \section{Results}
 The main goal of this thesis was to model Curry's call-time choice semantics as effect.
@@ -4052,34 +4053,41 @@ The implementation is based on an older version of Agda whose termination checke
 
 Representing monadic liftings in Coq for the purpose of reasoning about Haskell code is the topic of a recent publication by \citet{dylus2019oneMonad}.
 Whereas Abel et al. argue that monad-generic properties are difficult to prove, Dylus et al. present a technique that simplifies such proofs greatly.
-The approach of representing effects in Coq using a containerized free monad has been applied in this thesis.
+The same approach of representing effects in Coq using a containerized free monad has been applied in this thesis.
 
-An alternative approach for modeling scoped effects, presented by \citet{pirog2018syntax}, is based on an extended data type for representing effectful programs.
+An alternative approach for modeling scoped effects, described by \citet{pirog2018syntax}, is based on an extended data type for representing effectful programs.
 
 \begin{minted}{Haskell}
 data Prog f g a = Var a
                 | Op (f (Prog f g a))
                 | Scope (g (Prog f g (Prog f g a)))
 \end{minted}
-
+\noindent
 While the constructors \hinl{Var} and \hinl{Op} are similar to the approach of \citet{wu2014effect}, the data type features an additional constructor \hinl{Scope} and a functor argument \hinl{g} that represents a scoping functor.
 Whereas we represented scopes as part of the type \cinl{f}, this approach moves scoping to the level of the \hinl{Prog} type.
 Unfortunately, the application of \hinl{Prog} to itself makes this approach unsuitable for Coq because truly nested data types yield a non-strictly positive occurrence error.
 
 \paragraph{Future Directions}
+The implementation described in this thesis covers multiple approaches in Haskell and Coq.
+Example programs have been tested and first proofs using this framework were successful.
+Nevertheless, there are many different options to extend the work presented in this thesis,
+a few of which are listed in the following.
+\begin{itemize}
+\item The implementation generates many redundant sharing scopes, partly, because deep sharing does not happen demand-driven.
+      \citet{fischer2009purely} were able to significantly increase the performance of their implementation of explicit sharing, so the question arises, whether similar optimizations can be applied to this this implementation.
+\item For the Coq implementation, one interesting, unanswered question is whether it is possible to finish the implementation of the higher-order approach.
+      Since the model was rejected only when defining lifted recursive data types, a different representation of such types might be more successful.
+      Generally, more detailed error messages in regard to non-strictly positive occurrences would greatly simplify finding the cause of such problems.
+\item Based on the existing proofs, one could try proving the remaining laws of sharing for the presented implementation. On a similar note, the question arises whether the framework created in this thesis is suitable for proving properties of (complex) Curry programs.
+\item Another topic is the representation of other effects using the same infrastructure.
+      The implementation should be easily adaptable to model, for example, tracing features as provided by \hinl{Debug.Trace} in Haskell.
+      This topic is particularly interesting because tracing interacts with sharing.
+\end{itemize}
 
-The implementation generates many redundant sharing scopes, partly, because deep sharing does not happen demand-driven.
-\citet{fischer2009purely} were able to significantly increase the performance of their implementation of explicit sharing, so the question arises, whether similar optimizations are possible for this implementation.
 
-For the Coq implementation, one interesting, unanswered question is whether it is possible to implement the higher-order approach in Coq.
-Since the implementation only failed when defining lifted recursive data types, it is possible that a different representation of such types could be successful.
-Generally, more detailed error messages in regard to non-strictly positive occurrences would greatly simplify finding the cause of such problems.
 
-Based on the existing proofs, one could try proving the remaining laws of sharing for the presented implementation. On a similar note, the question arises whether the framework created in this thesis is suitable for proving properties of (complex) Curry programs.
 
-Another topic is the representation of other effects using the same infrastructure.
-The implementation should be easily adaptable to model, for example, tracing features as provided by \hinl{Debug.Trace} in Haskell.
-This topic is particularly interesting because tracing interacts with sharing.
+
 
 % Literatur
 \bibliographystyle{plainnat}
