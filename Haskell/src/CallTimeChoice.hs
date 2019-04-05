@@ -124,6 +124,7 @@ instance (Share <: sig, State (Int, Int) <: sig, ND <: sig) => Sharing (Prog sig
       inject (BShare' (i,j) (return ()))
       put (i, j + 1)
       x <- p
+      put (i + 1, j)
       x' <- shareArgs share x
       inject (EShare' (i,j) (return ()))
       return x'

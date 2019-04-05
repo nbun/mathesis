@@ -26,6 +26,7 @@ Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   pure (BeginShare (i,j) >>
         Put (i, j + 1) >>
         p >>= fun x =>
+        Put (i + 1, j) >>
         shareArgs x >>= fun x' =>
         EndShare (i,j) >>
         pure x').

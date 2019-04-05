@@ -19,7 +19,7 @@ import           Data.PairM
 import           Data.PrimM
 
 -- import whatever implementation you like to test
-import           CallTimeChoiceHO
+import           CallTimeChoice
 
 example1 :: MonadPlus m => m Bool
 example1 = coin
@@ -395,3 +395,17 @@ exAddSharedCoin4 =
 exAddSharedCoin5 :: NDShare Int
 exAddSharedCoin5 =
   share (cons coini nil) >>= \fxs -> addM (headM fxs) (headM fxs)
+
+exAddCoinListFun :: NDShare Int -> NDShare (List NDShare Int)
+exAddCoinListFun mx = do
+  my <- share mx
+  cons my (exAddCoinListFun (addM my coini))
+
+exAddSharedCoin6 :: NDShare Int
+exAddSharedCoin6 = do
+  mx <- share (return 0)
+  addM mx $ do
+    my <- share (addM mx coini)
+    addM my $ do
+      mz <- share (addM my coini)
+      addM mz (return 1)

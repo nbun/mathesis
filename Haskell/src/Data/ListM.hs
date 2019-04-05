@@ -67,6 +67,20 @@ headM sxs = sxs >>= \ xs -> case xs of
                             Nil -> mzero
                             Cons sx _ -> sx
 
+tailM :: MonadPlus m => m (List m a) -> m (List m a)
+tailM sxs = sxs >>= \ xs -> case xs of
+                            Nil -> mzero
+                            Cons _ sxs -> sxs
+
+takeM :: MonadPlus m => m Int -> m (List m a) -> m (List m a)
+takeM mi sxs = mi >>= \i ->
+  case i of
+    0 -> nil
+    n -> sxs >>= \xs ->
+      case xs of
+        Nil -> nil
+        Cons sx sxs -> cons sx (takeM (return $ n - 1) sxs)
+
 heads :: MonadPlus m => m (List m a) -> m (Pair m a)
 heads sxs = pairM (headM sxs) (headM sxs)
 

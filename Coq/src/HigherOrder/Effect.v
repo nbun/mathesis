@@ -30,6 +30,7 @@ Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   pure (Share' (i,j)
                (Put (i, j + 1) >>
                 p >>= fun x =>
+                Put (i + 1, j) >>
                 shareArgs x)).
 
 Arguments Share {_} {_} p.

@@ -175,6 +175,7 @@ instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog 
     let p' = do
           put (i, j + 1)
           x <- p
+          put (i + 1, j)
           shareArgs share x
     return $ shares (i, j) p'
 
