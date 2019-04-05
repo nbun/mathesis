@@ -2185,13 +2185,13 @@ This is not a universal solution, however, since ID clashes can occur in some si
 When nested sharing is followed by another \hinl{share} call, as in the following example, the IDs inside the nested \hinl{share} and the IDs after the nested share can clash.
 
 \begin{minted}{Haskell}
-exAddSharedCoin4 :: Prog (Share :+: ND) Int
-exAddSharedCoin4 =
+exAddSharedCoinClash :: Prog (Share :+: ND) Int
+exAddSharedCoinClash =
   share (share coin >>= \fx -> addM fx fx) >>=
   \fy -> share coin >>= \fz -> addM fy fz
 \end{minted}
 \noindent
-The corresponding tree visualization of \cinl{exAddSharedCoin4} looks as follows.
+The corresponding tree visualization of \cinl{exAddSharedCoinClash} looks as follows.
 
 \begin{minted}{Haskell}
 <1 <2 ? 
@@ -2218,13 +2218,83 @@ Most importantly, the IDs of the nested scopes and the last scope are different 
 
 \end{minted}
 
+Although the added \hinl{put} statement enables nested sharing, it can have unintended side effects on repeated sharing in some situations.
+As an example of this effect, we consider the following program where deterministic values and coins are shared and added repeatedly.
+
+\begin{minted}{Haskell}
+exAddSharedCoinRec :: NDShare Int
+exAddSharedCoinRec = do
+  mx <- share (return 0)
+  addM mx $ do
+    my <- share (addM mx coin)
+    addM my $ do
+      mz <- share (addM my coin)
+      addM mz (return 1)
+\end{minted}
+\noindent
+The interesting property of this program is that already shared values are shared again.
+
+Recalling the modifications we did to allow nested sharing, a new state is set before the shared program is evaluated.
+Thus, in the following visualization, we can imagine the state being set whenever an opening bracket occurs.
+
+\begin{minted}[escapeinside=@@]{Haskell}
+<1 1> <3 <1 1> ?@$_\texttt{3}$@ 
+               ├── 3> <3 <3 <1 1> ?@$_\texttt{3}$@
+               │                  ├── 3> ?@$_\texttt{\textcolor{red}{3}}$@
+               .                  │      ├── 3> 1
+               .                  .      └── 3> 2
+\end{minted}
+\noindent
+Since the value \hinl{return 0} does not contain choices, the first sharing scope is empty.
+
+When the scope is opened, the state is set to \hinl{2 * 1 = 2} by the outer program.
+However, the added \hinl{put} statement of the inner program is evaluated, too.
+Thus, the state is overwritten and now holds \hinl{2 * 1 + 1 = 3}.
+
+When the next sharing scope is opened, it receives the ID \hinl{3} and sets the state to \hinl{7}.
+As described in the program, the value \hinl{mx} is shared as part of this scope again and thus, appears next in the tree.
+However, this means that the opening scope with ID \hinl{1} sets the state to \hinl{3} again because the state is always set relative to the ID of the scope.
+Consequently, when the third occurrence of the \hinl{share} operator is evaluated, it receives the ID \hinl{3} again.
+
+This is incorrect because the \hinl{share} operators are independent and should receive different IDs.
+However, the nested sharing scopes overwrite the state in such a way that each following call of \cinl{share} receives the same ID.
+
+We can fix this problem by resetting the state to the same value as used in the \hinl{put} statement from the outer program, as shown in the following.
+
+\begin{minted}{Haskell}
+share :: (Share :<: sig, State Int :<: sig) 
+      => Prog sig a -> Prog sig (Prog sig a)
+share p = do
+  i <- get
+  put (i * 2)
+  return $ do
+    begin i
+    put (i * 2 + 1)
+    x <- p
+    put (i * 2)
+    end i
+    return x
+\end{minted}
+
+The added \hinl{put} statement after \hinl{x <- p} entails that a new state is set with each closing bracket, too.
+This is visualized in the following tree.
+
+\begin{minted}[escapeinside=@@]{Haskell}
+<1 1> <2 <1 1> ?@$_\texttt{2}$@  
+               ├── 2> <4 <2 <1 1> ?@$_\texttt{2}$@  
+               │                  ├── 2> ?@$_\texttt{\textcolor{blue}{4}}$@
+               .                  │      ├── 4> 1
+               .                  .      └── 4> 2
+\end{minted}
+
+Now the outermost sharing scope sets the state which determines the ID of the next scope.
+Thus, the third occurrence of \hinl{share} is assigned the ID \hinl{4} in the tree, instead of \hinl{2}.
+
 The \hinl{*2/*2+1} approach is used, for example, in the KiCS2 compiler.
 It can lead to large numbers very quickly, however, and is not suitable for Coq due to its Peano representation of numbers.
 A more elegant solution can be implemented using a pair of integers as state.
 This way, one component is incremented in the outer program layer and the other component in the inner layer.
-\todo{Add section that elaborates on a pair as state}
-
-\paragraph{Resetting the State}
+Nevertheless, resetting the state as described above is necessary in this approach, too. 
 
 \subsection{Deep Sharing}
 \label{subsec:deepSharing}
@@ -2386,6 +2456,7 @@ instance (Share <: sig, State (Int, Int) <: sig, ND <: sig)
       begin (i,j)
       put (i, j + 1)
       x <- p
+      put (i + 1, j)
       x' <- shareArgs share x
       end (i,j)
       return x'
@@ -3256,6 +3327,7 @@ Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   pure (BeginShare (i,j) >>
         Put (i, j + 1) >>
         p >>= fun x =>
+        Put (i + 1, j) >>
         shareArgs x >>= fun x' =>
         EndShare (i,j) >>
         pure x').
