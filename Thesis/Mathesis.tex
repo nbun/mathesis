@@ -507,7 +507,8 @@ Definition bind A B (o : option A) (f : A -> option B) : option B :=
 Now we remove the \cinl{option} wrapper from the first \cinl{List} argument and reuse the remaining definition of \cinl{app}, except for the second argument of \cinl{cons}.
 
 \begin{minted}{Coq}
-Fixpoint app' A (xs : List A) (oys : option (List A)) : option (List A) :=
+Fixpoint app' A (xs : List A) (oys : option (List A)) 
+  : option (List A) :=
   match xs with
   | nil         => oys
   | cons oz ozs => Some (cons oz (bind ozs (fun zs => app' zs oys)))
@@ -650,7 +651,7 @@ subgoal 2 (ID 64) is:
  length (if p a then a :: filter p xs else filter p xs) 
   <= S (length xs)
 \end{minted}
-
+\noindent
 For the first subgoal, which corresponds to the case \cinl{xs = nil}, the functions on both sides of the inequality have been reduced to \cinl{0}.
 Since \cinl{<=} is a reflexive relation, this goal is solved trivially.
 In the second subgoal, the definition of \cinl{filter} and \cinl{length} have been applied once.
@@ -1638,7 +1639,7 @@ results Fail            = fail
 results (Choice m p q ) = choiceID m (results p) (results q)
 results (Op op)         = Op (fmap results op)
 \end{minted}
-
+\noindent
 Now we define a program \hinl{tree} that builds the complete, binary choice tree of height \hinl{x}.
 
 \begin{minted}{Haskell}
@@ -2342,12 +2343,12 @@ The following instance of \hinl{nf} for lists implements this idea.
 \begin{minted}{Haskell}
 instance (Normalform n a b, Monad m, Monad n) =>
     Normalform n (List n a) (List m b) where
-    nf mxs = mxs >>= \xs ->
-               case xs of
-                 Nil -> nil
-                 Cons mz mzs -> nf mz  >>= \z ->
-                                nf mzs >>= \zs ->
-                                   cons (return z) (return zs)
+  nf mxs = mxs >>= \xs ->
+             case xs of
+               Nil -> nil
+               Cons mz mzs -> nf mz  >>= \z ->
+                              nf mzs >>= \zs ->
+                                cons (return z) (return zs)
 \end{minted}
 \noindent
 Firstly, the list is retrieved from the monadic value using bind, followed by pattern matching.
