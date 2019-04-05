@@ -48,9 +48,6 @@
 \usepackage{abstract}
 \renewcommand{\abstractnamefont}{\raggedleft\normalfont\Huge\bfseries}
 
-%\AfterEndEnvironment{minted}%
-%{\noindent}%
-
 % Für schönere Tabellen (optional)
 % \usepackage{booktabs}           % Netteres Tabellenlayout
 % \usepackage{multicol}           % Mehrspaltige Bereiche
@@ -809,7 +806,7 @@ The equivalent proof tactic is \cinl{destruct}, which we already used in the las
 For dependent types, however, there is a special tactic called \cinl{dependent destruction}, which considers information like the \cinl{S} pattern in the length argument of the vector.
 This allows Coq to infer that only \cinl{cons} is a suitable pattern for \cinl{xs} and thus, the only generated subgoal is for \cinl{cons a _}.
 The resulting proof view is as follows.
-
+\pagebreak
 \begin{minted}{Coq}
 A : Type
 n : nat
@@ -896,7 +893,7 @@ insert x xs = return (x:xs)
 \end{minted}
 \noindent
 The second part is a function \hinl{perm} that inserts the head of a given list into the permutations of the list's tail.
-
+\pagebreak
 \begin{minted}{Haskell}
 perm :: MonadPlus m => [a] -> m [a]
 perm []     = return []
@@ -1950,7 +1947,7 @@ Now that we have defined the syntax of the sharing effect with explicit scope co
 From the structure of the syntax follows that the handler needs to extract the scoped program between the \hinl{begin} and \hinl{end} tags and then modify the choices that occur inside the scope.
 Following this idea, we divide the sharing handler into two parts.
 The first part is \hinl{bshare}, a function that waits for a \hinl{begin} tag and then hands over its program argument to \hinl{eshare}.
-
+\pagebreak
 \begin{minted}{Haskell}
 bshare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
 bshare (Return a) = return a
@@ -2044,7 +2041,7 @@ This means that \hinl{share} itself becomes a complex program instead of a simpl
 In this case, the ID is generated within the program.
 
 Generally, using the \hinl{Prog} state effect is preferable because it does not require adapting the whole infrastructure to the state monad and it ties in elegantly with the theme of modeling effects.
-
+\pagebreak
 \begin{minted}{Haskell}
 share :: (Share :<: sig, State Int :<: sig) 
       => Prog sig a -> Prog sig (Prog sig a)
@@ -2193,7 +2190,7 @@ exAddSharedCoinClash =
 \end{minted}
 \noindent
 The corresponding tree visualization of \cinl{exAddSharedCoinClash} looks as follows.
-
+\pagebreak
 \begin{minted}{Haskell}
 <1 <2 ? 
       ├── 2> <2 ? 
@@ -2339,7 +2336,7 @@ The parameters \hinl{a} and \hinl{b} are used to adapt the return type.
 For example, the function \hinl{nf} can normalize an argument of type \hinl{Prog sig (List (Prog sig) a)} into a value of type \hinl{Prog sig (List Identity a)}.
 This means that the effects that were contained in the \hinl{Prog sig} argument of \hinl{List} are moved into the outer program layer, while the inner program layer is replaced with the identity monad.
 The following instance of \hinl{nf} for lists implements this idea.
-
+\pagebreak
 \begin{minted}{Haskell}
 instance (Normalform n a b, Monad m, Monad n) =>
     Normalform n (List n a) (List m b) where
@@ -2509,9 +2506,6 @@ A scope is a triple of integers where the first two values represent the ID of a
 The function \hinl{trip} is a smart constructor for constructing triples from an ID and an initial counter value.
 
 When a program inside a scope should be handled, the function \hinl{nameChoices} takes over.
-The signature is the same as for \hinl{runShare} except for a list of scopes.
-This list represents the the current scope environment, that is, how many scopes surround the current program.
-The third component of a scope becomes important when a choice is encountered.
 
 \begin{minted}{Haskell}
 nameChoices :: (ND :<: sig)
@@ -2527,6 +2521,10 @@ nameChoices scopes@(i@(l,r,next):scps) prog =
                     in choiceID (Just i) (f p) (f q)
     Other op     -> Op (fmap (nameChoices scopes) op)
 \end{minted}
+\noindent
+The signature is the same as for \hinl{runShare} except for a list of scopes.
+This list represents the the current scope environment, that is, how many scopes surround the current program.
+The third component of a scope becomes important when a choice is encountered.
 
 The ID of a scope is not enough to assign an ID to a choice because multiple choices can occur within the same scope.
 Thus, each scope has a counter that is incremented with the function \hinl{inc} when a choice has been assigned an ID, so that the next choice will receive an different ID.
@@ -2611,7 +2609,7 @@ The higher-order implementation is faster than the implementation with explicit 
 As another example, the idea of using sorting algorithms and a non-deterministic predicate to generate permutations introduced by \citet{Christiansen2016allsorts} is implemented for Quicksort.
 In order to incorporate sharing into the implementation, we use the function \hinl{partitionM} that splits a list into a pair of lists, depending on whether the elements fulfill a predicate or not.
 The result is shared and then accessed via lifted versions of the functions \hinl{fst} and \hinl{snd}.
-
+\pagebreak
 \begin{minted}{Haskell}
 quicksortM :: (Sharing m, MonadPlus m) 
            => (m Int -> m Int -> m Bool) 
@@ -2814,7 +2812,7 @@ Since \cinl{cfail} has no arguments, there is no data that needs to be stored in
 The constructor \cinl{cchoice}, however, has three arguments.
 In the definition of the container extension from the previous subsection, a function of type \cinl{forall s, Pos s -> A} was mentioned.
 This function is responsible for all arguments of type \cinl{A} and thus, these values are not part of the shape for \cinl{cchoice}.
-
+\pagebreak
 \begin{minted}{Coq}
 Inductive Shape__Choice :=
 | sfail   : Shape__Choice
@@ -2971,7 +2969,7 @@ p : bool
 \noindent
 When we destruct \hinl{p}, we can see that the \cinl{if}-statement returns \cinl{pf true} if \cinl{p} is \cinl{true} and vice versa, which leads to two trivially true equations.
 This shows that the transformation functions form an isomorphism for the non-determinism container.
-
+\pagebreak
 \paragraph{Container Instance}
 Finally, the container instance can be defined as follows.
 
@@ -3173,7 +3171,7 @@ get = inject (Get' return)
 
 In Coq, the definition is implemented by defining a value of the \cinl{NDShare} combination container.
 Therefore, we need to supply a shape and a position function to the constructor \cinl{ext}, which itself is the argument of  the constructor \cinl{impure} for effectful programs.
-
+\pagebreak
 \begin{minted}{Coq}
 Definition Get : Prog (nat * nat) :=
   let s : @Shape _ NDShare := inl sget
@@ -3405,7 +3403,7 @@ Unfortunately, this is not the case.
 The termination check throws an error because it is not obvious that \hinl{fys} is a structurally smaller than \hinl{fxs}.
 
 A technique proposed by \citet{chlipala2013certified}, which was already discussed briefly in \autoref{subsec:coqFunctions}, works by splitting a recursive function into two definitions, where one is recursive, but takes plain values instead of \cinl{Prog} arguments, and the other is a simple definition that contains the first call of bind.
-
+\pagebreak
 \begin{minted}{Coq}
 Fixpoint recList' (xs : List bool) : Prog (List bool) :=
   match xs with
@@ -4201,25 +4199,29 @@ coq_makefile -f _CoqProject -o Makefile
 \end{minted}
 
 \section{Code}
-\subsection{Subtyping Class}
+In the following, the complete definition of the subtyping class \hinl{:<:} and instances is shown.
+Due to the overlapping definitions, pragmas are used for prioritization.
+  
+In addition, the transformations functions for the combination and state container are listed.
+\subsection{Subtyping Class and Instances}
 \label{ap:subtyping}
 \begin{minted}[style=bw]{Haskell}
-class (Functor sub, Functor sup) => sub <: sup where
+class (Functor sub, Functor sup) => sub :<: sup where
   inj :: sub a -> sup a
   prj :: sup a -> Maybe (sub a)
 
-instance Functor sig => sig <: sig where
+instance Functor sig => sig :<: sig where
   inj = id
   prj = Just
 
 instance {-# OVERLAPPING #-}
-  (Functor sig1, Functor sig2) => sig1 <: (sig1 + sig2) where
+  (Functor sig1, Functor sig2) => sig1 :<: (sig1 + sig2) where
   inj = Inl
   prj (Inl fa) = Just fa
   prj _        = Nothing
 
 instance {-# OVERLAPPABLE #-}
-  (Functor sig1, sig <: sig2) => sig <: (sig1 + sig2) where
+  (Functor sig1, sig :<: sig2) => sig :<: (sig1 + sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
   prj _        = Nothing
