@@ -12,6 +12,8 @@
 \usepackage{verbatim}
 \usepackage[automark, headsepline]{scrlayer-scrpage}
 
+\usepackage[twoside, inner=28mm, outer=37mm, top=35mm, bottom=49mm]{geometry}
+
 \RequirePackage[palatino]{quotchap}
 \renewcommand*{\chapterheadstartvskip}{\vspace*{-0.5\baselineskip}}
 \renewcommand*{\chapterheadendvskip}{\vspace{1.3\baselineskip}}
@@ -116,7 +118,7 @@ Die Arbeit wurde bisher in gleicher oder ähnlicher Form in keiner anderen Prüf
 
 \begin{abstract}
 \noindent
-Curry is a functional logic programming language that features non-strict non-determi-nism based on Haskell-like syntax.
+Curry is a functional logic programming language that features non-strict non-determinism based on Haskell-like syntax.
 The approach described by \citet{dylus2019oneMonad} for formalizing Haskell programs in a proof assistant like Coq cannot be applied directly due to the interaction of non-determinism with sharing.
 Curry's so-called call-time choice semantics necessitate explicit modeling of sharing as effect.
 
@@ -435,7 +437,7 @@ Definition empty A := @cons A None None.
 \subsection{Functions}
 \label{subsec:coqFunctions}
 
-Based on data types, we can define functions that process data.
+Based on data types, we can define functions that create or process data.
 The keyword \cinl{Definition} is predominantly used to define values, types and non-recursive functions.
 Since data types and functions defined in Gallina are the input of Coq's proof verification logic, the specification language only allows terminating definitions.
 Consequently, Coq distinguishes recursive and non-recursive functions by means of an explicit \cinl{Fixpoint} operator for recursive functions.
@@ -505,8 +507,7 @@ Definition bind A B (o : option A) (f : A -> option B) : option B :=
 Now we remove the \cinl{option} wrapper from the first \cinl{List} argument and reuse the remaining definition of \cinl{app}, except for the second argument of \cinl{cons}.
 
 \begin{minted}{Coq}
-Fixpoint app' A (xs : List A) (oys : option (List A)) 
-  : option (List A) :=
+Fixpoint app' A (xs : List A) (oys : option (List A)) : option (List A) :=
   match xs with
   | nil         => oys
   | cons oz ozs => Some (cons oz (bind ozs (fun zs => app' zs oys)))
@@ -668,8 +669,12 @@ length (if p a then a :: filter p xs else filter p xs)
 
 Again, we need to make a case distinction, but this time over the result of \cinl{p a}.
 Since \cinl{bool} is not a recursive type, the tactic \cinl{destruct} applied to \cinl{p a} is sufficient.
+In case of \cinl{p a = true}, the new goal is as follows.
 
-In case of \cinl{p a = true}, the new goal is \cinl{S (length (filter p xs)) <= S (length xs)}.
+\begin{minted}{Coq}
+S (length (filter p xs)) <= S (length xs)
+\end{minted}
+\noindent
 When compared to the induction hypothesis \cinl{IHxs}, the only difference are the \cinl{S} constructors.
 Since they can be removed without affecting the inequality, we ask Coq if such a proposition already exists by means of \cinl{Search (S _ <= S _)}, where underscores represent a wildcard pattern.
 The result is the following lemma.
@@ -688,7 +693,7 @@ Therefore, the new goal is identical to the induction hypothesis, which can be a
 For the second case that corresponds to \cinl{p a = false}, the reasoning is similar to the first case but with a slightly different lemma.
 This concludes the proof of the helper lemma \cinl{filter_length} and allows us to finally begin the termination proofs for Quicksort.
 
-\paragraph{Quicksort Termination Proofs}
+\paragraph{Termination Proofs for QuickSort}
 Using the command \cinl{Next Obligation}, we can begin the first of two termination proofs, where each one corresponds to one recursive call.
 The proof context and goal now looks as follows.
 
@@ -995,7 +1000,7 @@ perm' ml = ml >>= \l ->
 \end{minted}
 
 Whenever pattern matching occurred in the original definition, we now use bind to extract a \hinl{List} value.
-Since this only evaluates flat non-determinism and not non-determi-nism that occurs in the components, non-strictness is upheld as much as possible.
+Since this only evaluates flat non-determinism and not non-determinism that occurs in the components, non-strictness is upheld as much as possible.
 
 As a result of the monadic transformation, all functions now take arguments of the same type they return.
 Thus, the definition of \hinl{sort} does not need bind in order to pass permutations to \hinl{isSorted}.
@@ -1702,7 +1707,7 @@ Since each branch can only have one result, each branch has \hinl{1} as its fina
 
 While the values at the leaves of the tree are not influenced by the order of handlers in this case, this is not generally the case.
 
-\section{Implementing Scoped Effects}
+\section{Scoped Effects}
 \label{sec:sharing}
 
 Although Haskell offers sharing as part of the language, we have seen in \autoref{sec:sharingComputations} that the built-in sharing mechanism does not always work as intended when combined with lifted data types.
@@ -2186,7 +2191,7 @@ exAddSharedCoin4 =
   \fy -> share coin >>= \fz -> addM fy fz
 \end{minted}
 \noindent
-The corresponding tree visualization of looks as follows.
+The corresponding tree visualization of \cinl{exAddSharedCoin4} looks as follows.
 
 \begin{minted}{Haskell}
 <1 <2 ? 
@@ -2219,10 +2224,12 @@ A more elegant solution can be implemented using a pair of integers as state.
 This way, one component is incremented in the outer program layer and the other component in the inner layer.
 \todo{Add section that elaborates on a pair as state}
 
+\paragraph{Resetting the State}
+
 \subsection{Deep Sharing}
 \label{subsec:deepSharing}
 The implementation of \hinl{share} from the previous subsection supports nested sharing and top-level non-determinism.
-Modeling Curry's call-time choice also includes non-determi-nism that occurs in components of data types.
+Modeling Curry's call-time choice also includes non-determinism that occurs in components of data types.
 Therefore, when a value of a data type with non-deterministic components is shared, the individual components should be shared, too.
 Similar to \autoref{subsec:monadicLifting}, data types need to be lifted so that effectful components can be modeled properly.
 Since \hinl{Prog sig} is a monad if \hinl{sig} is a functor, the same monadic transformation works here, too.
@@ -2907,7 +2914,7 @@ Instance C__Choice : Container Choice :=
 The isomorphism proofs contains all necessary information about the container and its extension.
 Thus, Coq is able to infer the omitted definitions.
 
-\section{Monad Operations}
+\subsection{Monad Operations}
 The Haskell monad instance for \hinl{Prog} uses \hinl{fmap} to distribute a function throughout the structure determined by the functor argument.
 Since the Coq implementation uses containers instead of functors, we need to define a function that behaves similar to \hinl{fmap}.
 For this purpose, the function \cinl{cmap} is defined as follows.
@@ -3026,8 +3033,8 @@ Depending on the \cinl{sum} constructor, the shape inside is passed to the \cinl
 
 The transformation functions for \cinl{Comb} use the transformation functions defined in the containers for \cinl{F} and \cinl{G}.
 Similarly, the isomorphism proofs use the properties arising from $\texttt{C}_\texttt{F} \cong \texttt{F}$ and $\texttt{C}_\texttt{G} \cong \texttt{G}$.
-The definitions and proofs are omitted here since they follow mostly the same approach as for an effect like \cinl{Choice}.
-\todo{Appendix?}
+The transformation functions are omitted here since they follow mostly the same approach as for an effect like \cinl{Choice}.
+However, the definitions can be found in \autoref{ap:combc}
 
 \paragraph{Syntax Smart Constructors}
 
@@ -3068,7 +3075,7 @@ Definition Pos__State (s : Shape__State) : Type :=
 \noindent
 Since the function argument of \cinl{cget} returns a value of type \cinl{A} for every \cinl{S}, each value of \cinl{S} represents a position of the shape \cinl{sget}.
 \cinl{cput} has only one argument of type \cinl{A} and thus, the type \cinl{unit} is returned.
-The transformation functions are omitted here since this section is focused on effect syntax.
+The transformation functions are omitted here since this section is focused on effect syntax but can be found in \autoref{ap:statec}.
 
 In order to define smart constructors for the state effect, we first need to define an effect stack.
 The effect stack is constructed by means of the combination container and the containers that correspond to the effects functors.
@@ -3175,7 +3182,7 @@ runState s (Other op) = Op (fmap (runState s) op)
 \end{minted}
 
 Since Coq does not support language extensions like view patterns and pattern synonyms to simplify pattern matching, handlers are defined by matching plain \cinl{Prog} terms.
-The Coq signature of the state effect handler describes the first step shown in \autoref{fig:effectStackHandling}, that is, the state effect is handled and a program that contains sharing and non-determi-nism is returned.
+The Coq signature of the state effect handler describes the first step shown in \autoref{fig:effectStackHandling}, that is, the state effect is handled and a program that contains sharing and non-determinism is returned.
 Since the state component \hinl{s} of the handler's return type \hinl{Prog sig (s,a)} was not used in the Haskell implementation, it is omitted in the Coq version.
 
 \begin{minted}{Coq}
@@ -3207,8 +3214,7 @@ Since effects are represented as containers, we need to use \cinl{cmap} instead 
 Furthermore, the \cinl{inr} wrapper is removed from the shape because \cinl{cmap} handles the sharing effect inside all programs that are stored by the position function.
 Since the position function is parameterized over a shape, both must be compatible.
 
-\section{Sharing}
-\label{sec:lawsOfSharing}
+\subsection{Sharing}
 For the implementation of the sharing effect in Coq, we first implement the explicit scoping tag approach.
 Although the first-order handler of this approach has downsides that are discussed later in the section, it supports the same functionality as the Haskell implementation.
 
@@ -4095,7 +4101,6 @@ a few of which are listed in the following.
 % Anhang
 \appendix
 \chapter{Appendix}
-\section{Repository}
 The repository that contains the code presented in this thesis can be found at the following link.
 
 \vspace*{.5cm}
@@ -4105,7 +4110,7 @@ The repository that contains the code presented in this thesis can be found at t
 \noindent
 Each directory contains a \texttt{Readme} file that describes the content in more detail.
 
-\subsection{Compilation}
+\section{Compilation}
 
 The code can be compiled with the following tools.
 
@@ -4125,7 +4130,7 @@ coq_makefile -f _CoqProject -o Makefile
 \section{Code}
 \subsection{Subtyping Class}
 \label{ap:subtyping}
-\begin{minted}{Haskell}
+\begin{minted}[style=bw]{Haskell}
 class (Functor sub, Functor sup) => sub <: sup where
   inj :: sub a -> sup a
   prj :: sup a -> Maybe (sub a)
@@ -4145,6 +4150,38 @@ instance {-# OVERLAPPABLE #-}
   inj = Inr . inj
   prj (Inr ga) = prj ga
   prj _        = Nothing
+\end{minted}
+
+\subsection{Combination Container Transformation Functions}
+\label{ap:combc}
+\begin{minted}[style=bw]{Coq}
+Definition to__Comb (A : Type) (e: Ext__Comb A) : Comb A :=
+  match e with
+  | ext (inl s) pf => Inl (to (ext s pf))
+  | ext (inr s) pf => Inr (to (ext s pf))
+  end.
+
+Definition from__Comb A (z : Comb A) : Ext__Comb A :=
+  match z with
+  | Inl x => let '(ext s pf) := from x in ext (inl s) pf
+  | Inr x => let '(ext s pf) := from x in ext (inr s) pf
+  end.
+\end{minted}
+
+\subsection{State Container Transformation Functions}
+\label{ap:statec}
+\begin{minted}[style=bw]{Coq}
+Definition to__State (A : Type) (e: Ext__State A) : State A :=
+  match e with
+  | ext sget     fp => get (fun s => fp s)
+  | ext (sput s) fp => put s (fp tt)
+  end.
+  
+Definition from__State A (z : State A) : Ext__State A :=
+  match z with
+  | get f   => ext sget     (fun p : Pos__State sget => f p)
+  | put s a => ext (sput s) (fun p : Pos__State (sput s) => a)
+  end.
 \end{minted}
 
 
