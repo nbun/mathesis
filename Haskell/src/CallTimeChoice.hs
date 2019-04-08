@@ -9,6 +9,7 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
 
+-- Implementation of the call-time choice effect with explicit scope delimiters
 module CallTimeChoice where
 import           Base
 import           Data.List                (delete)
@@ -22,8 +23,8 @@ import           Control.Applicative      (Alternative (..))
 import           Control.Monad            (MonadPlus (..), liftM2)
 import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
-
--- Non-determinism effect --
+----------------------------
+-- non-determinism effect --
 ----------------------------
 type ID = (Int, Int, Int)
 
@@ -51,7 +52,8 @@ runND (Choice m p q ) = do
   return (Tree.Choice m pt qt)
 runND (Other op) = Op (fmap runND op)
 
--- Sharing effect --
+--------------------
+-- sharing effect --
 --------------------
 data Share cnt = BShare' (Int, Int) cnt | EShare' (Int, Int) cnt
   deriving (Functor, Show)
@@ -70,7 +72,6 @@ type SID   = (Int, Int)
 
 runShare :: (ND <: sig) => Prog (Share + sig) a -> Prog sig a
 runShare (Return a)   = return a
--- runShare (BShare _ (EShare _ p)) = trace "empty scope 1" $ runShare p
 runShare (BShare i p) = nameChoices [trip i 0] p
 runShare (EShare _ p) = error "runShare: mismatched EShare"
 runShare (Other op)   = Op (fmap runShare op)
@@ -81,7 +82,6 @@ nameChoices [] _ = error "nameChoices: missing scope"
 nameChoices scopes@(i@(l,r,next):scps) prog =
   case prog of
     Return a     -> return a
-    -- BShare _ (EShare _ p) -> trace "empty scope 2" $ nameChoices scopes p
     BShare i p   -> nameChoices (trip i 0 : scopes) p
     EShare j p   -> checkScope j scopes p
     Fail         -> fail
@@ -101,6 +101,7 @@ checkScope i scopes p =
                         then nameChoices scps p
                         else error "checkScope: crossing scopes"
 
+------------------------------
 -- interface implementation --
 ------------------------------
 type NDShare = Prog (State (Int, Int) + Share + ND + Void)

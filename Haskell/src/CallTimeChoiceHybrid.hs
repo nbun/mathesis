@@ -9,6 +9,10 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
 
+---------------------------------------------------------
+-- Hybrid implementation                               --
+-- DOES NOT WORK; ONLY KEPT FOR DOCUMENTATION PURPOSES --
+---------------------------------------------------------
 module CallTimeChoiceHybrid where
 import           Base
 import           Data.List                (delete)
@@ -22,6 +26,7 @@ import           Control.Applicative      (Alternative (..))
 import           Control.Monad            (MonadPlus (..), liftM2)
 import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 
+----------------------------
 -- Non-determinism effect --
 ----------------------------
 type ID = (Int, Int, Int)
@@ -49,6 +54,7 @@ runND (Choice m p q ) = do
   return (Tree.Choice m pt qt)
 runND (Other op) = Op (fmap runND op)
 
+--------------------
 -- Sharing effect --
 --------------------
 data Share cnt = Share' (Int, Int) cnt
@@ -76,6 +82,7 @@ runShare (Share i p) = nameChoices i 1 p
       Other op -> Op (fmap (nameChoices scope next) op)
 runShare (Other op)  = Op (fmap runShare op)
 
+------------------------------
 -- interface implementation --
 ------------------------------
 type NDShare = Prog (State (Int, Int) + Share + ND + Void)

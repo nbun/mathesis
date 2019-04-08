@@ -7,11 +7,13 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
 
+-- Definition of the basic effect handler infrastructure
 module Base where
 import           Control.Monad (ap, liftM2)
 import           Prelude       hiding (fail, (||))
 import           Pretty
 
+-------------
 -- program --
 -------------
 data Prog sig a = Return a | Op (sig (Prog sig a))
@@ -22,10 +24,11 @@ instance Functor sig => Applicative (Prog sig) where
   (<*>) = ap
 
 instance (Functor sig, Applicative (Prog sig)) => Monad (Prog sig) where
-  return v = Return v
-  Return v >>= prog = prog v
-  Op op >>= prog = Op (fmap (>>= prog) op)
+  return x = Return x
+  Return x >>= f = f x
+  Op op    >>= f = Op (fmap (>>= f) op)
 
+--------------------------
 -- combining signatures --
 --------------------------
 data (sig1 + sig2) cnt = Inl (sig1 cnt) | Inr (sig2 cnt)
@@ -70,6 +73,7 @@ instance {-# OVERLAPPABLE #-}
   prj (Inr ga) = prj ga
   prj _        = Nothing
 
+----------------------
 -- helper functions --
 ----------------------
 inject :: (sub <: sup) => sub (Prog sup a) -> Prog sup a
@@ -79,7 +83,7 @@ project :: (sub <: sup) => Prog sup a -> Maybe (sub (Prog sup a))
 project (Op s) = prj s
 project _      = Nothing
 
-
+-----------------
 -- Void effect --
 -----------------
 data Void cnt
@@ -91,6 +95,7 @@ instance (Show (Void a)) where
 run :: Prog Void a -> a
 run (Return x) = x
 
+------------------
 -- State effect --
 ------------------
 data State s cnt = Get' (s -> cnt)
@@ -113,7 +118,7 @@ runState s (Get    k) = runState s (k s)
 runState s (Put s' k) = runState s' k
 runState s (Other op) = Op (fmap (runState s) op)
 
+-------------------
 -- other effects --
 -------------------
 pattern Other s = Op (Inr s)
-

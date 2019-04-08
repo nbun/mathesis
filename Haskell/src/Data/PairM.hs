@@ -1,5 +1,6 @@
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances, MultiParamTypeClasses #-}
 
+-- Definition of lifted pairs
 module Data.PairM where
 
 import Data.Functor.Identity (Identity(..))
@@ -34,9 +35,9 @@ instance (Sharing m, Shareable m a) => Shareable m (Pair m a) where
                                   sy' <- f sy
                                   pairM sx' sy'
 
--------------------------------------------
--- random function definitions for pairs --
--------------------------------------------
+------------------------------------
+-- function definitions for pairs --
+------------------------------------
 first :: Monad m => m (Pair m a) -> m a
 first st = st >>= \ (Pair x _) -> x
 

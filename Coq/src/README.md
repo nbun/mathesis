@@ -8,8 +8,8 @@
 * Example.v: Test suite
 * Free.v: Definition of the free monad, a stronger induction principle, monad operations and proofs of the monad laws
 * Handler.v: Handlers for non-determinism, state and sharing, as well as the program handler
+* Intro.v: Examples and definitions from the Coq introduction
 * Laws.v: Proofs of the Laws of Sharing
 * PermSort.v: Permutation sort example algorithm
 * Prog.v: Type definitions of `NDShare` and `Prog`
 * Search.v: Definition of choice trees and the depth-first search algorithm
-* Intro.v: Examples and definitions from the Coq introduction

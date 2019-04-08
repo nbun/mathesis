@@ -1,5 +1,6 @@
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances, MultiParamTypeClasses #-}
 
+-- Definition of lifted lists
 module Data.ListM where
 
 import Data.PairM
@@ -48,9 +49,9 @@ instance (Shareable m a) => Shareable m (List m a) where
                                    mzs <- f mxs
                                    cons mz mzs
 
-
--- random function definitions for lists --
--------------------------------------------
+------------------------------------
+-- function definitions for lists --
+------------------------------------
 firstM :: MonadPlus m => m (List m a) -> m a
 firstM fl = fl >>= \l -> case l of
                            Cons x _ -> x

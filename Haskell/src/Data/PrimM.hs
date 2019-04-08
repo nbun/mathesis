@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
+-- Definition of lifted functions for primitive values
 module Data.PrimM where
 
 import Control.Monad (MonadPlus(..))
@@ -17,9 +18,9 @@ trueM = return True
 falseM :: Monad m => m Bool
 falseM = return False
 
-----------------------------------------------
--- random function definitions for booleans --
-----------------------------------------------
+---------------------------------------
+-- function definitions for booleans --
+---------------------------------------
 coin :: MonadPlus m => m Bool
 coin = return True `mplus` return False
 
@@ -31,17 +32,16 @@ orM mb1 mb2 = mb1 >>= \b1 -> case b1 of
 notM :: Monad m => m Bool -> m Bool
 notM st = fmap not st
 
-
---------------------------------------
+----------------------------------------
 -- convenience functions for integers --
---------------------------------------
+----------------------------------------
 
 intM :: Monad m => Int -> m Int
 intM n = return n
 
-----------------------------------------------
--- random function definitions for integers --
-----------------------------------------------
+---------------------------------------
+-- function definitions for integers --
+---------------------------------------
 coini :: MonadPlus m => m Int
 coini = return 0 `mplus` return 1
 
@@ -68,5 +68,3 @@ instance Sharing m => Shareable m Bool where
 
 instance Sharing m => Shareable m Int where
     shareArgs _ = return
-
- 

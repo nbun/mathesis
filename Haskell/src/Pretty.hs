@@ -1,3 +1,4 @@
+-- Pretty printing of choice trees
 module Pretty where
 import Tree
 import Data.Functor.Identity
@@ -25,10 +26,8 @@ instance Pretty a => Pretty (Tree a) where
     show n ++ "\n" ++ replicate wsp ' ' ++ "|---- " ++ pretty' t1 (wsp+6)
            ++ "\n" ++ replicate wsp ' ' ++ "|---- " ++ pretty' t2 (wsp+6)
 
-
 instance (Pretty a, Pretty b) => Pretty (a,b) where
   pretty (x,y) = "(" ++ pretty x ++ "," ++ pretty y ++ ")"
-
 
 pprint :: Pretty a => a -> IO ()
 pprint = putStrLn . pretty
