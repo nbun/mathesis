@@ -428,7 +428,7 @@ Such contextual inference of values can be enabled with the command \cinl{Set Co
 Now we can use \cinl{List} without explicit type arguments.
 
 In some situations, the type inference is not able to gather all required information.
-For example, defining \cinl{cons None None} leads to the error message 'Cannot infer the implicit parameter \cinl{A} of \cinl{cons} whose type is \cinl{Type}'.
+For example, defining \cinl{cons None None} leads to the error message ``Cannot infer the implicit parameter \cinl{A} of \cinl{cons} whose type is \cinl{Type}''.
 Thus, it is possible to explicitly pass implicit parameters by adding \cinl{@} in front of the function or constructor name.
 \begin{minted}{Coq}
 Definition empty A := @cons A None None.
@@ -475,7 +475,7 @@ Fail Fixpoint app A (oxs oys : option (List A)) : option (List A) :=
   end.
 \end{minted}
 \noindent
-As indicated by \cinl{Fail}, this definition fails to load in Coq with the error message 'Cannot guess decreasing argument of fix'.
+As indicated by \cinl{Fail}, this definition fails to load in Coq with the error message ``Cannot guess decreasing argument of fix''.
 Such errors generally mean that Coq is not able automatically detect that a recursive function terminates for every input.
 The reason for this requirement is explained in more detail in \autoref{sec:non-strictly}.
 In short, Coq's termination checker ensures that the proof logic remains sound.
@@ -489,7 +489,7 @@ Unfortunately, Coq is not able to track subterms across multiple levels of patte
 \begin{quotation}
 \noindent
 There is no deep theoretical reason why this program should be rejected; Coq applies incomplete termination-checking heuristics, and it is necessary to learn a few of the most important rules.
-The term "nested inductive type" hints at the solution to this particular problem[:] [\dots{}] nested types require nested recursion.
+The term ``nested inductive type'' hints at the solution to this particular problem[:] [\dots{}] nested types require nested recursion.
 \end{quotation}
 \noindent
 In the example of \cinl{app}, nested recursion is not necessary because \cinl{option} is not a recursive type.
@@ -564,7 +564,7 @@ The goal of a proof in Coq is to construct evidence that a certain proposition h
 Propositions have the type \cinl{Prop} and represent statements about Gallina structures.
 For example, \cinl{1 = 0} is a proposition, although not a provable one.
 
-The term 'constructing evidence' is related to the \textit{Curry-Howard Correspondence}, which suggests that logical proofs and computational values are strongly connected.
+The term ``constructing evidence'' is related to the \textit{Curry-Howard Correspondence}, which suggests that logical proofs and computational values are strongly connected.
 When we reason mathematically about a statement like $1 = 1$, we might argue that equality is a reflexive relation and thus, the statement must be true.
 We can do the same in Coq as follows.
 
@@ -583,7 +583,7 @@ The constructed value can be printed using the command \cinl{Print} as follows.
 eq_refl : 1 = 1
 \end{minted}
 \noindent
-When we talk about values in the context of proofs, the type operator \cinl{:} can be read as 'is a proof of', that is, \cinl{eq_refl} is a proof of \cinl{1 = 1}, in this case.
+When we talk about values in the context of proofs, the type operator \cinl{:} can be read as ``is a proof of'', that is, \cinl{eq_refl} is a proof of \cinl{1 = 1}, in this case.
 In order to find out more about \cinl{eq_refl}, we can ask Coq for the definition of the equality operator, using \cinl{Locate} and then \cinl{Print}.
 
 \begin{minted}{Coq}
@@ -595,7 +595,7 @@ Inductive eq (A : Type) (x : A) : A -> Prop := eq_refl : x = x
 \end{minted}
 \noindent
 Now we know that \cinl{=} is a notation for the \textit{inductively defined proposition} \cinl{eq}.
-'Inductively defined' means that a proposition consists of multiple constructors whose definition is usually related to the inductive data type that the proposition reasons about.
+``Inductively defined'' means that a proposition consists of multiple constructors whose definition is usually related to the inductive data type that the proposition reasons about.
 The constructor \cinl{eq_refl} matches values of all types and can be applied if its first argument \cinl{x} and second argument -- the argument of type \cinl{A} that follows -- are the same.
 Since this is the case in our example, the value \cinl{eq_refl} proves the proposition.
 
@@ -692,7 +692,7 @@ The lemma \cinl{len_n_S} states that \cinl{n <= m} implies \cinl{S n <= S m}.
 A lemma can be applied with the tactic \cinl{apply}.
 In general, \cinl{apply} works by matching the goal against the conclusion $c$ of a lemma of type $p_1 \rightarrow \dots \rightarrow p_n \rightarrow c$ where $p$ represent premises.
 When the matching is successful, a new subgoal for each premise is generated.
-Thus, \cinl{apply} 'reasons backwards' in the sense that we replace the current goal with premises, which, if eventually proven, imply that the original goal must hold, too. 
+Thus, \cinl{apply} ``reasons backwards'' in the sense that we replace the current goal with premises, which, if eventually proven, imply that the original goal must hold, too. 
 In this case, the only premise is \cinl{n <= m}.
 Therefore, the new goal is identical to the induction hypothesis, which can be applied with \cinl{apply}, too.
 
@@ -1189,7 +1189,7 @@ data Free f a = Pure a | Impure (f (Free f a))
 \end{minted}
 
 Besides differently named constructors, the definition is identical to the type \cinl{Prog}.
-When the free monad is applied to a functor \cinl{f}, the resulting type is a 'free' monad.
+When the free monad is applied to a functor \cinl{f}, the resulting type is a ``free'' monad.
 This is very useful for modeling effectful programs because it allows us to combine syntax using the \hinl{do} notation.
 
 As an example of a monad generated by \cinl{Free}, we consider the type \hinl{data One a = One}.
@@ -1443,7 +1443,7 @@ Handling an effect means transforming a program that contains a certain effect i
 However, the syntax is not just removed, but the effect's semantics is applied.
 The semantics of an effect is therefore given by its handler.
 
-In the following we discuss handlers for the effects non-determinism and state, as well as a 'handler' for \hinl{Void}.
+In the following we discuss handlers for the effects non-determinism and state, as well as a ``handler'' for \hinl{Void}.
 
 \paragraph{Void Effect}
 We begin with the data type for absence of effects, \hinl{Void}.
@@ -2617,7 +2617,7 @@ Compared to 0.69 seconds for sorting a list of nine elements using the list mona
 \end{minted}
 
 However, there is one case where the explicit-sharing implementation is much faster:
-When the predicate \hinl{isSorted} is replaced by a constant function that returns \hinl{False}, lists of any length are 'sorted' in constant time, while the list monad implementation still generates all permutations of the input list.
+When the predicate \hinl{isSorted} is replaced by a constant function that returns \hinl{False}, lists of any length are ``sorted'' in constant time, while the list monad implementation still generates all permutations of the input list.
 Thus, the explicit-sharing implementation models non-strictness correctly.
 Since the resulting lists are indeed sorted, the issue of incoherent sharing mentioned in \autoref{sec:sharingComputations} does not affect this implementation, either.
 
@@ -3353,7 +3353,7 @@ The only remaining part of the sharing effect is the handler.
 In Haskell, the handler is implemented as a mutually recursive pair of functions that handle sharing inside and outside of a sharing scope.
 Since Coq loads definitions sequentially, mutual recursion poses a problem when checking the function for termination.
 Adding one function as an higher-order argument to the other one does not convince Coq that the function terminates.
-However, defining the 'inside-scope' handler as a local definition using \cinl{let fix} works.
+However, defining the ``inside-scope'' handler as a local definition using \cinl{let fix} works.
 To keep the definition readable, the functions are discussed separately here.
 
 \begin{minted}{Coq}
@@ -3856,7 +3856,7 @@ Since we have defined the proof as an instance of the \cinl{Reflexive} class, we
 
 \section{Induction Principles}
 
-When the tactic \cinl{induction} is applied in a proof, for example, when reasoning about lists, an induction hypothesis 'magically' appears, even for self-defined data types.
+When the tactic \cinl{induction} is applied in a proof, for example, when reasoning about lists, an induction hypothesis ``magically'' appears, even for self-defined data types.
 This is, however, not as much magic as Coq automatically generating an \textit{induction principle}.
 Such a principle states under which conditions a proposition holds for a value of some type.
 For example, the induction hypothesis for lists can be viewed using the command \cinl{Check list_ind}, where the suffix \cinl{_ind} marks automatically generated induction hypotheses.
