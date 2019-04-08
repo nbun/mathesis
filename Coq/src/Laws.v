@@ -3,7 +3,6 @@ Require Import Thesis.Classes.
 Require Import Thesis.DataM.
 Require Import Thesis.Handler.
 Require Import Thesis.Prog.
-Require Import Thesis.Base.
 Require Import Thesis.Eq.
 
 Require Import Program.Equality.

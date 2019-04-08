@@ -1,3 +1,6 @@
+Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Program.Equality.
+
 Require Import Thesis.Container.
 Set Implicit Arguments.
 
@@ -13,7 +16,6 @@ End Free.
 Arguments pure {_} {_} {_} _.
 
 Section Free_Rect.
-
   Variable F : Type -> Type.
   Variable C__F : Container F.
   Variable A : Type.
@@ -29,11 +31,9 @@ Section Free_Rect.
     | impure (ext s pf) =>
       Impure_rect s pf (fun p : Pos s => Free_Rect (pf p))
     end.
-
 End Free_Rect.
 
 Section Free_Ind.
-
   Variable F : Type -> Type.
   Variable C__F : Container F.
   Variable A : Type.
@@ -44,6 +44,69 @@ Section Free_Ind.
       (forall p, P (pf p)) -> P (impure (ext s pf)).
 
   Definition Free_Ind (fx : Free C__F A) : P fx := Free_Rect P Pure_ind Impure_ind fx.
-
 End Free_Ind.
 
+
+
+Section MonadInstance.
+  Variable F : Type -> Type.
+  Variable C__F : Container F.
+
+  Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) : Ext Shape Pos B :=
+    match x with
+    | ext s pf => ext s (fun x => f (pf x))
+    end.
+
+  Section fbind.
+    
+    Variable A B: Type.
+    Variable f: A -> Free C__F B.
+    
+    Fixpoint free_bind' (ffA: Free C__F A) : Free C__F B :=
+      match ffA with
+      | pure x => f x
+      | impure e => impure (cmap free_bind' e)
+      end.
+    
+  End fbind.
+
+  Definition free_bind A B (ffA: Free C__F A) (f: A -> Free C__F B) : Free C__F B :=
+    free_bind' f ffA.
+
+  Notation "mx >>= f" := (free_bind mx f)  (at level 20, left associativity).
+
+  Lemma pure_bind :
+    forall A B (x: A) (f: A -> Free C__F B), pure x >>= f = f x.
+  Proof.
+    reflexivity.
+  Qed.
+  
+  Lemma bind_pure :
+    forall A (fA: Free C__F A), fA >>= (fun x => pure x) = fA.
+  Proof.
+    induction fA using Free_Ind.
+    - reflexivity.
+    - simpl.
+      do 2 f_equal.
+      extensionality p.
+      apply H.
+  Qed.
+
+  Lemma free_bind_assoc :
+    forall A B C (fa : Free C__F A) (f: A -> Free C__F B) (g: B -> Free C__F C),
+      fa >>= (fun y => f y >>= g) = fa >>= f >>= g.
+  Proof.
+    intros.
+    induction fa using Free_Ind.
+    - econstructor.
+    - simpl free_bind.
+      repeat apply f_equal.
+      apply functional_extensionality.
+      apply H.
+  Qed.
+End MonadInstance.
+
+Arguments cmap {_} {_} {_} {_}.
+
+Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
+Notation "mx >>  f" := (free_bind mx (fun _ => f)) (at level 20, left associativity).

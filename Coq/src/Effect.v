@@ -1,4 +1,3 @@
-Require Import Thesis.Base.
 Require Import Thesis.Prog.
 Require Import Thesis.Classes.
 

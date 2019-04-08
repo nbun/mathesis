@@ -1,4 +1,3 @@
-Require Import Thesis.HigherOrder.Base.
 Require Import Thesis.HigherOrder.Prog.
 Require Import Thesis.HigherOrder.Classes.
 

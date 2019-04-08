@@ -1,8 +1,7 @@
-Require Import Thesis.Base.
+Require Import Thesis.Search.
 Require Import Thesis.Classes.
 Require Import Thesis.Effect.
 Require Import Thesis.Prog.
-Require Import Thesis.Search.
 
 Set Implicit Arguments.
 

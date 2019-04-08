@@ -1,4 +1,3 @@
-Require Import Thesis.HigherOrder.Base.
 Require Import Thesis.HigherOrder.DataM.
 Require Import Thesis.HigherOrder.Effect.
 Require Import Thesis.HigherOrder.Handler.

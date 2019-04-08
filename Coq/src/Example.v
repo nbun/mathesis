@@ -1,4 +1,3 @@
-Require Import Thesis.Base.
 Require Import Thesis.DataM.
 Require Import Thesis.Effect.
 Require Import Thesis.Handler.

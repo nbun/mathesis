@@ -1,5 +1,4 @@
 Require Import Thesis.Prog.
-Require Import Thesis.Base.
 Require Import Thesis.Effect.
 Require Import Thesis.Classes.
 Require Import Thesis.Handler.

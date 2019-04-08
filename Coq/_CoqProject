@@ -1,14 +1,13 @@
 -Q src Thesis
 
+src/Search.v
 src/Container.v
 src/Free.v
 src/Prog.v
 src/Classes.v
-src/Base.v
 src/Effect.v
-src/DataM.v
-src/Search.v
 src/Handler.v
+src/DataM.v
 src/Example.v
 src/PermSort.v
 src/Eq.v
@@ -17,7 +16,6 @@ src/HigherOrder/Container.v
 src/HigherOrder/Free.v
 src/HigherOrder/Prog.v
 src/HigherOrder/Classes.v
-src/HigherOrder/Base.v
 src/HigherOrder/Effect.v
 src/HigherOrder/Handler.v
 src/HigherOrder/DataM.v

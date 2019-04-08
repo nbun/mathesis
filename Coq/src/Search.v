@@ -7,7 +7,7 @@ Definition ID : Type := nat * nat * nat.
 Inductive Tree A :=
 | Empty  : Tree A
 | Leaf   : A -> Tree A
-| Branch : option ID ->Tree A -> Tree A -> Tree A.
+| Branch : option ID -> Tree A -> Tree A -> Tree A.
 
 Inductive Decision := L | R.
 
