@@ -1,6 +1,6 @@
 # Master's Thesis: Modelling Call-Time Choice as Effect using Scoped Free Monads
 
-This repository contains the code presented in [Modelling Call-Time Choice as Effect using Scoped Free Monads](Thesis/mathesis.pdf).
+This repository contains the code presented in [Modelling Call-Time Choice as Effect using Scoped Free Monads](Thesis/Mathesis.pdf).
 The initial motivation and goals can be found [here](Goals.md).
 
 ## Structure
