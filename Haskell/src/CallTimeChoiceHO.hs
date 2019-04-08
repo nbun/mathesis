@@ -175,8 +175,9 @@ instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog 
     let p' = do
           put (i, j + 1)
           x <- p
+          x' <- shareArgs share x
           put (i + 1, j)
-          shareArgs share x
+          return x'
     return $ shares (i, j) p'
 
 instance AllValues NDShare where

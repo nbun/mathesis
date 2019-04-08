@@ -2469,8 +2469,8 @@ share :: (Share :<: sig, State Int :<: sig)
       begin (i,j)
       put (i, j + 1)
       x <- p
-      put (i + 1, j)
       x' <- shareArgs share x
+      put (i + 1, j)
       end (i,j)
       return x'
 \end{minted}
@@ -3343,8 +3343,8 @@ Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
   pure (BeginShare (i,j) >>
         Put (i, j + 1) >>
         p >>= fun x =>
-        Put (i + 1, j) >>
         shareArgs x >>= fun x' =>
+        Put (i + 1, j) >>
         EndShare (i,j) >>
         pure x').
 \end{minted}
