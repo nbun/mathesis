@@ -1,3 +1,4 @@
+(** Proofs of the Laws of Sharing *)
 Require Import Thesis.Effect.
 Require Import Thesis.Classes.
 Require Import Thesis.DataM.
@@ -10,16 +11,19 @@ Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Classes.RelationClasses.
 Require Import Equivalence.
 
-
 Set Implicit Arguments.
 
+(** Programs can be restricted to non-determinism and pure values in proofs because
+    state and sharing are expressed as part of the generated choice ID *)
 Axiom Free_Share_dec :
   forall (A : Type) (p : Prog A),
     { exists x, p = pure x } +
     { p = Fail } +
     { exists id p1 p2, p = Effect.Choice id p1 p2}.
 
+(** Induction principle for restricted programs *)
 Section Free_Share_Ind.
+
   Variable A : Type.
   Variable P : Prog A -> Prop.
 
@@ -41,9 +45,12 @@ Section Free_Share_Ind.
       + apply (H true).
       + apply (H false).
   Defined.
+
 End Free_Share_Ind.
 
+(** Proofs of the laws of sharing *)
 Section SharingLaws.
+
   Variable (A B C : Type).
   Variable nf__A : Normalform A A.
   Variable nf__B : Normalform B B.
@@ -99,6 +106,7 @@ Section SharingLaws.
    reflexivity.
  Qed.
 
+ (** Helper lemma for moving nf inside bind *)
  Lemma nf_bind : forall A B (p : Prog A) (f : A -> Prog B) `(Normalform A A) `(Normalform B B),
      nf (free_bind' f p) = free_bind' (fun x => nf (f x)) p.
  Proof.
@@ -125,4 +133,5 @@ Section SharingLaws.
    repeat (rewrite nf_bind).
    simpl free_bind'.
  Admitted.
+
 End SharingLaws.

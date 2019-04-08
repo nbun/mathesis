@@ -1,3 +1,4 @@
+(** Definitions of smart constructors for effect syntax *)
 Require Import Thesis.HigherOrder.Prog.
 Require Import Thesis.HigherOrder.Classes.
 
@@ -39,37 +40,37 @@ Arguments Share {_} {_} p.
 Definition Fail A : Prog A :=
   let s : @Shape _ NDShare := inr (inr sfail)
   in impure (ext s (fun p : @Pos _ NDShare s => match p with end)
-                 (fun p : @PosX _ NDShare s => match p with end)).
+                   (fun p : @PosX _ NDShare s => match p with end)).
 
 Arguments Fail {_}.
 
 Definition Fail__C A : Free C__Choice A :=
   let s : @Shape _ C__Choice := sfail
   in impure (ext s (fun p : Pos__Choice s => match p with end)
-                 (fun p : PosX__Choice s => match p with end)).
+                   (fun p : PosX__Choice s => match p with end)).
 
 Arguments Fail__C {_}.
 
 Definition Fail__SC A : Free (C__Comb C__Sharing C__Choice) A :=
   let s : @Shape _ NDShare__SC := inr sfail
   in impure (ext s (fun p : @Pos _ NDShare__SC s => match p with end)
-                 (fun p : @PosX _ NDShare__SC s => match p with end)).
+                   (fun p : @PosX _ NDShare__SC s => match p with end)).
 
 Arguments Fail__SC {_}.
 
 Definition Choice__C A mid l r : Free C__Choice A :=
   let s : @Shape _ C__Choice := schoice mid
   in impure (ext s (fun p : Pos__Choice s => if p then l else r)
-                 (fun p : PosX__Choice s => match p with end)).
+                   (fun p : PosX__Choice s => match p with end)).
 
 Definition Choice__SC A mid l r : Prog__SC A :=
   let s : @Shape _ NDShare__SC := inr (schoice mid)
   in impure (ext s (fun p : @Pos _ NDShare__SC s => if p then l else r)
-                 (fun p : @PosX _ NDShare__SC s => match p with end)).
+                   (fun p : @PosX _ NDShare__SC s => match p with end)).
 
 Definition Choice A mid l r : Prog A :=
   let s : @Shape _ NDShare := inr (inr (schoice mid))
   in impure (ext s (fun p : @Pos _ NDShare s => if p then l else r)
-                 (fun p : @PosX _ NDShare s => match p with end)).
+                   (fun p : @PosX _ NDShare s => match p with end)).
 
 Notation "x ? y" := (Choice None x y) (at level 80).

@@ -1,3 +1,4 @@
+(** Lifted data type definitions, lifted function definitions and type class instances *)
 Require Import Thesis.HigherOrder.Prog.
 Require Import Thesis.HigherOrder.Effect.
 Require Import Thesis.HigherOrder.Classes.
@@ -96,8 +97,8 @@ Section Pair.
   Definition nf__Pair A B C D `{Normalform A C} `{Normalform B D} (stp : Prog (Pair A B)) : Prog (Pair C D) :=
     stp >>= fun '(Pair' sp1 sp2) =>
               nf sp1 >>= fun b1 =>
-                           nf sp2 >>= fun b2 =>
-                                        pairM (pure b1) (pure b2).
+              nf sp2 >>= fun b2 =>
+              pairM (pure b1) (pure b2).
 
   Lemma nf_impure__Pair A B C D nf__AC nf__BD : forall s (pf : _ -> Prog (Pair A B)) pfx,
       @nf__Pair A B C D nf__AC nf__BD (impure (ext s pf pfx)) = impure (ext s (fun p => nf__Pair (pf p)) pfx).
@@ -111,13 +112,20 @@ Section Pair.
 
 End Pair.
 
+(** Failed definition of the lifted list type *)
 Section List.
 
+  (** Fails due to non-strictly positive occurrence of Free in Cons' *)
+  Fail Inductive List A :=
+  | Nil'  : List A
+  | Cons' : Prog A -> Prog (List A) -> List A. 
+
+  (** CPS defintion of List *)
   Inductive List A :=
   | Nil' : List A
   | Cons' {T : Type} : Prog A -> Prog T -> (T -> List A) -> List A.
 
-
+  (** Using CPS-style lists leads to universe inconsistency and other type-hierarchy related errors *)
   Fail Definition consM A (fx : Prog A) (fxs : Prog (List A)) : Prog (List A) :=
     pure (@Cons' A (List A) fx fxs id).
 End List.

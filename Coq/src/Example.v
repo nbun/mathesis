@@ -1,3 +1,4 @@
+(** Test suite *)
 Require Import Thesis.DataM.
 Require Import Thesis.Effect.
 Require Import Thesis.Handler.
@@ -15,6 +16,7 @@ Definition T : Prog bool := pure true.
 Definition F : Prog bool := pure false.
 Definition const := fun A (x _ : A) => x.
 
+(** Examples for programs that return Boolean values *)
 Section exB.
   Example example1 : Prog bool := coin.
   Example res_example1 := [true; false].
@@ -157,6 +159,8 @@ Section exB.
   Proof. repeat econstructor. Qed.
 End exB.
 
+
+(** Examples for programs that return pairs of Boolean values *)
 Section exPB.
   Example exDup : Prog (Pair bool bool) := dup coin.
   Example res_exDup := [Pair' T T
@@ -212,6 +216,8 @@ Section exPB.
   Proof. repeat econstructor. Qed.
 End exPB.
 
+
+(** Examples for programs that return lists of Boolean values *)
 Section exLB.
   Arguments nilM {_}.
   Arguments Nil' {_}.
@@ -306,6 +312,7 @@ Section exLB.
   Proof. repeat econstructor. Qed.
 End exLB.
               
+(** Examples for programs that return lists of pairs of Boolean values *)
 Section exLPB.
  Example exShareSingleton : Prog (Pair (List bool) (List bool)) :=
    Share (consM (pure true ? pure false) nilM) >>= fun fx =>
@@ -322,6 +329,8 @@ Section exLPB.
  Proof. repeat econstructor. Qed.
 End exLPB.
 
+
+(** Examples for programs that return pairs of lists of Boolean values *)
 Section exPLB.
   Example exShareListInShare : Prog (Pair (List bool) (List bool)) :=
     Share (Share (consM coin (consM coin nilM)) >>=

@@ -1,6 +1,8 @@
+(** Definition of the higher-order container class and effect higher-order effect containers *)
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Program.Equality.
 
+(** Extension of an indexed bi-container *)
 Inductive Ext
           Shape
           (Pos : Shape -> Type)
@@ -14,6 +16,8 @@ Arguments ext {_ _ _ _ _ _} s pf pfx.
 
 Set Implicit Arguments.
 
+(** Definition of an indexed bi-container with transformation functions and
+   isomorphism proofs *)
 Class HContainer (H : (Type -> Type) -> Type -> Type) :=
   {
     Shape   : Type;
@@ -294,6 +298,7 @@ Section State.
 
 End State.
 
+(** Definition of the higher-order sharing container *)
 Section Sharing.
 
   Inductive Sharing F (A : Type) :=

@@ -1,6 +1,9 @@
+(** Type definitions of NDShare and Prog *)
 Require Import Thesis.Free.
 Require Import Thesis.Container.
 
+(** Free and Container are re-exported since they are required in order
+    to use the type synonyms *)
 Export Thesis.Free.
 Export Thesis.Container.
 

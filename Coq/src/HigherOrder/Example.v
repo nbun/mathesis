@@ -1,3 +1,4 @@
+(** Test suite without examples that contain effectful lists *)
 Require Import Thesis.HigherOrder.DataM.
 Require Import Thesis.HigherOrder.Effect.
 Require Import Thesis.HigherOrder.Handler.

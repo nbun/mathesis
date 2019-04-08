@@ -1,11 +1,14 @@
+(** Definition of the container class and effect containers *)
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Program.Equality.
 
+(** Extension of a container *)
 Inductive Ext Shape (Pos : Shape -> Type) A := ext : forall s, (Pos s -> A) -> Ext Shape Pos A.
 
 Arguments ext {_} {_} {_} s pf.
 Set Implicit Arguments.
 
+(** Container class with transformation functions and isomorphism properties *)
 Class Container F :=
   {
     Shape   : Type;
@@ -18,7 +21,7 @@ Class Container F :=
 
 Arguments from {_} {_} {_} _.
 
-
+(** Zero corresponds to the Void effect in Haskell *)
 Section Zero.
 
   Inductive Void :=.
@@ -63,6 +66,7 @@ Section Zero.
 
 End Zero.
 
+(** The comb container represents the :+: functor for combining effects *)
 Section Combination.
 
   Variable F G : Type -> Type.
@@ -125,6 +129,7 @@ Section Combination.
 
 End Combination.
 
+(** Non-determinism effect container *)
 Section Choice.
   Definition ID : Type := (nat * nat * nat).
 
@@ -181,6 +186,7 @@ Section Choice.
 
 End Choice.
 
+(** State effect container *)
 Section State.
 
   Variable S : Type.
@@ -247,6 +253,7 @@ End State.
 
 Arguments sget {_}.
 
+(** Sharing effect container *)
 Section Sharing.
 
   Inductive Sharing (A : Type) :=

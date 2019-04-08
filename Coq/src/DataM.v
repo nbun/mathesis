@@ -1,3 +1,4 @@
+(** Lifted data type definitions, lifted function definitions and type class instances *)
 Require Import Thesis.Prog.
 Require Import Thesis.Effect.
 Require Import Thesis.Classes.
@@ -5,7 +6,9 @@ Require Import Thesis.Handler.
 
 Set Implicit Arguments.
 
+(** Lifted primitive definitions and functions *)
 Section Prim.
+
   Definition Coin : Prog nat := Choice None (pure 0) (pure 1).
   Definition Coin__Bool : Prog bool := Choice None (pure true) (pure false).
   
@@ -27,6 +30,7 @@ Section Prim.
   Definition duplicate A (fx : Prog A) : Prog (A * A) :=
     fx >>= fun x => fx >>= fun y => pure (x,y).
 
+  (** Primitive data types do not contain effectful components *)
   Global Instance shareable__Nat : Shareable nat :=
     {
       shareArgs := pure
@@ -34,12 +38,15 @@ Section Prim.
 
   Definition doubleM (fn : Prog nat) : Prog nat :=
     Share fn >>= fun n => addM n n.
-  
+
+  (** Primitive data types do not contain effectful components *)
   Global Instance shareable__Bool : Shareable bool :=
     {
       shareArgs := pure
     }.
 
+  (** Although not strictly necessary, programs that return natural
+      numbers are normalized using bind *)
   Definition nf__nat (n : Prog nat) :=
     free_bind n (fun n' => pure n').
 
@@ -59,6 +66,8 @@ Section Prim.
       nf_pure := nf_pure__nat
     }.
   
+  (** Although not strictly necessary, programs that return natural
+      numbers are normalized using bind *)
   Definition nf__bool (b : Prog bool) :=
     b >>= fun b' => pure b'.
 
@@ -77,9 +86,12 @@ Section Prim.
       nf' := pure;
       nf_pure := nf_pure__bool
     }.
+
 End Prim.
 
+(** Lifted pair type and corresponding functions *)
 Section Pair.
+
   Inductive Pair A B :=
   | Pair' : Prog A -> Prog B -> Pair A B.
   
@@ -101,6 +113,7 @@ Section Pair.
   Definition dupShare A `{Shareable A} (fx : Prog A) : Prog (Pair A A) :=
     Share fx >>= fun x => pairM x x.
 
+  (** shareArgs shares both components of a pair *)
   Definition shareArgs__Pair A B `(Shareable A) `(Shareable B) (p : Pair A B) : Prog (Pair A B) :=
     match p with
     | Pair' a b => Share a >>= fun sa => Share b >>= fun sb => pairM sa sb
@@ -111,13 +124,14 @@ Section Pair.
       shareArgs := @shareArgs__Pair A B sa sb
     }.
 
+  (** Pairs are normalized by evaluating both components using bind *)
   Definition nf'__Pair A B C D `{Normalform A C} `{Normalform B D} (p : Pair A B)
     : Prog (Pair C D) :=
     match p with
     | Pair' sp1 sp2 =>
       nf sp1 >>= fun b1 =>
-                   nf sp2 >>= fun b2 =>
-                                pairM (pure b1) (pure b2)
+      nf sp2 >>= fun b2 =>
+      pairM (pure b1) (pure b2)
     end.
 
   Definition nf__Pair A B C D `{Normalform A C} `{Normalform B D} (stp : Prog (Pair A B)) : Prog (Pair C D) :=
@@ -142,9 +156,11 @@ Section Pair.
 
 End Pair.
 
+(** Lifted list type and corresponding functions *)
 Section List.
+
   Inductive List A :=
-  | Nil' : List A
+  | Nil'  : List A
   | Cons' : Prog A -> Prog (List A) -> List A.
 
   Arguments Nil' {_}.
@@ -183,12 +199,7 @@ Section List.
   Definition appM A (fxs fys : Prog (List A)) : Prog (List A) :=
     fxs >>= fun xs => appM' xs fys.
 
-  Definition shareArgs__List A `(Shareable A) `(Shareable (List A)) (xs : List A) : Prog (List A) :=
-    match xs with
-    | Nil'       => @nilM A
-    | Cons' y ys => Share y >>= fun sy => Share ys >>= fun sys => consM sy sys
-    end.
-
+  (** shareArgs shares the list head and list tail recursively *)
   Global Instance shareable__List A `(sa : Shareable A) : Shareable (List A) :=
     {
       shareArgs := fun xs =>
@@ -199,6 +210,7 @@ Section List.
                                              Put (i, j + 1) >>= fun _ =>
                                              fp >>= fun x =>
                                              aux x >>= fun x' =>
+                                             Put (i + 1, j) >>= fun _ =>
                                              EndShare (i,j) >>= fun _ =>
                                              pure x')
                          in
@@ -209,6 +221,7 @@ Section List.
                      in aux xs
     }.
 
+  (** Lists are normalized by evaluating the list head and list tail using bind *)
   Fixpoint nf'__List A B `{Normalform A B} (xs : List A) : Prog (List B) :=
     match xs with
     | Nil'   => nilM
@@ -221,7 +234,7 @@ Section List.
   Definition nf__List A B `{Normalform A B}  (stxs : Prog (List A)) : Prog (List B) :=
     stxs >>= fun xs => nf'__List xs.
 
- Lemma nf_impure__List A B nf__AB : forall s (pf : _ -> Prog (List A)),
+  Lemma nf_impure__List A B nf__AB : forall s (pf : _ -> Prog (List A)),
       @nf__List A B nf__AB (impure (ext s pf)) = impure (ext s (fun p => nf__List (pf p))).
   Proof. trivial. Qed.
 
@@ -237,36 +250,18 @@ Section List.
       nf_pure := nf_pure__List nf__AB
     }.
 
-  Fixpoint lengthM A (xs : List A) : Prog nat :=
-    match xs with
-    | Nil'        => pure 0
-    | Cons' _ fxs =>
-      let m := match fxs with
-               | pure xs => lengthM xs
-               | impure (ext (inl sget) pf) =>
-                 pf (42,42) >>= fun xs => lengthM xs
-               | impure (ext (inl (sput s')) pf) =>
-                 pf tt >>= fun xs => lengthM xs
-               | impure (ext (inr (inr sfail)) _)  => pure 0
-               | impure (ext (inr (inr (schoice mid))) pf) =>
-                 (pf true >>= fun xs => lengthM xs) >>= fun x =>
-                                                          (pf false >>= fun xs => lengthM xs) >>= fun y => pure (max x y)
-               | impure (ext (inr (inl (sbsharing n)))  pf) =>
-                 pf tt >>= fun xs => lengthM xs
-               | impure (ext (inr (inl (sesharing n)))  pf) =>
-                 pf tt >>= fun xs => lengthM xs
-               end
-      in m >>= fun i => pure (i + 1)
-    end.
-
+  (** Converts ordinary lists into effectful lists *)
   Fixpoint convert A (xs : list A) : Prog (List A) :=
     match xs with
     | nil => nilM
     | cons x xs => consM (pure x) (convert xs)
     end.
+
 End List.
 
+(** Normalization instance for programs *)
 Section Prog.
+
   Definition nf'__Prog A B `{Normalform A B} (p : Prog A) : Prog (Prog B) :=
     nf p >>= fun p' => pure (pure p').
 
@@ -288,4 +283,5 @@ Section Prog.
       nf' := fun x => nf'__Prog x;
       nf_pure := nf_pure__Prog nf__AB
     }.
+
 End Prog.

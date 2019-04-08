@@ -1,3 +1,4 @@
+(** Type classes required for deep sharing *)
 Require Import Thesis.HigherOrder.Prog.
 
 Class Shareable (A : Type) :=

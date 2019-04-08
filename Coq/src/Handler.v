@@ -1,3 +1,4 @@
+(** Handlers for non-determinism, state and sharing, as well as the program handler *)
 Require Import Thesis.Search.
 Require Import Thesis.Classes.
 Require Import Thesis.Effect.
@@ -5,6 +6,7 @@ Require Import Thesis.Prog.
 
 Set Implicit Arguments.
 
+(** Void effect handler *)
 Definition run A (fz : Free C__Zero A) : A :=
   match fz with
   | pure x => x
@@ -13,6 +15,7 @@ Definition run A (fz : Free C__Zero A) : A :=
                end
   end.
 
+(** Non-Determinism effect handler *)
 Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
   match fc with
   | pure x => Leaf x
@@ -20,6 +23,7 @@ Fixpoint runChoice A (fc : Free C__Choice A) : Tree A :=
   | impure (ext (schoice mid) pf) => Branch mid (runChoice (pf true)) (runChoice (pf false))
   end.
 
+(** State effect handler *)
 Fixpoint runState A (n : nat * nat) (fc : Prog A) : Free (C__Comb C__Sharing C__Choice) A :=
   match fc with
   | pure x => pure x
@@ -31,7 +35,9 @@ Fixpoint runState A (n : nat * nat) (fc : Prog A) : Free (C__Comb C__Sharing C__
 Definition tripl A B C (p : A * B) (c : C) : A * B * C :=
   let '(a,b) := p in (a,b,c).
 
+(** Sharing effect handler *)
 Fixpoint runSharing A (fs : Prog__SC A) : Free C__Choice A :=
+  (* let fix inlining necessary due to termination check problems *)
   let fix nameChoices (next : nat) (scope : nat * nat) (scopes : list (nat * nat)) (fs : Prog__SC A)
   : Free C__Choice A  :=
       match fs with
@@ -57,5 +63,6 @@ Fixpoint runSharing A (fs : Prog__SC A) : Free C__Choice A :=
      | impure (ext (inr s) pf) => impure (cmap (@runSharing A) (ext s pf))
      end.
 
+(** Handles the program effect stack after normalizing the program *)
 Definition handle A `{Normalform A A} (fs : Prog A) : list A :=
   collectVals (runChoice (runSharing (runState (0,0) (nf fs)))).

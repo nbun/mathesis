@@ -1,3 +1,6 @@
+(** Definitions of smart constuctors for effect syntax.
+    If necessary, the constructors are defined for multiple
+    program types from the effect stack. *)
 Require Import Thesis.Prog.
 Require Import Thesis.Classes.
 

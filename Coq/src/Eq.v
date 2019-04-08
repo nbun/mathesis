@@ -1,3 +1,4 @@
+(** Equality for the program type and equivalence relation proofs *)
 Require Import Thesis.Prog.
 Require Import Thesis.Classes.
 Require Import Thesis.Handler.
@@ -8,6 +9,7 @@ Require Import Equivalence.
 Set Implicit Arguments.
 
 Section Eq_Prog.
+
   Variable A : Type.
   Variable NF__A : Normalform A A.
 
@@ -40,4 +42,5 @@ Section Eq_Prog.
   Global Instance eq_Prog_Reflexive  : Reflexive Eq_Prog  := eq_prog_refl.
   Global Instance eq_Prog_Symmetric  : Symmetric Eq_Prog  := eq_prog_symm.
   Global Instance eq_Prog_Transitive : Transitive Eq_Prog := eq_prog_trans.
+
 End Eq_Prog.

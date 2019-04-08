@@ -1,3 +1,6 @@
+(** Definition of the free monad for higher-order containers,
+    a stronger induction principle, monad operations and proofs
+    of the monad laws *)
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Program.Equality.
 
@@ -5,6 +8,7 @@ Require Import Thesis.HigherOrder.Container.
 
 Set Implicit Arguments.
 
+(** Definition of the free monad for higher-order containers *)
 Section Free.
 
   Variable H : (Type -> Type) -> Type -> Type.
@@ -57,6 +61,8 @@ Section MonadInstance.
   Variable H : (Type -> Type) -> Type -> Type.
   Variable C__H : HContainer H.
 
+  (** The function f is mapped over the position function that contains values of type A.
+      The other position function is not modified since it cannot contain values of type A. *)
   Definition cmap A B F (f : F A -> F B) (x : Ext Shape Pos PosX Ctx F A) : Ext Shape Pos PosX Ctx F B :=
     match x with
     | ext s pf pfx => ext s (fun p : Pos s => f (pf p)) (fun p : PosX s => pfx p)

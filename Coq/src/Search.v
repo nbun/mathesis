@@ -1,3 +1,5 @@
+(** Definition of choice trees and the depth-first search algorithm *)
+
 Require Import EqNat.
 
 Set Implicit Arguments.
@@ -17,6 +19,7 @@ Definition beq_id (id1 id2 : ID) : bool :=
                                             (beq_nat n13 n23)
   end.
 
+(** Maps are defined as functions *)
 Definition total_map (K V : Type) := K -> V.
 
 Definition partial_map (K V : Type) := total_map K (option V).

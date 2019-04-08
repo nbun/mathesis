@@ -1,10 +1,16 @@
+(** Definition of the free monad, a stronger induction principle,
+    monad operations and proofs of the monad laws *)
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Program.Equality.
 
 Require Import Thesis.Container.
+
 Set Implicit Arguments.
 
+(** Definition of the free monad based on containers to
+    represent strictly positive functors *)
 Section Free.
+
   Variable F : Type -> Type.
 
   Inductive Free (C__F : Container F) A :=
@@ -15,7 +21,9 @@ End Free.
 
 Arguments pure {_} {_} {_} _.
 
+(** Leibniz's equality for Free *)
 Section Free_Rect.
+
   Variable F : Type -> Type.
   Variable C__F : Container F.
   Variable A : Type.
@@ -31,9 +39,12 @@ Section Free_Rect.
     | impure (ext s pf) =>
       Impure_rect s pf (fun p : Pos s => Free_Rect (pf p))
     end.
+
 End Free_Rect.
 
+(** Stronger induction principle for Free *)
 Section Free_Ind.
+
   Variable F : Type -> Type.
   Variable C__F : Container F.
   Variable A : Type.
@@ -44,14 +55,16 @@ Section Free_Ind.
       (forall p, P (pf p)) -> P (impure (ext s pf)).
 
   Definition Free_Ind (fx : Free C__F A) : P fx := Free_Rect P Pure_ind Impure_ind fx.
+
 End Free_Ind.
 
-
-
+(** Definition of functor and monad operations *)
 Section MonadInstance.
+
   Variable F : Type -> Type.
   Variable C__F : Container F.
 
+  (** Corresponds to fmap *)
   Definition cmap A B (f : A -> B) (x : Ext Shape Pos A) : Ext Shape Pos B :=
     match x with
     | ext s pf => ext s (fun x => f (pf x))
@@ -75,6 +88,7 @@ Section MonadInstance.
 
   Notation "mx >>= f" := (free_bind mx f)  (at level 20, left associativity).
 
+  (** Monad laws *)
   Lemma pure_bind :
     forall A B (x: A) (f: A -> Free C__F B), pure x >>= f = f x.
   Proof.
@@ -108,5 +122,6 @@ End MonadInstance.
 
 Arguments cmap {_} {_} {_} {_}.
 
-Notation "mx >>= f" := (free_bind mx f) (at level 50, left associativity).
+(** Notations for bind and sequence that are visible when importing the module *)
+Notation "mx >>= f" := (free_bind mx f) (at level 20, left associativity).
 Notation "mx >>  f" := (free_bind mx (fun _ => f)) (at level 20, left associativity).

@@ -1,3 +1,4 @@
+(** Type definitions for NDShare and Prog *)
 Require Import Thesis.HigherOrder.Free.
 Require Import Thesis.HigherOrder.Container.
 

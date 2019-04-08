@@ -1,3 +1,4 @@
+(** Handlers for non-determinism, state and sharing, as well as the program handler *)
 Require Import Thesis.HigherOrder.Classes.
 Require Import Thesis.HigherOrder.Effect.
 Require Import Thesis.HigherOrder.Prog.
@@ -36,6 +37,8 @@ Fixpoint runState A (n : nat * nat) (fc : Prog A) : Prog__SC A :=
 Definition tripl A B C (p : A * B) (c : C) : A * B * C :=
   let '(a,b) := p in (a,b,c).
 
+(** Since the handler is no longer mutually recursive, the inside/outside
+    parts of the handler can be defined as separate functions *)
 Fixpoint nameChoices  A (next : nat) (scope : nat * nat) (fs : Prog__SC A)
   : Free C__Choice A :=
    match fs with
@@ -50,7 +53,9 @@ Fixpoint nameChoices  A (next : nat) (scope : nat * nat) (fs : Prog__SC A)
     let r := nameChoices (next + 1) scope (pf false)
     in Choice__C (Some (tripl scope next)) l r
   end.
-    
+
+(** Due to the direct program arguments of the higher-order sharing syntax, the
+    handler becomes much simpler and does not have error cases *)
 Fixpoint runSharing A (fs : Free (C__Comb C__Sharing C__Choice) A) : Free C__Choice A :=
   match fs with
   | pure x => pure x
