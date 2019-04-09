@@ -51,32 +51,32 @@ instance Syntax sig => Monad (Prog sig) where
 -----------------------
 -- combining effects --
 -----------------------
-class (Syntax sub, Syntax sup) => sub <: sup where
+class (Syntax sub, Syntax sup) => sub :<: sup where
   inj :: sub m a -> sup m a
   prj :: sup m a -> Maybe (sub m a)
 
-data (sig1 + sig2) (m :: * -> *) a = Inl (sig1 m a) | Inr (sig2 m a)
+data (sig1 :+: sig2) (m :: * -> *) a = Inl (sig1 m a) | Inr (sig2 m a)
   deriving Show
 
-infixr 0 +
+infixr 0 :+:
 
 instance {-# OVERLAPPING #-}
-  (Syntax sig1, Syntax sig2) => sig1 <: (sig1 + sig2) where
+  (Syntax sig1, Syntax sig2) => sig1 :<: (sig1 :+: sig2) where
   inj = Inl
   prj (Inl fa) = Just fa
   prj _        = Nothing
 
 instance {-# OVERLAPPABLE #-}
-  (Syntax sig1, sig <: sig2) => sig <: (sig1 + sig2) where
+  (Syntax sig1, sig :<: sig2) => sig :<: (sig1 :+: sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
   prj _        = Nothing
 
-instance (HFunctor sig1 , HFunctor sig2 ) => HFunctor (sig1 + sig2) where
+instance (HFunctor sig1 , HFunctor sig2 ) => HFunctor (sig1 :+: sig2) where
   hmap t (Inl op) = Inl (hmap t op)
   hmap t (Inr op) = Inr (hmap t op)
 
-instance (Syntax sig1, Syntax sig2 ) => Syntax (sig1 + sig2 ) where
+instance (Syntax sig1, Syntax sig2 ) => Syntax (sig1 :+: sig2 ) where
   emap f (Inl op) = Inl (emap f op)
   emap f (Inr op) = Inr (emap f op)
 
@@ -96,10 +96,10 @@ instance Functor sig => Syntax (Lift sig) where
   handle c hdl (Lift op) =
     Lift (fmap (\p -> hdl (fmap (const p) c)) op)
 
-inject :: (sub <: sup) => sub (Prog sup) a -> Prog sup a
+inject :: (sub :<: sup) => sub (Prog sup) a -> Prog sup a
 inject = Op . inj
 
-project :: (sub <: sup) => Prog sup a -> Maybe (sub (Prog sup) a)
+project :: (sub :<: sup) => Prog sup a -> Maybe (sub (Prog sup) a)
 project (Op s) = prj s
 project _      = Nothing
 

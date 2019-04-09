@@ -22,8 +22,9 @@ import           Pretty
 import           SharingInterface
 import qualified Tree
 
--- HND
-----------
+---------
+-- HND --
+---------
 type ID = (Int, Int, Int)
 
 data HND m a = Fail' | Choice' (Maybe ID) (m a) (m a)
@@ -44,18 +45,18 @@ instance Syntax HND where
 
 pattern Fail <- (project -> Just Fail')
 
-fail :: (HND <: sig) => Prog sig a
+fail :: (HND :<: sig) => Prog sig a
 fail = inject Fail'
 
 pattern Choice m p q <- (project -> Just (Choice' m p q))
 
-(||) :: (HND <: sig) => Prog sig a -> Prog sig a -> Prog sig a
+(||) :: (HND :<: sig) => Prog sig a -> Prog sig a -> Prog sig a
 p || q = inject (Choice' Nothing p  q)
 
-choice :: (HND <: sig) => Maybe ID -> Prog sig a -> Prog sig a -> Prog sig a
+choice :: (HND :<: sig) => Maybe ID -> Prog sig a -> Prog sig a -> Prog sig a
 choice m p q = inject (Choice' m p q)
 
-runND :: (Syntax sig) => Prog (HND + sig) a -> Prog sig (Tree.Tree a)
+runND :: (Syntax sig) => Prog (HND :+: sig) a -> Prog sig (Tree.Tree a)
 runND (Return a) = return (Tree.Leaf a)
 runND Fail       = return Tree.Failed
 runND (Choice m p q ) = do
@@ -65,7 +66,7 @@ runND (Choice m p q ) = do
 runND (Other op) = Op (handle (Tree.Leaf ()) hdl op)
   where
     hdl :: (Syntax sig)
-        => forall x. Tree.Tree (Prog (HND + sig) x) -> Prog sig (Tree.Tree x)
+        => forall x. Tree.Tree (Prog (HND :+: sig) x) -> Prog sig (Tree.Tree x)
     hdl Tree.Failed   = return Tree.Failed
     hdl (Tree.Leaf p) = runND p
     hdl (Tree.Choice m p q) = do
@@ -90,20 +91,20 @@ instance Syntax HShare where
 
 pattern Share i p x <- (project -> Just (Share' i p x))
 
-runShare :: (Syntax sig, HND <: sig) => Prog (HShare + sig) a -> Prog sig a
+runShare :: (Syntax sig, HND :<: sig) => Prog (HShare :+: sig) a -> Prog sig a
 runShare p = fmap runIdentity $ rShare p
 
-shares :: (HShare <: sig) => (Int, Int) -> Prog sig a -> Prog sig a
+shares :: (HShare :<: sig) => (Int, Int) -> Prog sig a -> Prog sig a
 shares i p = inject (Share' i p return)
 
-rShare :: (Syntax sig, HND <: sig) => Prog (HShare + sig) a
+rShare :: (Syntax sig, HND :<: sig) => Prog (HShare :+: sig) a
          -> Prog sig (Identity a)
 rShare (Return a)  = fmap Identity (return a)
 rShare Fail        = fail
 rShare (Share i p k) = go i 1 p >>= \r -> rShare (k $ runIdentity r)
   where
-    go :: (Syntax sig, HND <: sig)
-       => (Int, Int) -> Int -> Prog (HShare + sig) a -> Prog sig (Identity a)
+    go :: (Syntax sig, HND :<: sig)
+       => (Int, Int) -> Int -> Prog (HShare :+: sig) a -> Prog sig (Identity a)
     go _ _ (Return a )    = fmap Identity $ return a
     go _ _ (Fail     )    = fail
     go i n (Share j p k)    = go j 1 p >>= \r -> go i n (k $ runIdentity r)
@@ -113,8 +114,8 @@ rShare (Share i p k) = go i 1 p >>= \r -> rShare (k $ runIdentity r)
                                   in choice (Just (l, r, n)) p' q'
     go i n (Other op )    = Op (handle (Identity ()) hdl op)
       where
-        hdl :: (Syntax sig, HND <: sig)
-            => forall x. Identity (Prog (HShare + sig) x) -> Prog sig (Identity x)
+        hdl :: (Syntax sig, HND :<: sig)
+            => forall x. Identity (Prog (HShare :+: sig) x) -> Prog sig (Identity x)
         hdl (Identity p) = go i n p
 rShare (Other op)  = Op (handle (Identity ()) hdl op)
   where hdl imx = rShare (runIdentity imx)
@@ -138,15 +139,15 @@ instance Syntax (HState m) where
 
 pattern Get k <- (project -> Just (Get' k))
 
-get :: (HState s <: sig) => Prog sig s
+get :: (HState s :<: sig) => Prog sig s
 get = inject (Get' return)
 
 pattern Put s k <- (project -> Just (Put' s k))
 
-put :: (HState s <: sig) => s -> Prog sig ()
+put :: (HState s :<: sig) => s -> Prog sig ()
 put s = inject (Put' s (return ()))
 
-runState :: Syntax sig => s -> Prog (HState s + sig) a -> Prog sig (s, a)
+runState :: Syntax sig => s -> Prog (HState s :+: sig) a -> Prog sig (s, a)
 runState s (Return a) = return (s, a)
 runState s (Get k)    = runState s (k s)
 runState s (Put s' k) = runState s' k
@@ -155,20 +156,20 @@ runState s (Other op) = Op (handle (s, ()) (uncurry runState) op)
 
 -- interface implementation --
 ------------------------------
-type NDShare = Prog (HState (Int, Int) + HShare + HND + HVoid)
+type NDShare = Prog (HState (Int, Int) :+: HShare :+: HND :+: HVoid)
 
 runCurry :: NDShare a -> Tree.Tree a
 runCurry = run . runND . runShare . fmap snd . runState (0,0)
 
-instance (Syntax sig, HND <: sig) => Alternative (Prog sig) where
+instance (Syntax sig, HND :<: sig) => Alternative (Prog sig) where
   empty = fail
   (<|>) = (||)
 
-instance (Syntax sig, HND <: sig) => MonadPlus (Prog sig) where
+instance (Syntax sig, HND :<: sig) => MonadPlus (Prog sig) where
   mplus = (||)
   mzero = fail
 
-instance (HState (Int, Int) <: sig, HShare <: sig, HND <: sig) => Sharing (Prog sig) where
+instance (HState (Int, Int) :<: sig, HShare :<: sig, HND :<: sig) => Sharing (Prog sig) where
   share p = do
     (i, j) <- get
     put (i + 1, j)
@@ -184,7 +185,7 @@ instance AllValues NDShare where
   allValues = runCurry . nf
 
 prettyProgNoShare :: (Pretty a, Show a)
-                  => Int -> [Int] -> [Int] -> Prog (HND + HVoid) a -> String
+                  => Int -> [Int] -> [Int] -> Prog (HND :+: HVoid) a -> String
 prettyProgNoShare _ _    scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
 prettyProgNoShare _ _    _    Fail        = "!"
 prettyProgNoShare wsp ls scps (Choice m p q) =
@@ -202,7 +203,7 @@ printLines = printLines' 0 . reverse
     printLines' p (x:xs)  | p == x    = '│' : printLines' (p + 1) xs
                           | otherwise = ' ' : printLines' (p + 1) (x:xs)
 
-instance (Pretty a, Show a) => Pretty (Prog (HND + HVoid) a) where
+instance (Pretty a, Show a) => Pretty (Prog (HND :+: HVoid) a) where
   pretty' p _ = prettyProgNoShare 0 [] [] p
 
   pretty = flip pretty' 0

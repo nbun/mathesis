@@ -31,11 +31,11 @@ instance (Functor sig, Applicative (Prog sig)) => Monad (Prog sig) where
 --------------------------
 -- combining signatures --
 --------------------------
-data (sig1 + sig2) cnt = Inl (sig1 cnt) | Inr (sig2 cnt)
+data (sig1 :+: sig2) cnt = Inl (sig1 cnt) | Inr (sig2 cnt)
   deriving (Functor, Show)
-infixr 6 +
+infixr 6 :+:
 
-instance (Show (sig1 a), Show (sig2 a)) => (Pretty ((+) sig1 sig2 a)) where
+instance (Show (sig1 a), Show (sig2 a)) => (Pretty ((:+:) sig1 sig2 a)) where
   pretty x = let r = case x of
                        (Inl z) -> show z
                        (Inr z) -> show z
@@ -53,22 +53,22 @@ instance (Show (sig1 a), Show (sig2 a)) => (Pretty ((+) sig1 sig2 a)) where
                    ('(' : '(' : s', ')' : ')' : _) -> par (remPar s')
                    _                               -> s
 
-class (Functor sub, Functor sup) => sub <: sup where
+class (Functor sub, Functor sup) => sub :<: sup where
   inj :: sub a -> sup a
   prj :: sup a -> Maybe (sub a)
 
-instance Functor sig => sig <: sig where
+instance Functor sig => sig :<: sig where
   inj = id
   prj = Just
 
 instance {-# OVERLAPPING #-}
-  (Functor sig1, Functor sig2) => sig1 <: (sig1 + sig2) where
+  (Functor sig1, Functor sig2) => sig1 :<: (sig1 :+: sig2) where
   inj = Inl
   prj (Inl fa) = Just fa
   prj _        = Nothing
 
 instance {-# OVERLAPPABLE #-}
-  (Functor sig1, sig <: sig2) => sig <: (sig1 + sig2) where
+  (Functor sig1, sig :<: sig2) => sig :<: (sig1 :+: sig2) where
   inj = Inr . inj
   prj (Inr ga) = prj ga
   prj _        = Nothing
@@ -76,10 +76,10 @@ instance {-# OVERLAPPABLE #-}
 ----------------------
 -- helper functions --
 ----------------------
-inject :: (sub <: sup) => sub (Prog sup a) -> Prog sup a
+inject :: (sub :<: sup) => sub (Prog sup a) -> Prog sup a
 inject = Op . inj
 
-project :: (sub <: sup) => Prog sup a -> Maybe (sub (Prog sup a))
+project :: (sub :<: sup) => Prog sup a -> Maybe (sub (Prog sup a))
 project (Op s) = prj s
 project _      = Nothing
 
@@ -104,15 +104,15 @@ data State s cnt = Get' (s -> cnt)
 
 pattern Get k <- (project -> Just (Get' k))
 
-get :: (State s <: sig) => Prog sig s
+get :: (State s :<: sig) => Prog sig s
 get = inject (Get' return)
 
 pattern Put s k <- (project -> Just (Put' s k))
 
-put :: (State s <: sig) => s -> Prog sig ()
+put :: (State s :<: sig) => s -> Prog sig ()
 put s = inject (Put' s (return ()))
 
-runState :: Functor sig => s -> Prog (State s + sig) a -> Prog sig (s, a)
+runState :: Functor sig => s -> Prog (State s :+: sig) a -> Prog sig (s, a)
 runState s (Return a) = return (s, a)
 runState s (Get    k) = runState s (k s)
 runState s (Put s' k) = runState s' k
