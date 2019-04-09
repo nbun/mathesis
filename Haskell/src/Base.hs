@@ -16,6 +16,7 @@ import           Pretty
 -------------
 -- program --
 -------------
+
 data Prog sig a = Return a | Op (sig (Prog sig a))
   deriving Functor
 
@@ -31,6 +32,7 @@ instance (Functor sig, Applicative (Prog sig)) => Monad (Prog sig) where
 --------------------------
 -- combining signatures --
 --------------------------
+
 data (sig1 :+: sig2) cnt = Inl (sig1 cnt) | Inr (sig2 cnt)
   deriving (Functor, Show)
 infixr 6 :+:
@@ -76,6 +78,7 @@ instance {-# OVERLAPPABLE #-}
 ----------------------
 -- helper functions --
 ----------------------
+
 inject :: (sub :<: sup) => sub (Prog sup a) -> Prog sup a
 inject = Op . inj
 
@@ -86,6 +89,7 @@ project _      = Nothing
 -----------------
 -- Void effect --
 -----------------
+
 data Void cnt
   deriving Functor
 
@@ -98,6 +102,7 @@ run (Return x) = x
 ------------------
 -- State effect --
 ------------------
+
 data State s cnt = Get' (s -> cnt)
                  | Put' s cnt
   deriving Functor
@@ -121,4 +126,5 @@ runState s (Other op) = Op (fmap (runState s) op)
 -------------------
 -- other effects --
 -------------------
+
 pattern Other s = Op (Inr s)

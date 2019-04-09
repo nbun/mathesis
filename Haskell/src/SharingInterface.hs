@@ -1,14 +1,14 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- Interface for defining explicit sharing implementations
 module SharingInterface where
 
-import Control.Monad.Trans.State (State(..), state, get, put )
-import Control.Monad (MonadPlus(..))
-import Tree
+import           Control.Monad             (MonadPlus (..))
+import           Control.Monad.Trans.State (State (..), get, put, state)
+import           Tree
 
 ----------------------------
 -- type class for sharing --

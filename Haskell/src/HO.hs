@@ -8,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
-{-# LANGUAGE ViewPatterns          #-}
 
 -- Definition of the higher-order effect handler infrastructure
 module HO where
@@ -19,11 +18,13 @@ import           Prelude                hiding (fail, (||))
 -------------
 -- program --
 -------------
+
 data Prog sig a = Return a | Op (sig (Prog sig) a)
 
 -------------------------------
 -- higher-order type classes --
 -------------------------------
+
 type f --> g = forall x . f x -> g x
 
 class HFunctor h where
@@ -51,6 +52,7 @@ instance Syntax sig => Monad (Prog sig) where
 -----------------------
 -- combining effects --
 -----------------------
+
 class (Syntax sub, Syntax sup) => sub :<: sup where
   inj :: sub m a -> sup m a
   prj :: sup m a -> Maybe (sub m a)
@@ -86,6 +88,7 @@ instance (Syntax sig1, Syntax sig2 ) => Syntax (sig1 :+: sig2 ) where
 ---------------------------------
 -- lifting first-order effects --
 ---------------------------------
+
 newtype (Lift sig) (m :: * -> *) a = Lift (sig (m a))
 
 instance Functor sig => HFunctor (Lift sig) where

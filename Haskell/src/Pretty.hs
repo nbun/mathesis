@@ -1,10 +1,10 @@
 -- Pretty printing of choice trees
 module Pretty where
-import Tree
-import Data.Functor.Identity
+import           Data.Functor.Identity
+import           Tree
 
 class Pretty a where
-  pretty :: a -> String
+  pretty  :: a -> String
   pretty' :: a -> Int -> String
   pretty' x _ = pretty x
 
@@ -34,7 +34,7 @@ pprint = putStrLn . pretty
 
 isPared :: String -> Bool
 isPared (c:cs) | c == '(' && last cs == ')' = True
-isPared _ = False
+isPared _      = False
 
 par :: String -> String
 par s = "(" ++ s ++ ")"
@@ -46,6 +46,7 @@ prettyPar s x = let r = pretty x
 showID :: Show a => Maybe a -> String
 showID = maybe "" show
 
+-- Prints lines of choice branches
 printLines :: [Int] -> String
 printLines = printLines' 0 . reverse
   where

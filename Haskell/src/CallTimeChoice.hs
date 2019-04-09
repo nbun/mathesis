@@ -26,6 +26,7 @@ import qualified Control.Monad.State.Lazy as MS (State, evalState, get, put)
 ----------------------------
 -- non-determinism effect --
 ----------------------------
+
 type ID = (Int, Int, Int)
 
 data ND cnt = Fail' | Choice' (Maybe ID) cnt cnt
@@ -55,6 +56,7 @@ runND (Other op) = Op (fmap runND op)
 --------------------
 -- sharing effect --
 --------------------
+
 data Share cnt = BShare' (Int, Int) cnt | EShare' (Int, Int) cnt
   deriving (Functor, Show)
 
