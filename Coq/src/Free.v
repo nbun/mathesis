@@ -124,4 +124,4 @@ Arguments cmap {_} {_} {_} {_}.
 
 (** Notations for bind and sequence that are visible when importing the module *)
 Notation "mx >>= f" := (free_bind mx f) (at level 20, left associativity).
-Notation "mx >>  f" := (free_bind mx (fun _ => f)) (at level 20, left associativity).
+Notation "mx >>  f" := (free_bind mx (fun _ => f)) (at level 25, left associativity).

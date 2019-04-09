@@ -205,13 +205,13 @@ Section List.
       shareArgs := fun xs =>
                      let fix aux xs :=
                          let shr fp := Get >>= fun '(i,j) =>
-                                       Put (i + 1, j) >>= fun _ =>
-                                       pure (BeginShare (i,j) >>= fun _ =>
-                                             Put (i, j + 1) >>= fun _ =>
+                                       Put (i + 1, j) >>
+                                       pure (BeginShare (i,j) >>
+                                             Put (i, j + 1) >>
                                              fp >>= fun x =>
                                              aux x >>= fun x' =>
-                                             Put (i + 1, j) >>= fun _ =>
-                                             EndShare (i,j) >>= fun _ =>
+                                             Put (i + 1, j) >>
+                                             EndShare (i,j) >>
                                              pure x')
                          in
                          match xs with
