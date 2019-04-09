@@ -1,11 +1,13 @@
-{-# LANGUAGE StandaloneDeriving, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 
 -- Definition of lifted pairs
 module Data.PairM where
 
-import Data.Functor.Identity (Identity(..))
-import Pretty
-import SharingInterface
+import           Data.Functor.Identity (Identity (..))
+import           Pretty
+import           SharingInterface
 
 ----------------------------------------------------
 -- data type definition and convenience functions --
@@ -43,7 +45,6 @@ first st = st >>= \ (Pair x _) -> x
 
 second :: Monad m => m (Pair m a) -> m a
 second st = st >>= \ (Pair _ x) -> x
-
 
 dup' :: Monad m => m (Pair m Bool) -> m (Pair m Bool)
 dup' st = pairM (first st) (first st)

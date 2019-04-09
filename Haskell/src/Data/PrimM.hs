@@ -1,12 +1,12 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- Definition of lifted functions for primitive values
 module Data.PrimM where
 
-import Control.Monad (MonadPlus(..))
+import           Control.Monad    (MonadPlus (..))
 
-import SharingInterface
+import           SharingInterface
 
 --------------------------------------
 -- convenience functions for booleans --
@@ -26,7 +26,7 @@ coin = return True `mplus` return False
 
 orM :: Monad m => m Bool -> m Bool -> m Bool
 orM mb1 mb2 = mb1 >>= \b1 -> case b1 of
-                              True -> return True
+                              True  -> return True
                               False -> mb2
 
 notM :: Monad m => m Bool -> m Bool
@@ -42,6 +42,7 @@ intM n = return n
 ---------------------------------------
 -- function definitions for integers --
 ---------------------------------------
+
 coini :: MonadPlus m => m Int
 coini = return 0 `mplus` return 1
 

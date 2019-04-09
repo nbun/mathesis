@@ -5,6 +5,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE StandaloneDeriving        #-}
+
+-- Permutation sort example
 import           Control.Monad         (MonadPlus (..), guard, liftM)
 import           Data.Functor.Identity (Identity (..))
 import           System.Environment    (getArgs)

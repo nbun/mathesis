@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 
+-- Quicksort example
 import           Control.Monad         (MonadPlus (..), guard, liftM)
 import           Data.Functor.Identity (Identity (..))
 import           System.Environment    (getArgs)
@@ -47,10 +48,12 @@ testList1 = [5,42,3,1]
 testList2 = [5,42,3,1,1337,51,123,125]
 testList3 = [5,42,3,1,1337,51,123,125,347,174,1000]
 
-partitionM :: MonadPlus m => (m Int -> m Bool) -> m (List m Int) -> m (Pair m (List m Int))
+partitionM :: MonadPlus m
+           => (m Int -> m Bool) -> m (List m Int) -> m (Pair m (List m Int))
 partitionM mp = foldrM (selectM mp) (pairM nil nil)
 
-selectM :: MonadPlus m => (m a -> m Bool) -> m a -> m (Pair m (List m a)) -> m (Pair m (List m a))
+selectM :: MonadPlus m
+        => (m a -> m Bool) -> m a -> m (Pair m (List m a)) -> m (Pair m (List m a))
 selectM mp mx mpa = do
   Pair mxs mys <- mpa
   b <- mp mx
@@ -58,13 +61,16 @@ selectM mp mx mpa = do
     then pairM (cons mx mxs) mys
     else pairM mxs (cons mx mys)
 
-quicksortM :: (Sharing m, MonadPlus m) => (m Int -> m Int -> m Bool) -> m (List m Int) -> m (List m Int)
+quicksortM :: (Sharing m, MonadPlus m)
+           => (m Int -> m Int -> m Bool) -> m (List m Int) -> m (List m Int)
 quicksortM mp mxs = mxs >>=
   \xs -> case xs of
            Nil -> nil
            Cons my mys ->
              do p <- share (partitionM (mp my) mys)
-                appM (appM (quicksortM mp (first p)) (cons my nil)) (quicksortM mp (second p))
+                appM (appM (quicksortM mp (first p))
+                           (cons my nil))
+                     (quicksortM mp (second p))
 
 geqM :: (Ord a,MonadPlus m) => m a -> m a -> m Bool
 geqM mx my = mx >>= \x -> my >>= \y -> return (x >= y)
