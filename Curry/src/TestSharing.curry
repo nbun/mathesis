@@ -1,6 +1,6 @@
 module TestSharing where
-import Control.Findall (allValues)
-import List (maximum)
+import           Control.Findall (allValues)
+import           List            (maximum)
 
 coin :: Bool
 coin = True ? False

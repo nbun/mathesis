@@ -1,5 +1,5 @@
 module QuickSort where
-import List
+import           List
 
 quicksort :: Ord a => (a -> a -> Bool) -> [a] -> [a]
 quicksort _ []     = []
