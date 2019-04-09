@@ -1,5 +1,7 @@
 # Haskell
 
+This implementation is based on [Effect Handlers in Scope](https://people.cs.kuleuven.be/~tom.schrijvers/Research/papers/haskell2014.pdf).
+
 * Data: Contains lifted lists, pairs and primitive types as well as lifted function definitions
 * examples: Test suite as well as permutation sort and Quicksort algorithms
 * thesis: Example definitions from "Purely Functional Non-Deterministic Lazy Programming" and the thesis

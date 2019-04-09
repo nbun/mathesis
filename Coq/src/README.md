@@ -1,5 +1,7 @@
 # Coq
 
+In addition to the concepts presented in [Effect Handlers in Scope](https://people.cs.kuleuven.be/~tom.schrijvers/Research/papers/haskell2014.pdf), this implementation is based on the ideas of [One Monad to Prove Them All](https://arxiv.org/pdf/1805.08059.pdf).
+
 * Classes.v: Type classes required for deep sharing
 * Container.v: Definition of the container class and effect containers
 * DataM.v: Lifted data type definitions, lifted function definitions and type class instances
