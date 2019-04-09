@@ -12,6 +12,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
 
+-- Higher-Order implementation of the call-time choice effect
 module CallTimeChoiceHO where
 
 import           Control.Applicative    (Alternative (..))
@@ -22,9 +23,10 @@ import           Pretty
 import           SharingInterface
 import qualified Tree
 
----------
--- HND --
----------
+-----------------------------------------
+-- higher-order non-determinism effect --
+-----------------------------------------
+
 type ID = (Int, Int, Int)
 
 data HND m a = Fail' | Choice' (Maybe ID) (m a) (m a)
@@ -74,8 +76,10 @@ runND (Other op) = Op (handle (Tree.Leaf ()) hdl op)
       qt <- hdl q
       return $ Tree.Choice m pt qt
 
--- HShare
--------
+---------------------------------
+-- higher-order sharing effect --
+---------------------------------
+
 data HShare m a = forall x. Share' (Int, Int) (m x) (x -> m a)
 
 instance Functor m => Functor (HShare m) where
@@ -120,11 +124,12 @@ rShare (Share i p k) = go i 1 p >>= \r -> rShare (k $ runIdentity r)
 rShare (Other op)  = Op (handle (Identity ()) hdl op)
   where hdl imx = rShare (runIdentity imx)
 
--- state effect --
-------------------
+-------------------------------
+-- higher-order state effect --
+-------------------------------
+
 data HState s m a = Get' (s -> m a)
                   | Put' s (m a)
-
 
 instance HFunctor (HState m) where
   hmap t (Get' f)   = Get' (t . f)
@@ -153,9 +158,10 @@ runState s (Get k)    = runState s (k s)
 runState s (Put s' k) = runState s' k
 runState s (Other op) = Op (handle (s, ()) (uncurry runState) op)
 
+--------------------------------------
+-- sharing interface implementation --
+--------------------------------------
 
--- interface implementation --
-------------------------------
 type NDShare = Prog (HState (Int, Int) :+: HShare :+: HND :+: HVoid)
 
 runCurry :: NDShare a -> Tree.Tree a
@@ -169,7 +175,8 @@ instance (Syntax sig, HND :<: sig) => MonadPlus (Prog sig) where
   mplus = (||)
   mzero = fail
 
-instance (HState (Int, Int) :<: sig, HShare :<: sig, HND :<: sig) => Sharing (Prog sig) where
+instance (HState (Int, Int) :<: sig, HShare :<: sig, HND :<: sig)
+    => Sharing (Prog sig) where
   share p = do
     (i, j) <- get
     put (i + 1, j)
@@ -184,29 +191,20 @@ instance (HState (Int, Int) :<: sig, HShare :<: sig, HND :<: sig) => Sharing (Pr
 instance AllValues NDShare where
   allValues = runCurry . nf
 
-prettyProgNoShare :: (Pretty a, Show a)
-                  => Int -> [Int] -> [Int] -> Prog (HND :+: HVoid) a -> String
-prettyProgNoShare _ _    scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
-prettyProgNoShare _ _    _    Fail        = "!"
-prettyProgNoShare wsp ls scps (Choice m p q) =
-  "? " ++  showID m
-  ++ "\n" ++ lines ++ "├── " ++ prettyProgNoShare (wsp + 4) (wsp:ls) scps p
-  ++ "\n" ++ lines ++ "└── " ++ prettyProgNoShare (wsp + 4) ls       scps q
-  where showID Nothing  = ""
-        showID (Just x) = show x
-        lines = printLines (wsp:ls)
-
-printLines :: [Int] -> String
-printLines = printLines' 0 . reverse
-  where
-    printLines' p  [x] = replicate (x - p) ' '
-    printLines' p (x:xs)  | p == x    = '│' : printLines' (p + 1) xs
-                          | otherwise = ' ' : printLines' (p + 1) (x:xs)
+--------------------------------------------
+-- instance for pretty printing programs --
+--------------------------------------------
 
 instance (Pretty a, Show a) => Pretty (Prog (HND :+: HVoid) a) where
-  pretty' p _ = prettyProgNoShare 0 [] [] p
-
+  pretty' p _ = prettyProgNoShare 0 [] p
   pretty = flip pretty' 0
 
-
-
+prettyProgNoShare :: (Pretty a, Show a)
+                  => Int -> [Int] -> Prog (HND :+: HVoid) a -> String
+prettyProgNoShare _ _    (Return x)     = pretty x
+prettyProgNoShare _ _    Fail           = "!"
+prettyProgNoShare wsp ls (Choice m p q) =
+  "? " ++  showID m
+  ++ "\n" ++ lines ++ "├── " ++ prettyProgNoShare (wsp + 4) (wsp:ls) p
+  ++ "\n" ++ lines ++ "└── " ++ prettyProgNoShare (wsp + 4) ls       q
+  where lines = printLines (wsp:ls)

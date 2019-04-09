@@ -42,3 +42,13 @@ par s = "(" ++ s ++ ")"
 prettyPar :: (Pretty a) => String -> a -> String
 prettyPar s x = let r = pretty x
                 in s ++ " " ++ if isPared r then r else par r
+
+showID :: Show a => Maybe a -> String
+showID = maybe "" show
+
+printLines :: [Int] -> String
+printLines = printLines' 0 . reverse
+  where
+    printLines' p  [x] = replicate (x - p) ' '
+    printLines' p (x:xs)  | p == x    = '│' : printLines' (p + 1) xs
+                          | otherwise = ' ' : printLines' (p + 1) (x:xs)

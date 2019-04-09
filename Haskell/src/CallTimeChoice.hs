@@ -104,6 +104,7 @@ checkScope i scopes p =
 ------------------------------
 -- interface implementation --
 ------------------------------
+
 type NDShare = Prog (State (Int, Int) :+: Share :+: ND :+: Void)
 
 runCurry :: NDShare a -> Tree.Tree a
@@ -133,58 +134,42 @@ instance (Share :<: sig, State (Int, Int) :<: sig, ND :<: sig) => Sharing (Prog 
 instance AllValues NDShare where
   allValues = runCurry . nf
 
+--------------------------------------------
+-- instances for pretty printing programs --
+--------------------------------------------
+
 deriving instance Show a => Show (Prog (Share :+: ND :+: Void) a)
 
 instance (Pretty a, Show a) => Pretty (Prog (Share :+: ND :+: Void) a) where
   pretty' p _ = prettyProg 0 [] p
+  pretty      = flip pretty' 0
 
-  pretty = flip pretty' 0
+instance (Pretty a, Show a) => Pretty (Prog (ND :+: Void) a) where
+  pretty' p _ = prettyProgNoShare 0 [] p
+  pretty      = flip pretty' 0
 
 prettyProg :: (Pretty a, Show a)
            => Int -> [Int] -> Prog (Share :+: ND :+: Void) a -> String
-prettyProg _ _ (Return x)  = pretty x
-prettyProg wsp ls (BShare i p) =
-  "<" ++ si ++ " " ++ prettyProg (wsp + l) ls p
+prettyProg _ _ (Return x)        = pretty x
+prettyProg wsp ls (BShare i p)   = "<" ++ si ++ " " ++ prettyProg (wsp + l) ls p
   where si = show i
         l  = length si + 2
-prettyProg wsp ls (EShare i p) =
-  si ++ "> " ++ prettyProg (wsp + l) ls p
+prettyProg wsp ls (EShare i p)   = si ++ "> " ++ prettyProg (wsp + l) ls p
   where si = show i
         l  = length si + 2
-
-prettyProg _ _ Fail         = "!"
+prettyProg _ _ Fail              = "!"
 prettyProg wsp ls (Choice m p q) =
   "? " ++  showID m
   ++ "\n" ++ lines ++ "├── " ++ prettyProg (wsp + 4) (wsp:ls) p
   ++ "\n" ++ lines ++ "└── " ++ prettyProg (wsp + 4) ls       q
-  where showID Nothing  = ""
-        showID (Just x) = show x
-        lines = printLines (wsp:ls)
+  where lines = printLines (wsp:ls)
 
 prettyProgNoShare :: (Pretty a, Show a)
-                  => Int -> [Int] -> [Int] -> Prog (ND :+: Void) a -> String
-prettyProgNoShare _ _    scps (Return x)  = pretty x ++ concatMap (\scp -> ' ' : show scp ++ ">") scps
-prettyProgNoShare _ _    _    Fail        = "!"
-prettyProgNoShare wsp ls scps (Choice m p q) =
+                  => Int -> [Int] -> Prog (ND :+: Void) a -> String
+prettyProgNoShare _ _    (Return x)     = pretty x
+prettyProgNoShare _ _    Fail           = "!"
+prettyProgNoShare wsp ls (Choice m p q) =
   "? " ++  showID m
-  ++ "\n" ++ lines ++ "├── " ++ prettyProgNoShare (wsp + 4) (wsp:ls) scps p
-  ++ "\n" ++ lines ++ "└── " ++ prettyProgNoShare (wsp + 4) ls       scps q
-  where showID Nothing  = ""
-        showID (Just x) = show x
-        lines = printLines (wsp:ls)
-
-printLines :: [Int] -> String
-printLines = printLines' 0 . reverse
-  where
-    printLines' p  [x] = replicate (x - p) ' '
-    printLines' p (x:xs)  | p == x    = '│' : printLines' (p + 1) xs
-                          | otherwise = ' ' : printLines' (p + 1) (x:xs)
-
-instance (Pretty a, Show a) => Pretty (Prog (ND :+: Void) a) where
-  pretty' p _ = prettyProgNoShare 0 [] [] p
-
-  pretty = flip pretty' 0
--- Usage:
--- putStrLn $ pretty $ runShare $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool
--- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exOr2 :: NDShare Bool) :: NDShare Bool)
--- putStrLn $ pretty $ fmap snd $ runState 1 (nf (exShareSingleton :: NDShare (Pair NDShare (List NDShare Bool))) :: NDShare (Pair Identity (List Identity Bool)))
+  ++ "\n" ++ lines ++ "├── " ++ prettyProgNoShare (wsp + 4) (wsp:ls) p
+  ++ "\n" ++ lines ++ "└── " ++ prettyProgNoShare (wsp + 4) ls       q
+  where lines = printLines (wsp:ls)
