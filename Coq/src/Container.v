@@ -26,14 +26,17 @@ Section Zero.
 
   Inductive Void :=.
 
+  (** Original data type *)
   Definition Zero (A : Type) := Void.
 
   Definition Shape__Zero := Void.
 
   Definition Pos__Zero (s: Shape__Zero) := Void.
 
+  (** Container extension for Zero *)
   Definition Ext__Zero A := Ext Shape__Zero Pos__Zero A.
 
+  (** Transformation functions *)
   Definition to__Zero A (e: Ext__Zero A) : Zero A :=
     match e with
       ext s _ => match s with end
@@ -42,6 +45,7 @@ Section Zero.
   Definition from__Zero A (z: Zero A) : Ext__Zero A :=
     match z with end.
 
+  (** Isomorphism proofs *)
   Lemma to_from__Zero : forall A (ox : Zero A), to__Zero (from__Zero ox) = ox.
   Proof.
     intros A ox.
@@ -54,6 +58,7 @@ Section Zero.
     destruct s.
   Qed.
 
+  (** Container instance *)
   Instance C__Zero : Container Zero :=
     {
       Shape := Shape__Zero;

@@ -6,6 +6,7 @@ Require Import Thesis.Classes.
 
 Set Implicit Arguments.
 
+(** Smart constructors for state effect *)
 Definition Get : Prog (nat * nat) :=
   let s : @Shape _ NDShare := inl sget
   in impure (ext s pure).
@@ -14,6 +15,7 @@ Definition Put (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inl (sput n)
   in impure (ext s (fun _ => pure tt)).
 
+(** Smart constructors for sharing effect *)
 Definition BeginShare (n : nat * nat) : Prog unit :=
   let s : @Shape _ NDShare := inr (inl (sbsharing n))
   in impure (ext s (fun _ => pure tt)).
@@ -34,6 +36,7 @@ Definition Share A `(Shareable A) (p : Prog A) : Prog (Prog A) :=
         pure x').
 Arguments Share {_} {_} p.
 
+(** Smart constructors for non-determinism effect *)
 Definition Fail A : Prog A :=
   let s : @Shape _ NDShare := inr (inr sfail)
     in impure (ext s (fun p : @Pos _ NDShare s => match p with end)).
@@ -64,4 +67,5 @@ Definition Choice A mid l r : Prog A :=
   let s : @Shape _ NDShare := inr (inr (schoice mid))
   in impure (ext s (fun p : @Pos _ NDShare s => if p then l else r)).
 
+(** Curry notation for the choice operator *)
 Notation "x ? y" := (Choice None x y) (at level 80).

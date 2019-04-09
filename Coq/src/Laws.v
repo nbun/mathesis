@@ -57,6 +57,7 @@ Section SharingLaws.
   Variable nf__C : Normalform C C.
   Variable s__A : Shareable A.
 
+  (** Monad laws *)
   Theorem Lret : forall (f : A -> Prog B) (x : A), Eq_Prog _ (pure x >>= f) (f x).
   Proof. reflexivity. Qed.
   
@@ -75,6 +76,7 @@ Section SharingLaws.
     reflexivity.
   Qed.
 
+  (** MonadPlus laws *)
   Theorem Lzero : forall (f : A -> Prog B), Eq_Prog _ (Fail >>= f) Fail.
     intros f.
     unfold Eq_Prog, Fail.
@@ -95,6 +97,7 @@ Section SharingLaws.
     destruct p; reflexivity.
   Qed.
 
+  (** Laws of Sharing *)
  Theorem Fail : Eq_Prog _ (Share Fail) (pure Fail).
  Proof.
    intros.
@@ -131,7 +134,7 @@ Section SharingLaws.
    repeat (rewrite nf_impure).
    unfold free_bind.
    repeat (rewrite nf_bind).
-   simpl free_bind'.
+   simpl free_bind'. (* proof is stuck *)
  Admitted.
 
 End SharingLaws.

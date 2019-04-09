@@ -13,8 +13,10 @@ Section Eq_Prog.
   Variable A : Type.
   Variable NF__A : Normalform A A.
 
+  (** Programs are equal if the semantics described by the handler are equal *)
   Definition Eq_Prog (p1 p2 : Prog A) := handle p1 = handle p2.
 
+  (** Equivalence relation proofs *)
   Lemma eq_prog_refl : Reflexive Eq_Prog.
   Proof. 
     intros p.
@@ -39,6 +41,7 @@ Section Eq_Prog.
     assumption.
   Qed.
 
+  (** Equivalence relation instances *)
   Global Instance eq_Prog_Reflexive  : Reflexive Eq_Prog  := eq_prog_refl.
   Global Instance eq_Prog_Symmetric  : Symmetric Eq_Prog  := eq_prog_symm.
   Global Instance eq_Prog_Transitive : Transitive Eq_Prog := eq_prog_trans.

@@ -7,6 +7,7 @@ Require Import Lists.List.
 
 Import ListNotations.
 
+(** Recursive definitions are split due to termination check errors *)
 Fixpoint insert' (fx : Prog nat) (xs : List nat) : Prog (List nat) :=
   match xs with
   | Nil' _ => Fail
@@ -53,10 +54,13 @@ Inductive sorted : List nat -> Prop :=
 | sort_singleton : forall n, sorted (Cons' (pure n) nilM)
 | sort_cons : forall n m ns, le n m -> sorted (Cons' (pure n) (consM (pure m) ns)).
 
+(** Inductive definition of the singleton property *)
 Inductive singleton {A} : list A -> Prop :=
 | singletn : forall (x : A), singleton [x].
 
 Definition testList := convert [5;42;3;1].
 
-Lemma sorted_testList : let xs := handle (sort testList) in Forall sorted xs /\ singleton xs.
+(** The sort function sorts and is deterministic *)
+Lemma sorted_testList : let xs := handle (sort testList)
+                        in Forall sorted xs /\ singleton xs.
 Proof. repeat econstructor. Qed.

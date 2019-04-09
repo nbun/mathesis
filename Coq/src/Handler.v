@@ -40,7 +40,7 @@ Fixpoint runSharing A (fs : Prog__SC A) : Free C__Choice A :=
   (* let fix inlining necessary due to termination check problems *)
   let fix nameChoices (next : nat) (scope : nat * nat) (scopes : list (nat * nat)) (fs : Prog__SC A)
   : Free C__Choice A  :=
-      match fs with
+      match fs with (* inside scope handler *)
       | pure x => pure x
       | impure (ext (inl (sbsharing n)) pf) =>
         nameChoices 1 n (cons n scopes) (pf tt)
@@ -55,7 +55,7 @@ Fixpoint runSharing A (fs : Prog__SC A) : Free C__Choice A :=
         let r := nameChoices (next + 1) scope scopes (pf false)
         in Choice__C (Some (tripl scope next)) l r
       end
-  in match fs with
+  in match fs with (* outside scope handler *)
      | pure x => pure x
      | impure (ext (inl (sbsharing n))  pf) =>
        nameChoices 1 n (cons n nil) (pf tt)

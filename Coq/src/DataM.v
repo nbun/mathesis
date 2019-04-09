@@ -201,7 +201,7 @@ Section List.
 
   (** shareArgs shares the list head and list tail recursively *)
   Global Instance shareable__List A `(sa : Shareable A) : Shareable (List A) :=
-    {
+    { (* Share needs to be inlined due to termination check problems *)
       shareArgs := fun xs =>
                      let fix aux xs :=
                          let shr fp := Get >>= fun '(i,j) =>
