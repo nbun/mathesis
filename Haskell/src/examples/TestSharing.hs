@@ -11,7 +11,7 @@ import           Base
 import           Control.Monad         (MonadPlus (..))
 import           Data.Functor.Identity (Identity (..))
 import           Debug.Trace
-import           Pretty                (pprint)
+import           Pretty
 import           SharingInterface
 
 import           Data.ListM
@@ -319,6 +319,10 @@ tests = do
 deriving instance Show a => Show (Pair Identity a)
 deriving instance Show a => Show (List Identity a)
 
+--------------------------------------------------------------------------
+-- examples from "Purely Functional Lazy Non-Deterministic Programming" --
+--------------------------------------------------------------------------
+
 -- [(0,0),(0,1),(1,0),(1,1)]
 dup_coin_let :: (Sharing m, MonadPlus m) => m (Int, Int)
 dup_coin_let = let x = coini in duplicate x
@@ -375,37 +379,89 @@ distrib_bind_mplus = do c <- share coini
                         x <- c
                         cons (return x) (cons (return y) nil)
 
-exAddCoin :: NDShare Int
+--------------------------
+-- examples from thesis --
+--------------------------
+
+exAddCoin :: MonadPlus m => m Int
 exAddCoin = addM coini coini
 
-exAddSharedCoin :: NDShare Int
+exAddSharedCoin :: (Sharing m, MonadPlus m) => m Int
 exAddSharedCoin = share coini >>= \fx -> addM fx fx
 
-exAddSharedCoin2 :: NDShare Int
-exAddSharedCoin2 = share coini >>= \fx -> addM (addM fx coini) (addM fx coini)
+exAddSharedCoinTwice :: (Sharing m, MonadPlus m) => m Int
+exAddSharedCoinTwice = share coini >>= \fx -> addM (addM fx coini) (addM fx coini)
 
-exAddSharedCoin3 :: NDShare Int
-exAddSharedCoin3 = share (share coini >>= \fx -> addM fx fx) >>= \fy -> addM fy fy
+exAddSharedCoinNested :: (Sharing m, MonadPlus m) => m Int
+exAddSharedCoinNested = share (share coini >>= \fx -> addM fx fx) >>=
+                          \fy -> addM fy fy
 
-exAddSharedCoin4 :: NDShare Int
-exAddSharedCoin4 =
+exAddSharedCoinClash :: (Sharing m, MonadPlus m) => m Int
+exAddSharedCoinClash =
   share (share coini >>= \fx -> addM fx fx) >>=
-  \fy -> share coini >>= \fz -> addM fy fz
+    \fy -> share coini >>= \fz -> addM fy fz
 
-exAddSharedCoin5 :: NDShare Int
-exAddSharedCoin5 =
-  share (cons coini nil) >>= \fxs -> addM (headM fxs) (headM fxs)
-
-exAddCoinListFun :: NDShare Int -> NDShare (List NDShare Int)
+exAddCoinListFun :: (Sharing m, MonadPlus m) => m Int -> m (List m Int)
 exAddCoinListFun mx = do
   my <- share mx
   cons my (exAddCoinListFun (addM my coini))
 
-exAddSharedCoin6 :: NDShare Int
-exAddSharedCoin6 = do
+exAddSharedCoinRec :: (Sharing m, MonadPlus m) => m Int
+exAddSharedCoinRec = do
   mx <- share (return 0)
   addM mx $ do
     my <- share (addM mx coini)
     addM my $ do
       mz <- share (addM my coini)
       addM mz (return 1)
+
+exAddDeepSharedCoin :: (Sharing m, MonadPlus m) => m Int
+exAddDeepSharedCoin =
+  share (cons coini nil) >>= \fxs -> addM (headM fxs) (headM fxs)
+
+-------------------------------------------
+-- definitions for printing choice trees --
+-------------------------------------------
+
+handle :: (Show a, Pretty a) => NDShare a -> IO ()
+handle = putStrLn . pretty . runShare . fmap snd . runState (0,0)
+
+handleState :: (Show a, Pretty a) => NDShare a -> IO ()
+handleState = putStrLn . pretty . fmap snd . runState (0,0)
+
+-- The functions are called with examples of matching type, i. e.
+-- choiceTreeB for exOr2 and choiceTreeLB for exDupl.
+
+-- choice trees
+choiceTree :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+            => NDShare a -> IO ()
+choiceTree ex = handle (nf ex :: NDShare a)
+
+choiceTreeL :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+            => NDShare (List NDShare a) -> IO ()
+choiceTreeL ex = handle (nf ex :: NDShare (List Identity a))
+
+choiceTreeP :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+            => NDShare (Pair NDShare a) -> IO ()
+choiceTreeP ex = handle (nf ex :: NDShare (Pair Identity a))
+
+choiceTreeLP :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+             => NDShare (Pair NDShare (List NDShare a)) -> IO ()
+choiceTreeLP ex = handle (nf ex :: NDShare (Pair Identity (List Identity a)))
+
+-- choice trees with sharing scopes
+shareTree :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+            => NDShare a -> IO ()
+shareTree ex = handleState (nf ex :: NDShare a)
+
+shareTreeL :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+            => NDShare (List NDShare a) -> IO ()
+shareTreeL ex = handleState (nf ex :: NDShare (List Identity a))
+
+shareTreeP :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+            => NDShare (Pair NDShare a) -> IO ()
+shareTreeP ex = handleState (nf ex :: NDShare (Pair Identity a))
+
+shareTreeLP :: forall a. (Show a, Pretty a, Normalform NDShare a a)
+             => NDShare (Pair NDShare (List NDShare a)) -> IO ()
+shareTreeLP ex = handleState (nf ex :: NDShare (Pair Identity (List Identity a)))
