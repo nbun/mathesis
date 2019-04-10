@@ -4,6 +4,8 @@ module Tree where
 
 import qualified Data.Map as Map
 
+-- The first two Ints of an ID are the sharing scope ID, the third
+-- component is a counter assigned by the handler
 type ID = (Int, Int, Int)
 
 data Tree a = Failed

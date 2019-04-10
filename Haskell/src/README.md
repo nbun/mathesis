@@ -10,6 +10,7 @@ This implementation is based on [Effect Handlers in Scope](https://people.cs.kul
 * CallTimeChoice.hs: Implementation of the call-time choice effect with explicit scope delimiters
 * CallTimeChoiceHO.hs : Higher-Order implementation of the call-time choice effect
 * CallTimeChoiceHybrid.hs: Hybrid implementation **DOES NOT WORK; ONLY KEPT FOR DOCUMENTATION PURPOSES**
+* Convert.hs: Converting data types in the corresponding lifted representation
 * HO.hs: Definition of the basic higher-order effect handler infrastructure
 * Pretty.hs: Pretty printing of choice trees
 * SharingInterface.hs: Interface for defining explicit sharing implementations

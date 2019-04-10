@@ -16,31 +16,10 @@ import           SharingInterface
 
 import           Data.ListM
 import           Data.PrimM
+import           Convert
 
 -- import whatever implementation you like to test
 import           CallTimeChoice
-
-class Convertible m a b where
-    convert :: a -> m b
-
-instance (Monad m) => Convertible m Int Int where
-    convert = return
-
-instance (Monad m) => Convertible m Bool Bool where
-    convert = return
-
-instance (Monad m) => Convertible m [Int] [Int] where
-    convert = return
-
-instance (Monad m, Convertible m a b) => Convertible m (List m a) [b] where
-    convert Nil = return []
-    convert (Cons mx mxs) = (mx >>= convert) >>= \y ->
-                            (mxs >>= convert) >>= \ys ->
-                            return (y:ys)
-
-instance (Monad m, Convertible m a b) => Convertible m [a] (List m b) where
-    convert []     = nil
-    convert (x:xs) = cons (convert x) (convert xs)
 
 testList1, testList2, testList3 :: [Int]
 testList1 = [5,42,3,1]
@@ -92,6 +71,7 @@ isSorted' mx mxs = mxs >>= \xs -> case xs of
                                          if x <= y
                                            then isSorted' (return y) mys
                                            else return False
+main :: IO ()
 main = do
   args <- getArgs
   case args of

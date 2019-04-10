@@ -5,6 +5,7 @@ import           Tree
 
 class Pretty a where
   pretty  :: a -> String
+  -- Pretty function with whitespace indentation level
   pretty' :: a -> Int -> String
   pretty' x _ = pretty x
 
@@ -32,6 +33,7 @@ instance (Pretty a, Pretty b) => Pretty (a,b) where
 pprint :: Pretty a => a -> IO ()
 pprint = putStrLn . pretty
 
+-- Is a string surrounded by parentheses?
 isPared :: String -> Bool
 isPared (c:cs) | c == '(' && last cs == ')' = True
 isPared _      = False
@@ -39,6 +41,7 @@ isPared _      = False
 par :: String -> String
 par s = "(" ++ s ++ ")"
 
+-- Adds parentheses only if necessary
 prettyPar :: (Pretty a) => String -> a -> String
 prettyPar s x = let r = pretty x
                 in s ++ " " ++ if isPared r then r else par r
