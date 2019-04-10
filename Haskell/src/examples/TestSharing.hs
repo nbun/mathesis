@@ -302,9 +302,45 @@ tests = do
                   ])
 
                ]
+      exIs = [ (exAddCoin,"exAddCoin",[0,1,1,2])
+              , (exAddSharedCoin,"exAddSharedCoin",[0,2])
+              , (exAddSharedCoinTwice,"exAddSharedCoinTwice",[0,1,1,2,2,3,3,4])
+              , (exAddSharedCoinNested,"exAddSharedCoinNested",[0,4])
+              , (exAddSharedCoinClash,"exAddSharedCoinClash",[0,1,2,3])
+              , (exAddSharedCoinRec,"exAddSharedCoinRec",[1,2,3,4])
+              , (exAddDeepSharedCoin,"exAddDeepSharedCoin",[0,2])
+              ]
+
+      exPFLNDPIs = [ (dup_coin_let, "dup_coin_let", [(0,0),(0,1),(1,0),(1,1)])
+                   , (dup_coin_bind, "dup_coin_bind", [(0,0), (1,1)])
+                   , (dup_coin_share, "dup_coin_share", [(0,0), (1,1)])
+                   , (lazy_share, "lazy_share", [(2,2)])
+                   ]
+
+      exPFLNDPLIs = [(heads_bind, "heads_bind",
+                      [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+                      , Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil)))
+                      , Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil)))
+                      , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))])
+                    , (heads_share, "heads_share",
+                      [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+                      , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))])
+                    , (dup_first_coin, "dup_first_coin",
+                       [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+                       , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))])
+                    , (distrib_bind_mplus, "distrib_bind_mplus",
+                       [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
+                       , Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil)))
+                       , Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil)))
+                       , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))])
+                    ]
+
       maxName = maximum (map (\(_,name,_) -> length name) exBs ++
                          map (\(_,name,_) -> length name) exPBs ++
-                         map (\(_,name,_) -> length name) exLBs)
+                         map (\(_,name,_) -> length name) exLBs ++
+                         map (\(_,name,_) -> length name) exIs ++
+                         map (\(_,name,_) -> length name) exPFLNDPIs ++
+                         map (\(_,name,_) -> length name) exPFLNDPLIs)
       prettyName name = name ++ ": " ++ replicate (maxName - length name) ' '
 
   -- Based on the imported implementation, the annotations for `e` might have to be adapted!
@@ -316,6 +352,13 @@ tests = do
           >> pprint (collectVals (e :: NDShare (List NDShare Bool)) == v)) exLBs
   mapM_ (\(e,name,v) -> putStr (prettyName name)
           >> pprint (collectVals (e :: NDShare (Pair NDShare (List NDShare Bool))) == v)) exLPBs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare Int) == (v :: [Int]))) exIs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare (Int, Int)) == (v :: [(Int, Int)]))) exPFLNDPIs
+  mapM_ (\(e,name,v) -> putStr (prettyName name)
+          >> pprint (collectVals (e :: NDShare (List NDShare Int)) == (v :: [List Identity Int]))) exPFLNDPLIs
+
 
 deriving instance Show a => Show (Pair Identity a)
 deriving instance Show a => Show (List Identity a)
@@ -324,16 +367,13 @@ deriving instance Show a => Show (List Identity a)
 -- examples from "Purely Functional Lazy Non-Deterministic Programming" --
 --------------------------------------------------------------------------
 
--- [(0,0),(0,1),(1,0),(1,1)]
 dup_coin_let :: (Sharing m, MonadPlus m) => m (Int, Int)
 dup_coin_let = let x = coini in duplicate x
 
--- [(0,0),(1,1)]
 dup_coin_bind :: (Sharing m, MonadPlus m) => m (Int, Int)
 dup_coin_bind = do x <- coini
                    duplicate (return x)
 
--- [(0,0),(1,1)]
 dup_coin_share :: (Sharing m, MonadPlus m) => m (Int, Int)
 dup_coin_share = do x <- share coini
                     duplicate x
@@ -343,21 +383,14 @@ strict_bind :: forall m. (Sharing m, MonadPlus m) => m (Int, Int)
 strict_bind = do x <- undefined :: m Int
                  duplicate (const (return 2)
                                   ((return :: a -> m a) x))
--- [(2,2)]
 lazy_share :: (Sharing m, MonadPlus m) => m (Int, Int)
 lazy_share = do x <- share (undefined :: m Int)
                 duplicate (const (return 2) x)
 
--- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
--- , Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil)))
--- , Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil)))
--- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 heads_bind :: (Sharing m, MonadPlus m) => m (List m Int)
 heads_bind = do x <- cons coini undefined
                 dupl (firstM (return x))
 
--- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
--- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 heads_share :: (Sharing m, MonadPlus m) => m (List m Int)
 heads_share = do x <- share (cons coini undefined)
                  dupl (firstM x)
@@ -365,15 +398,10 @@ heads_share = do x <- share (cons coini undefined)
 coinis :: MonadPlus m => m (List m Int)
 coinis = nil `mplus` cons coini coinis
 
--- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
--- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
 dup_first_coin :: (Sharing m, MonadPlus m) => m (List m Int)
 dup_first_coin = do cs <- share coinis
                     dupl (firstM cs)
--- [ Cons (Identity 0) (Identity (Cons (Identity 0) (Identity Nil)))
--- , Cons (Identity 1) (Identity (Cons (Identity 0) (Identity Nil)))
--- , Cons (Identity 0) (Identity (Cons (Identity 1) (Identity Nil)))
--- , Cons (Identity 1) (Identity (Cons (Identity 1) (Identity Nil)))]
+
 distrib_bind_mplus :: (Sharing m, MonadPlus m) => m (List m Int)
 distrib_bind_mplus = do c <- share coini
                         y <- coini

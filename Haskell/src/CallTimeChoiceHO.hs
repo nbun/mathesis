@@ -195,6 +195,10 @@ instance AllValues NDShare where
 -- instance for pretty printing programs --
 --------------------------------------------
 
+instance (Pretty a, Show a) => Pretty (Prog (HShare :+: HND :+: HVoid) a) where
+  pretty' p _ = error "HO implementation does not support visualizing sharing scopes"
+  pretty      = flip pretty' 0
+
 instance (Pretty a, Show a) => Pretty (Prog (HND :+: HVoid) a) where
   pretty' p _ = prettyProgNoShare 0 [] p
   pretty = flip pretty' 0
